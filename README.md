@@ -33,10 +33,10 @@ Beacon is designed to behave like a senior platform architect reviewing infrastr
 More infrastructure platforms coming soon.
 ---
 ## Installation
-bash pip install beaconops
+``` bash pip install beaconops ```
 ---
 ## Run Locally
-bash git clone https://github.com/<your-org>/beacon.git  cd beacon  pip install -r requirements.txt  python -m beacon.cli scan ./examples/bad-infra
+``` bash git clone https://github.com/<your-org>/beacon.git  cd beacon  pip install -r requirements.txt  python -m beacon.cli scan ./examples/bad-infra
 ---
 ## Roadmap
 - GitHub PR reviews
