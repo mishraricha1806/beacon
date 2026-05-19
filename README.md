@@ -53,7 +53,9 @@ More infrastructure platforms coming soon.
 ``` bash pip install beaconops ```
 ---
 ## Run Locally
-``` bash git clone https://github.com/<your-org>/beacon.git  cd beacon  pip install -r requirements.txt  python -m beacon.cli scan ./examples/bad-infra ```
+``` bash git clone https://github.com/<your-org>/beacon.git  ```
+```  cd beacon  pip install -r requirements.txt ```
+```  python -m beacon.cli scan ./examples/bad-infra ```
 ---
 ## Roadmap
 - GitHub PR reviews
