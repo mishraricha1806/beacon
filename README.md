@@ -20,9 +20,18 @@ Beacon helps platform engineers catch these risks early.
 - CLI-first workflow
 ---
 ## Example
-bash beacon scan ./examples/bad-infra
+``` beacon scan ./examples/bad-infra ```
 Output:
-text Production Readiness Score: 61/100  CRITICAL: - Kafka topic payments has replication_factor=1 - IAM policy contains wildcard permissions - No DLQ configured for payment-consumer  Impact: Single broker failure may interrupt payment processing workflows.
+
+``` Production Readiness Score: 61/100
+
+CRITICAL:
+- Kafka topic payments has replication_factor=1
+- IAM policy contains wildcard permissions
+- No DLQ configured for payment-consumer  
+
+Impact:
+Single broker failure may interrupt payment processing workflows. ```
 ---
 ## Philosophy
 Beacon is designed to behave like a senior platform architect reviewing infrastructure for production readiness.
