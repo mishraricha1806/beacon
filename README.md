@@ -31,10 +31,14 @@ Beacon helps platform engineers catch these risks early.
 CRITICAL:
 - Kafka topic payments has replication_factor=1
 - IAM policy contains wildcard permissions
-- No DLQ configured for payment-consumer  
+- No DLQ configured for payment-consumer
 
 Impact:
-Single broker failure may interrupt payment processing workflows. ```
+Single broker failure may interrupt payment processing workflows.
+```
+
+
+
 
 ---
 ## Philosophy
