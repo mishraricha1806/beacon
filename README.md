@@ -1,5 +1,7 @@
 # Beacon
-Production-readiness intelligence for modern infrastructure.
+**Production-readiness intelligence for modern infrastructure.
+**
+
 Beacon detects risky infrastructure configurations, operational anti-patterns, and production-readiness issues before deployment.
 ---
 ## Why Beacon?
@@ -21,7 +23,8 @@ Beacon helps platform engineers catch these risks early.
 ---
 ## Example
 ``` beacon scan ./examples/bad-infra ```
-Output:
+
+## Output:
 
 ``` Production Readiness Score: 61/100
 
@@ -32,6 +35,7 @@ CRITICAL:
 
 Impact:
 Single broker failure may interrupt payment processing workflows. ```
+
 ---
 ## Philosophy
 Beacon is designed to behave like a senior platform architect reviewing infrastructure for production readiness.
