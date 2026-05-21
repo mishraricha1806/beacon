@@ -1,0 +1,107 @@
+
+<html>
+<head>
+    <title>Beacon Report</title>
+    <style>
+        body {
+            font-family: Arial;
+            margin: 40px;
+            background: #0f172a;
+            color: white;
+        }
+
+        h1 {
+            color: #38bdf8;
+        }
+
+        .score {
+            font-size: 28px;
+            margin-bottom: 20px;
+        }
+
+        .finding {
+            border: 1px solid #334155;
+            padding: 16px;
+            margin-bottom: 16px;
+            border-radius: 8px;
+            background: #111827;
+        }
+
+        .CRITICAL { border-left: 6px solid #ef4444; }
+        .HIGH { border-left: 6px solid #f97316; }
+        .MEDIUM { border-left: 6px solid #eab308; }
+
+    </style>
+</head>
+<body>
+
+<h1>Beacon Infrastructure Report</h1>
+
+<div class="score">
+Production Readiness Score: <strong>22/100</strong>
+</div>
+
+
+<div class="finding CRITICAL">
+    <h3>CRITICAL - Kafka topic 'payments' has replication factor 1</h3>
+
+    <p><strong>Impact:</strong> A broker failure can make this topic unavailable and interrupt production workflows.</p>
+
+    <p><strong>Recommendation:</strong> Use replication_factor=3 for production topics.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding HIGH">
+    <h3>HIGH - Kafka topic 'payments' has low partition count</h3>
+
+    <p><strong>Impact:</strong> Low partitions can limit consumer parallelism and reduce throughput.</p>
+
+    <p><strong>Recommendation:</strong> Use at least 3 partitions for production workloads, then tune based on throughput.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding MEDIUM">
+    <h3>MEDIUM - Kafka topic 'payments' has retention below 24 hours</h3>
+
+    <p><strong>Impact:</strong> Short retention reduces replay capability during incidents.</p>
+
+    <p><strong>Recommendation:</strong> Use retention based on recovery and audit requirements.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding CRITICAL">
+    <h3>CRITICAL - Kafka topic 'orders' has replication factor 2</h3>
+
+    <p><strong>Impact:</strong> A broker failure can make this topic unavailable and interrupt production workflows.</p>
+
+    <p><strong>Recommendation:</strong> Use replication_factor=3 for production topics.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding HIGH">
+    <h3>HIGH - Kafka topic 'orders' has low partition count</h3>
+
+    <p><strong>Impact:</strong> Low partitions can limit consumer parallelism and reduce throughput.</p>
+
+    <p><strong>Recommendation:</strong> Use at least 3 partitions for production workloads, then tune based on throughput.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding MEDIUM">
+    <h3>MEDIUM - Kafka topic 'orders' has retention below 24 hours</h3>
+
+    <p><strong>Impact:</strong> Short retention reduces replay capability during incidents.</p>
+
+    <p><strong>Recommendation:</strong> Use retention based on recovery and audit requirements.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+
+</body>
+</html>
