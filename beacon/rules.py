@@ -23,8 +23,11 @@ def evaluate_kafka_config(data, file):
         rf = topic.get("replication_factor")
         partitions = topic.get("partitions")
         retention_ms = topic.get("retention_ms")
+        retention_bytes = topic.get("retention_bytes")
         cleanup_policy = topic.get("cleanup_policy")
         min_isr = topic.get("min_insync_replicas")
+        segment_bytes = topic.get("segment_bytes")
+        max_message_bytes = topic.get("max_message_bytes")
 
         # Replication factor
         if rf is not None and rf < 3:
@@ -46,7 +49,7 @@ def evaluate_kafka_config(data, file):
                 file
             ))
 
-        # Retention
+        # Retention time
         if retention_ms is not None and retention_ms < 86400000:
             findings.append(finding(
                 "MEDIUM",
@@ -56,17 +59,17 @@ def evaluate_kafka_config(data, file):
                 file
             ))
 
-        # Cleanup policy
+        # Missing cleanup policy
         if cleanup_policy is None:
             findings.append(finding(
                 "MEDIUM",
                 f"Kafka topic '{name}' does not define cleanup policy",
-                "Undefined cleanup policy may create unpredictable retention behavior.",
-                "Explicitly configure cleanup_policy.",
+                "Undefined cleanup policy may create unpredictable retention and disk behavior.",
+                "Explicitly configure cleanup_policy as delete, compact, or compact,delete.",
                 file
             ))
 
-        # Min ISR
+        # Missing min ISR
         if min_isr is None:
             findings.append(finding(
                 "HIGH",
@@ -76,9 +79,69 @@ def evaluate_kafka_config(data, file):
                 file
             ))
 
+        # Missing retention bytes
+        if retention_bytes is None:
+            findings.append(finding(
+                "HIGH",
+                f"Kafka topic '{name}' does not define retention_bytes",
+                "Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.",
+                "Set retention_bytes based on broker disk capacity, expected throughput, and recovery needs.",
+                file
+            ))
+
+        # High storage multiplier
+        if rf is not None and partitions is not None:
+            storage_units = rf * partitions
+
+            if storage_units >= 30:
+                findings.append(finding(
+                    "HIGH",
+                    f"Kafka topic '{name}' has high storage multiplier: partitions({partitions}) x replication_factor({rf}) = {storage_units}",
+                    "High partition and replica count increases broker disk usage, replication traffic, and recovery load.",
+                    "Validate broker disk capacity, partition distribution, and expected data volume.",
+                    file
+                ))
+
+            elif storage_units >= 15:
+                findings.append(finding(
+                    "MEDIUM",
+                    f"Kafka topic '{name}' has moderate storage multiplier: partitions({partitions}) x replication_factor({rf}) = {storage_units}",
+                    "Replica storage grows with every partition and can increase disk pressure during traffic spikes.",
+                    "Review whether partition count and replication factor match actual throughput needs.",
+                    file
+                ))
+
+        # Large message size risk
+        if max_message_bytes is not None and max_message_bytes > 1048576:
+            findings.append(finding(
+                "HIGH",
+                f"Kafka topic '{name}' allows messages larger than 1MB",
+                "Large messages increase broker disk I/O, memory pressure, network usage, and consumer processing latency.",
+                "Keep Kafka messages small where possible; store large payloads externally and pass references through Kafka.",
+                file
+            ))
+
+        # Very large segment size risk
+        if segment_bytes is not None and segment_bytes > 1073741824:
+            findings.append(finding(
+                "MEDIUM",
+                f"Kafka topic '{name}' has segment_bytes greater than 1GB",
+                "Large log segments can delay cleanup and make disk recovery behavior less predictable.",
+                "Use segment size based on retention, cleanup frequency, and operational recovery needs.",
+                file
+            ))
+
+        # Compacted topic without delete policy
+        if cleanup_policy == "compact" and retention_bytes is None:
+            findings.append(finding(
+                "MEDIUM",
+                f"Kafka compacted topic '{name}' has no retention_bytes limit",
+                "Compacted topics can still consume significant disk if key cardinality is high or tombstone cleanup is delayed.",
+                "Set retention_bytes or review compaction and key cardinality assumptions.",
+                file
+            ))
+
     return findings
-
-
 # =========================================================
 # Terraform Rules
 # =========================================================

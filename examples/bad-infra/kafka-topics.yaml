@@ -3,8 +3,17 @@ topics:
     replication_factor: 1
     partitions: 1
     retention_ms: 3600000
+    max_message_bytes: 2097152
 
   - name: orders
-    replication_factor: 2
-    partitions: 2
-    retention_ms: 43200000
+    replication_factor: 3
+    partitions: 12
+    retention_ms: 604800000
+    cleanup_policy: delete
+    min_insync_replicas: 2
+    segment_bytes: 2147483648
+
+  - name: customer-profile-cache
+    replication_factor: 3
+    partitions: 6
+    cleanup_policy: compact

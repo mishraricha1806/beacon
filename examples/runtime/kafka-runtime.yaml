@@ -1,0 +1,16 @@
+kafka_runtime:
+  broker_disk_usage_percent: 84
+  disk_growth_percent_7d: 22
+
+  retention_bytes_configured: false
+  cleanup_policy_configured: false
+
+  producer_rate_increased: true
+  consumer_lag_increasing: true
+  avg_message_size_increased: true
+
+  under_replicated_partitions: 0
+
+  broker_count: 3
+  partition_count: 420
+  replication_factor: 3
