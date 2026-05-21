@@ -194,3 +194,34 @@ Run runtime Kafka advisor:
 ```bash
 python3 -m beacon.cli runtime ./examples/runtime/kafka-runtime.yaml
 ```
+
+## Planned Secure Kafka Runtime Connection
+
+Beacon currently supports runtime analysis using a YAML snapshot.
+
+Future versions will support direct Kafka cluster analysis using:
+
+```bash
+python3 -m beacon.cli runtime-kafka \
+  --bootstrap-server kafka1.example.com:9093 \
+  --security-protocol SSL \
+  --ca-cert /secure/path/ca.pem \
+  --client-cert /secure/path/client.pem \
+  --client-key /secure/path/client.key
+
+## Planned Secure Kafka Runtime Connection
+
+Beacon currently supports runtime analysis using a YAML snapshot.
+
+Future versions will support direct Kafka cluster analysis using:
+
+```bash
+python3 -m beacon.cli runtime-kafka \
+  --bootstrap-server kafka1.example.com:9093 \
+  --security-protocol SSL \
+  --ca-cert /secure/path/ca.pem \
+  --client-cert /secure/path/client.pem \
+  --client-key /secure/path/client.key
+
+
+Direct Kafka bootstrap-server runtime connection is planned, not yet implemented.
