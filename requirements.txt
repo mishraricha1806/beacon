@@ -1,0 +1,4 @@
+typer
+pyyaml
+python-hcl2
+rich
