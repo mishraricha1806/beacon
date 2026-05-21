@@ -38,7 +38,7 @@
 <h1>Beacon Infrastructure Report</h1>
 
 <div class="score">
-Production Readiness Score: <strong>22/100</strong>
+Production Readiness Score: <strong>0/100</strong>
 </div>
 
 
@@ -57,17 +57,37 @@ Production Readiness Score: <strong>22/100</strong>
 
     <p><strong>Impact:</strong> Low partitions can limit consumer parallelism and reduce throughput.</p>
 
-    <p><strong>Recommendation:</strong> Use at least 3 partitions for production workloads, then tune based on throughput.</p>
+    <p><strong>Recommendation:</strong> Use at least 3 partitions for production workloads.</p>
 
     <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 </div>
 
 <div class="finding MEDIUM">
-    <h3>MEDIUM - Kafka topic 'payments' has retention below 24 hours</h3>
+    <h3>MEDIUM - Kafka topic 'payments' retention is below 24 hours</h3>
 
     <p><strong>Impact:</strong> Short retention reduces replay capability during incidents.</p>
 
-    <p><strong>Recommendation:</strong> Use retention based on recovery and audit requirements.</p>
+    <p><strong>Recommendation:</strong> Increase retention based on recovery and audit requirements.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding MEDIUM">
+    <h3>MEDIUM - Kafka topic 'payments' does not define cleanup policy</h3>
+
+    <p><strong>Impact:</strong> Undefined cleanup policy may create unpredictable retention behavior.</p>
+
+    <p><strong>Recommendation:</strong> Explicitly configure cleanup_policy.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding HIGH">
+    <h3>HIGH - Kafka topic 'payments' does not define min.insync.replicas</h3>
+
+    <p><strong>Impact:</strong> Missing min ISR configuration can weaken durability guarantees during broker failure.</p>
+
+    <p><strong>Recommendation:</strong> Configure min.insync.replicas for production topics.</p>
 
     <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 </div>
@@ -87,17 +107,37 @@ Production Readiness Score: <strong>22/100</strong>
 
     <p><strong>Impact:</strong> Low partitions can limit consumer parallelism and reduce throughput.</p>
 
-    <p><strong>Recommendation:</strong> Use at least 3 partitions for production workloads, then tune based on throughput.</p>
+    <p><strong>Recommendation:</strong> Use at least 3 partitions for production workloads.</p>
 
     <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 </div>
 
 <div class="finding MEDIUM">
-    <h3>MEDIUM - Kafka topic 'orders' has retention below 24 hours</h3>
+    <h3>MEDIUM - Kafka topic 'orders' retention is below 24 hours</h3>
 
     <p><strong>Impact:</strong> Short retention reduces replay capability during incidents.</p>
 
-    <p><strong>Recommendation:</strong> Use retention based on recovery and audit requirements.</p>
+    <p><strong>Recommendation:</strong> Increase retention based on recovery and audit requirements.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding MEDIUM">
+    <h3>MEDIUM - Kafka topic 'orders' does not define cleanup policy</h3>
+
+    <p><strong>Impact:</strong> Undefined cleanup policy may create unpredictable retention behavior.</p>
+
+    <p><strong>Recommendation:</strong> Explicitly configure cleanup_policy.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding HIGH">
+    <h3>HIGH - Kafka topic 'orders' does not define min.insync.replicas</h3>
+
+    <p><strong>Impact:</strong> Missing min ISR configuration can weaken durability guarantees during broker failure.</p>
+
+    <p><strong>Recommendation:</strong> Configure min.insync.replicas for production topics.</p>
 
     <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 </div>
