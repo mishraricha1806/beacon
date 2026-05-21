@@ -2,40 +2,60 @@
 
 Production-readiness intelligence for modern infrastructure.
 
-Beacon detects risky infrastructure configurations, operational anti-patterns, and production-readiness issues before deployment.
+Beacon detects risky infrastructure configurations, operational anti-patterns, and runtime infrastructure risks before they impact production systems.
 
 ---
 
 ## Why Beacon?
 
-Infrastructure failures are often caused by:
+Modern infrastructure failures are rarely caused by a single metric.
+
+Operational issues often emerge from a combination of:
 
 * weak Terraform configurations
 * Kafka scaling mistakes
-* insecure IAM permissions
-* missing resiliency patterns
-* poor operational defaults
+* storage pressure
+* replication imbalance
+* consumer lag
+* infrastructure growth patterns
+* unsafe operational defaults
 
-Beacon helps platform engineers catch these risks early.
-
----
-
-## Current Features
-
-* Kafka production-readiness checks
-* Terraform infrastructure validation
-* Infrastructure risk scoring
-* Operational risk explanations
-* CLI-first workflow
+Beacon helps platform engineers understand infrastructure risk before and during production.
 
 ---
 
-## Example
+## Current Capabilities
 
-Run Beacon against infrastructure configuration files:
+### Infrastructure Review
+
+Beacon analyzes infrastructure configurations and detects:
+
+* Kafka production-readiness risks
+* Terraform infrastructure weaknesses
+* Object storage exposure risks
+* Kafka storage configuration issues
+* IAM permission risks
+* Operational anti-patterns
+
+---
+
+### Runtime Kafka Intelligence
+
+Beacon can analyze runtime Kafka signals and recommend whether teams should:
+
+* expand broker disk capacity
+* optimize retention and cleanup
+* investigate producer behavior
+* investigate consumer lag
+* review message size growth
+* rebalance operational workloads
+
+---
+
+## Example: Infrastructure Scan
 
 ```bash
-python3 -m beacon.cli ./examples/bad-infra
+python3 -m beacon.cli scan ./examples/bad-infra
 ```
 
 Example output:
@@ -45,55 +65,111 @@ Beacon Production Readiness Score: 41/100
 
 CRITICAL:
 - Kafka topic 'payments' has replication factor 1
-- S3 bucket public access protection is weak
+- Object storage public access protection is weak
 
 HIGH:
-- Kafka topic 'payments' has low partition count
-- Kafka topic 'orders' has low partition count
-
-MEDIUM:
-- Kafka topic retention below recommended production threshold
+- Kafka topic 'payments' does not define retention_bytes
+- Kafka topic 'orders' has high storage multiplier
 
 Impact:
-A broker failure can make topics unavailable and interrupt production workflows.
+A broker failure can interrupt production workflows and increase recovery risk.
+```
+
+---
+
+## Example: Runtime Kafka Advisor
+
+```bash
+python3 -m beacon.cli runtime ./examples/runtime/kafka-runtime.yaml
+```
+
+Example runtime decision:
+
+```text
+Decision:
+Investigate producer/consumer behavior before only expanding disk.
+
+Reason:
+Disk usage crossed 80%, while producer throughput,
+message size, and consumer lag increased recently.
+
+Recommendation:
+Review producer payload changes, consumer processing latency,
+retention settings, and topic growth patterns before scaling storage.
+```
+
+---
+
+## HTML Report Generation
+
+Beacon automatically generates browser-based HTML reports for:
+
+* infrastructure findings
+* operational risk summaries
+* runtime diagnostics
+* production-readiness scoring
+
+Reports are generated under:
+
+```text
+reports/report.html
 ```
 
 ---
 
 ## Current Support
 
-Beacon currently supports:
+### Infrastructure Providers
 
-* Terraform (`.tf`)
-* Kafka YAML configurations (`.yaml`, `.yml`)
+* Terraform
+* Kafka configurations
+* AWS object storage
+* GCP object storage
+* Azure storage configurations
 
----
+### Runtime Intelligence
 
-## Project Structure
-
-```text
-beacon/
-├── beacon/
-│   ├── cli.py
-│   ├── scanner.py
-│   ├── rules.py
-│   └── reporter.py
-│
-├── examples/
-│   └── bad-infra/
-│       ├── kafka-topics.yaml
-│       └── main.tf
-│
-├── tests/
-├── README.md
-└── requirements.txt
-```
+* Kafka disk pressure analysis
+* Consumer lag impact analysis
+* Producer throughput growth analysis
+* Storage growth reasoning
+* Capacity recommendation engine
 
 ---
 
-## Installation
+## Philosophy
 
-Clone the repository:
+Beacon is designed to behave like a senior platform architect reviewing infrastructure and operational behavior for production readiness.
+
+The goal is not just detecting configuration issues,
+but helping engineers understand WHY infrastructure becomes operationally risky.
+
+---
+
+## Roadmap
+
+### Near-Term
+
+* Real Kafka cluster integration
+* Kafka Admin API support
+* Prometheus metrics ingestion
+* Dynatrace integration
+* Datadog integration
+* GitHub PR reviews
+
+### Long-Term
+
+* Infrastructure graph intelligence
+* Deployment risk analysis
+* Runtime operational reasoning
+* Kubernetes operational intelligence
+* AI-assisted infrastructure diagnostics
+
+---
+
+## Run Locally
+
+Clone repository:
 
 ```bash
 git clone https://github.com/<your-username>/beacon.git
@@ -107,35 +183,14 @@ Install dependencies:
 pip3 install -r requirements.txt
 ```
 
----
-
-## Run Beacon
+Run infrastructure review:
 
 ```bash
-python3 -m beacon.cli ./examples/bad-infra
+python3 -m beacon.cli scan ./examples/bad-infra
 ```
 
----
+Run runtime Kafka advisor:
 
-## Philosophy
-
-Beacon is designed to behave like a senior platform architect reviewing infrastructure for production readiness.
-
-The goal is not just detecting configuration issues, but explaining their operational impact before production deployment.
-
----
-
-## Roadmap
-
-* GitHub PR reviews
-* AI-powered operational explanations
-* Infrastructure graph analysis
-* Kafka lag diagnostics
-* Kubernetes support
-* Runtime operational intelligence
-
----
-
-## License
-
-
+```bash
+python3 -m beacon.cli runtime ./examples/runtime/kafka-runtime.yaml
+```
