@@ -1,5 +1,6 @@
 from rich.console import Console
 from rich.table import Table
+from beacon.html_report import generate_html_report
 
 console = Console()
 
@@ -48,3 +49,4 @@ def print_report(findings):
         )
 
     console.print(table)
+    generate_html_report(findings, score)
