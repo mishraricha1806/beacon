@@ -8,17 +8,25 @@ app = typer.Typer(help="Beacon - Production-readiness intelligence for modern in
 
 
 @app.command()
-def scan(path: str):
+def scan(
+    path: str,
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser.")
+):
     """Scan infrastructure configuration for production risks."""
     findings = scan_path(path)
-    print_report(findings)
+    print_report(findings, html=html, open_report=open_report)
 
 
 @app.command()
-def runtime(path: str):
+def runtime(
+    path: str,
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser.")
+):
     """Analyze runtime Kafka signals and recommend scale vs optimize vs code investigation."""
     findings = analyze_runtime_file(path)
-    print_report(findings)
+    print_report(findings, html=html, open_report=open_report)
 
 
 if __name__ == "__main__":

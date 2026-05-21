@@ -61,7 +61,7 @@ Production Readiness Score: <strong>{{ score }}/100</strong>
 </html>
 """
 
-def generate_html_report(findings, score):
+def generate_html_report(findings, score, open_report=True):
     os.makedirs("reports", exist_ok=True)
 
     template = Template(HTML_TEMPLATE)
@@ -76,4 +76,5 @@ def generate_html_report(findings, score):
     with open(output_path, "w") as f:
         f.write(html_content)
 
-    webbrowser.open(f"file://{os.path.abspath(output_path)}")
+    if open_report:
+        webbrowser.open(f"file://{os.path.abspath(output_path)}")

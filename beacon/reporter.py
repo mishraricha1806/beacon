@@ -1,5 +1,6 @@
 from rich.console import Console
 from rich.table import Table
+
 from beacon.html_report import generate_html_report
 
 console = Console()
@@ -7,8 +8,10 @@ console = Console()
 
 def calculate_score(findings):
     penalty = 0
+
     for f in findings:
         severity = f["severity"]
+
         if severity == "CRITICAL":
             penalty += 20
         elif severity == "HIGH":
@@ -23,16 +26,21 @@ def calculate_score(findings):
     return max(0, 100 - penalty)
 
 
-def print_report(findings):
+def print_report(findings, html=True, open_report=True):
     score = calculate_score(findings)
 
     console.print(f"\n[bold cyan]Beacon Production Readiness Score:[/bold cyan] {score}/100\n")
 
     if not findings:
         console.print("[green]No major production risks found.[/green]")
+
+        if html:
+            generate_html_report(findings, score, open_report=open_report)
+
         return
 
     table = Table(title="Beacon Findings")
+
     table.add_column("Severity", style="bold")
     table.add_column("Issue")
     table.add_column("Impact")
@@ -49,4 +57,6 @@ def print_report(findings):
         )
 
     console.print(table)
-    generate_html_report(findings, score)
+
+    if html:
+        generate_html_report(findings, score, open_report=open_report)
