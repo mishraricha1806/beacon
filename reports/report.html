@@ -38,88 +38,148 @@
 <h1>Beacon Infrastructure Report</h1>
 
 <div class="score">
-Production Readiness Score: <strong>14/100</strong>
+Production Readiness Score: <strong>0/100</strong>
 </div>
 
 
-<div class="finding HIGH">
-    <h3>HIGH - Kafka broker disk usage is above warning threshold: 84%</h3>
+<div class="finding CRITICAL">
+    <h3>CRITICAL - Kafka topic 'payments' has replication factor 1</h3>
 
-    <p><strong>Impact:</strong> Disk usage above 80% indicates limited capacity buffer for traffic spikes, retention growth, or replication recovery.</p>
+    <p><strong>Impact:</strong> A broker failure can make this topic unavailable and interrupt production workflows.</p>
 
-    <p><strong>Recommendation:</strong> Analyze whether this is caused by capacity shortage, retention settings, producer volume, or consumer lag.</p>
+    <p><strong>Recommendation:</strong> Use replication_factor=3 for production topics.</p>
 
-    <p><strong>File:</strong> ./examples/runtime/kafka-runtime.yaml</p>
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 </div>
 
 <div class="finding HIGH">
-    <h3>HIGH - Kafka retention_bytes is not configured while disk usage is high</h3>
+    <h3>HIGH - Kafka topic 'payments' has low partition count</h3>
 
-    <p><strong>Impact:</strong> Without retention_bytes, disk growth may depend only on time-based retention and producer volume.</p>
+    <p><strong>Impact:</strong> Low partitions can limit consumer parallelism and reduce throughput.</p>
 
-    <p><strong>Recommendation:</strong> Set retention_bytes per topic based on broker disk capacity, expected throughput, and recovery requirements.</p>
+    <p><strong>Recommendation:</strong> Use at least 3 partitions for production workloads.</p>
 
-    <p><strong>File:</strong> ./examples/runtime/kafka-runtime.yaml</p>
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 </div>
 
 <div class="finding MEDIUM">
-    <h3>MEDIUM - Kafka cleanup policy is not explicitly configured while disk usage is high</h3>
+    <h3>MEDIUM - Kafka topic 'payments' retention is below 24 hours</h3>
 
-    <p><strong>Impact:</strong> Unclear cleanup behavior makes disk usage less predictable during traffic spikes.</p>
+    <p><strong>Impact:</strong> Short retention reduces replay capability during incidents.</p>
 
-    <p><strong>Recommendation:</strong> Explicitly configure cleanup_policy as delete, compact, or compact,delete depending on topic purpose.</p>
+    <p><strong>Recommendation:</strong> Increase retention based on recovery and audit requirements.</p>
 
-    <p><strong>File:</strong> ./examples/runtime/kafka-runtime.yaml</p>
-</div>
-
-<div class="finding HIGH">
-    <h3>HIGH - Kafka disk usage increased by 22% in 7 days</h3>
-
-    <p><strong>Impact:</strong> Rapid disk growth suggests traffic, retention, message size, or cleanup behavior changed recently.</p>
-
-    <p><strong>Recommendation:</strong> Check recent deployments, producer throughput, message size, topic growth, and retention cleanup.</p>
-
-    <p><strong>File:</strong> ./examples/runtime/kafka-runtime.yaml</p>
-</div>
-
-<div class="finding HIGH">
-    <h3>HIGH - Kafka producer rate increased while disk usage is high</h3>
-
-    <p><strong>Impact:</strong> Disk pressure may be driven by increased event volume rather than raw disk capacity shortage.</p>
-
-    <p><strong>Recommendation:</strong> Validate whether producer traffic increase is expected. Check recent producer deployments and event volume changes.</p>
-
-    <p><strong>File:</strong> ./examples/runtime/kafka-runtime.yaml</p>
-</div>
-
-<div class="finding HIGH">
-    <h3>HIGH - Kafka average message size increased while disk usage is high</h3>
-
-    <p><strong>Impact:</strong> Larger messages increase disk usage, network traffic, memory pressure, and consumer processing latency.</p>
-
-    <p><strong>Recommendation:</strong> Review producer payload changes. Move large payloads to object storage and publish references through Kafka.</p>
-
-    <p><strong>File:</strong> ./examples/runtime/kafka-runtime.yaml</p>
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 </div>
 
 <div class="finding MEDIUM">
-    <h3>MEDIUM - Kafka consumer lag is increasing during disk pressure</h3>
+    <h3>MEDIUM - Kafka topic 'payments' does not define cleanup policy</h3>
 
-    <p><strong>Impact:</strong> Consumer lag can increase retained data volume and delay cleanup impact visibility.</p>
+    <p><strong>Impact:</strong> Undefined cleanup policy may create unpredictable retention and disk behavior.</p>
 
-    <p><strong>Recommendation:</strong> Check consumer processing latency, database calls, external API calls, retry behavior, and poison messages.</p>
+    <p><strong>Recommendation:</strong> Explicitly configure cleanup_policy as delete, compact, or compact,delete.</p>
 
-    <p><strong>File:</strong> ./examples/runtime/kafka-runtime.yaml</p>
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 </div>
 
 <div class="finding HIGH">
-    <h3>HIGH - Decision: Investigate producer/consumer behavior before only expanding disk</h3>
+    <h3>HIGH - Kafka topic 'payments' does not define min.insync.replicas</h3>
 
-    <p><strong>Impact:</strong> Disk pressure appears linked to workload behavior such as producer volume, message size, or consumer lag.</p>
+    <p><strong>Impact:</strong> Missing min ISR configuration can weaken durability guarantees during broker failure.</p>
 
-    <p><strong>Recommendation:</strong> Check recent code deployments, producer payload changes, consumer processing latency, retries, and lag by partition. Expand disk only if growth remains after workload correction.</p>
+    <p><strong>Recommendation:</strong> Configure min.insync.replicas for production topics.</p>
 
-    <p><strong>File:</strong> ./examples/runtime/kafka-runtime.yaml</p>
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding HIGH">
+    <h3>HIGH - Kafka topic 'payments' does not define retention_bytes</h3>
+
+    <p><strong>Impact:</strong> Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.</p>
+
+    <p><strong>Recommendation:</strong> Set retention_bytes based on broker disk capacity, expected throughput, and recovery needs.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding HIGH">
+    <h3>HIGH - Kafka topic 'payments' allows messages larger than 1MB</h3>
+
+    <p><strong>Impact:</strong> Large messages increase broker disk I/O, memory pressure, network usage, and consumer processing latency.</p>
+
+    <p><strong>Recommendation:</strong> Keep Kafka messages small where possible; store large payloads externally and pass references through Kafka.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding HIGH">
+    <h3>HIGH - Kafka topic 'orders' does not define retention_bytes</h3>
+
+    <p><strong>Impact:</strong> Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.</p>
+
+    <p><strong>Recommendation:</strong> Set retention_bytes based on broker disk capacity, expected throughput, and recovery needs.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding HIGH">
+    <h3>HIGH - Kafka topic 'orders' has high storage multiplier: partitions(12) x replication_factor(3) = 36</h3>
+
+    <p><strong>Impact:</strong> High partition and replica count increases broker disk usage, replication traffic, and recovery load.</p>
+
+    <p><strong>Recommendation:</strong> Validate broker disk capacity, partition distribution, and expected data volume.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding MEDIUM">
+    <h3>MEDIUM - Kafka topic 'orders' has segment_bytes greater than 1GB</h3>
+
+    <p><strong>Impact:</strong> Large log segments can delay cleanup and make disk recovery behavior less predictable.</p>
+
+    <p><strong>Recommendation:</strong> Use segment size based on retention, cleanup frequency, and operational recovery needs.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding HIGH">
+    <h3>HIGH - Kafka topic 'customer-profile-cache' does not define min.insync.replicas</h3>
+
+    <p><strong>Impact:</strong> Missing min ISR configuration can weaken durability guarantees during broker failure.</p>
+
+    <p><strong>Recommendation:</strong> Configure min.insync.replicas for production topics.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding HIGH">
+    <h3>HIGH - Kafka topic 'customer-profile-cache' does not define retention_bytes</h3>
+
+    <p><strong>Impact:</strong> Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.</p>
+
+    <p><strong>Recommendation:</strong> Set retention_bytes based on broker disk capacity, expected throughput, and recovery needs.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding MEDIUM">
+    <h3>MEDIUM - Kafka topic 'customer-profile-cache' has moderate storage multiplier: partitions(6) x replication_factor(3) = 18</h3>
+
+    <p><strong>Impact:</strong> Replica storage grows with every partition and can increase disk pressure during traffic spikes.</p>
+
+    <p><strong>Recommendation:</strong> Review whether partition count and replication factor match actual throughput needs.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
+</div>
+
+<div class="finding MEDIUM">
+    <h3>MEDIUM - Kafka compacted topic 'customer-profile-cache' has no retention_bytes limit</h3>
+
+    <p><strong>Impact:</strong> Compacted topics can still consume significant disk if key cardinality is high or tombstone cleanup is delayed.</p>
+
+    <p><strong>Recommendation:</strong> Set retention_bytes or review compaction and key cardinality assumptions.</p>
+
+    <p><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 </div>
 
 

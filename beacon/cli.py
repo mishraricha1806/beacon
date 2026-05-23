@@ -10,6 +10,16 @@ from beacon.scanner import scan_path
 from beacon.reporter import print_report
 from beacon.runtime_advisor import analyze_runtime_file
 from beacon.kafka_runtime_connector import analyze_kafka_cluster
+from beacon.readiness.kafka.readiness_engine import (
+    calculate_readiness
+)
+
+from beacon.readiness.readiness_reporter import (
+    print_readiness_summary
+)
+
+
+
 
 app = typer.Typer(
     help="Beacon - Operational intelligence for modern infrastructure."
@@ -24,6 +34,14 @@ app.add_typer(
     name="diagnose"
 )
 
+readiness_app = typer.Typer(
+    help="Production readiness analysis."
+)
+
+app.add_typer(
+    readiness_app,
+    name="readiness"
+)
 
 @app.command()
 def scan(
@@ -112,6 +130,67 @@ def diagnose_kubernetes():
     """Future Kubernetes operational diagnostics."""
     typer.echo("Kubernetes diagnostics coming soon.")
 
+
+@readiness_app.command("kafka")
+def readiness_kafka(
+    bootstrap_server: str = typer.Option(...),
+    security_protocol: str = typer.Option("PLAINTEXT"),
+    ca_cert: str = typer.Option(None),
+    client_cert: str = typer.Option(None),
+    client_key: str = typer.Option(None),
+
+    topic: str = typer.Option(None),
+
+    max_topics: int = typer.Option(50),
+    max_groups: int = typer.Option(20),
+
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal")
+):
+    findings = analyze_kafka_cluster(
+        bootstrap_server=bootstrap_server,
+        security_protocol=security_protocol,
+        ca_cert=ca_cert,
+        client_cert=client_cert,
+        client_key=client_key,
+        max_topics=max_topics,
+        topic=topic,
+        max_groups=max_groups,
+    )
+
+    readiness_summary = calculate_readiness(findings)
+
+    print_readiness_summary(readiness_summary)
+
+    print_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output
+    )
+
+@readiness_app.command("static")
+def readiness_static(
+        path: str,
+        html: bool = typer.Option(True),
+        open_report: bool = typer.Option(True),
+        output: str = typer.Option("terminal")
+   ):
+        """Analyze infrastructure production readiness."""
+
+        findings = scan_path(path)
+
+        readiness_summary = calculate_readiness(findings)
+
+        print_readiness_summary(readiness_summary)
+
+        print_report(
+            findings,
+            html=html,
+            open_report=open_report,
+            output=output
+        )
 
 if __name__ == "__main__":
     app()
