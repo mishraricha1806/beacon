@@ -4,6 +4,8 @@ Production-readiness intelligence for modern infrastructure.
 
 Beacon detects risky infrastructure configurations, operational anti-patterns, and runtime infrastructure risks before they impact production systems.
 
+Beacon combines infrastructure analysis with runtime operational diagnostics to help engineers understand WHY systems become unstable — not just WHAT metric changed.
+
 ---
 
 ## Why Beacon?
@@ -17,10 +19,16 @@ Operational issues often emerge from a combination of:
 * storage pressure
 * replication imbalance
 * consumer lag
+* partition imbalance
+* downstream dependency slowness
 * infrastructure growth patterns
 * unsafe operational defaults
 
-Beacon helps platform engineers understand infrastructure risk before and during production.
+Most tools expose telemetry.
+
+Beacon focuses on:
+
+# operational reasoning.
 
 ---
 
@@ -32,23 +40,40 @@ Beacon analyzes infrastructure configurations and detects:
 
 * Kafka production-readiness risks
 * Terraform infrastructure weaknesses
-* Object storage exposure risks
+* object storage exposure risks
 * Kafka storage configuration issues
 * IAM permission risks
-* Operational anti-patterns
+* operational anti-patterns
 
 ---
 
 ### Runtime Kafka Intelligence
 
-Beacon can analyze runtime Kafka signals and recommend whether teams should:
+Beacon can connect directly to Kafka in:
 
-* expand broker disk capacity
-* optimize retention and cleanup
-* investigate producer behavior
-* investigate consumer lag
-* review message size growth
-* rebalance operational workloads
+# read-only diagnostic mode
+
+and analyze:
+
+* broker metadata
+* topic configuration
+* replication factor
+* retention settings
+* partition topology
+* consumer group lag
+* hot partition symptoms
+* storage growth pressure
+* operational bottlenecks
+
+Beacon can generate operational recommendations such as:
+
+* investigate downstream DB/API latency
+* review partition key strategy
+* optimize retention configuration
+* review consumer throughput
+* increase partition parallelism
+* investigate rebalance instability
+* review producer throughput growth
 
 ---
 
@@ -77,7 +102,7 @@ A broker failure can interrupt production workflows and increase recovery risk.
 
 ---
 
-## Example: Runtime Kafka Advisor
+## Example: Runtime Snapshot Analysis
 
 ```bash
 python3 -m beacon.cli runtime ./examples/runtime/kafka-runtime.yaml
@@ -100,6 +125,61 @@ retention settings, and topic growth patterns before scaling storage.
 
 ---
 
+## Example: Live Kafka Diagnostics
+
+```bash
+python3 -m beacon.cli diagnose kafka \
+  --bootstrap-server localhost:9092
+```
+
+---
+
+## Diagnose Specific Topic
+
+```bash
+python3 -m beacon.cli diagnose kafka \
+  --bootstrap-server localhost:9092 \
+  --topic payments
+```
+
+---
+
+## Diagnose Specific Consumer Group
+
+```bash
+python3 -m beacon.cli diagnose kafka \
+  --bootstrap-server localhost:9092 \
+  --consumer-group payment-consumer
+```
+
+---
+
+## JSON Output
+
+```bash
+python3 -m beacon.cli diagnose kafka \
+  --bootstrap-server localhost:9092 \
+  --output json
+```
+
+---
+
+## Example Runtime Findings
+
+```text
+HIGH:
+High Kafka consumer lag detected for group 'payment-consumer'
+
+Impact:
+Consumer lag exceeded operational threshold and may increase processing delay.
+
+Recommendation:
+Check downstream DB/API latency, consumer processing time,
+rebalance frequency, retry loops, and recent deployments.
+```
+
+---
+
 ## HTML Report Generation
 
 Beacon automatically generates browser-based HTML reports for:
@@ -117,6 +197,26 @@ reports/report.html
 
 ---
 
+## Runtime Safety
+
+Beacon runtime diagnostics are:
+
+# read-only by design
+
+Beacon does NOT:
+
+* consume business messages
+* produce messages
+* alter topics
+* delete topics
+* modify ACLs
+* update consumer offsets
+* mutate infrastructure
+
+Beacon only uses metadata and offset inspection APIs for diagnostics.
+
+---
+
 ## Current Support
 
 ### Infrastructure Providers
@@ -129,11 +229,44 @@ reports/report.html
 
 ### Runtime Intelligence
 
-* Kafka disk pressure analysis
-* Consumer lag impact analysis
-* Producer throughput growth analysis
-* Storage growth reasoning
-* Capacity recommendation engine
+* Kafka consumer lag diagnostics
+* hot partition detection
+* partition parallelism analysis
+* Kafka storage pressure analysis
+* producer throughput growth analysis
+* retention configuration analysis
+* operational recommendation engine
+
+---
+
+## Diagnose Domains
+
+```text
+diagnose/
+├── kafka
+├── flow          (planned)
+└── kubernetes    (planned)
+```
+
+---
+
+## Performance Philosophy
+
+Beacon is designed to be:
+
+* lightweight
+* low-latency
+* operationally safe
+* deterministic-first
+* metadata-driven
+
+Beacon intentionally avoids:
+
+* full telemetry ingestion
+* heavy broker load
+* consuming Kafka traffic
+* excessive runtime overhead
+* observability platform complexity
 
 ---
 
@@ -142,7 +275,12 @@ reports/report.html
 Beacon is designed to behave like a senior platform architect reviewing infrastructure and operational behavior for production readiness.
 
 The goal is not just detecting configuration issues,
-but helping engineers understand WHY infrastructure becomes operationally risky.
+but helping engineers understand:
+
+* WHY infrastructure becomes operationally risky
+* WHY consumer lag increases
+* WHY runtime degradation happens
+* WHAT operational decision engineers should take next
 
 ---
 
@@ -150,20 +288,27 @@ but helping engineers understand WHY infrastructure becomes operationally risky.
 
 ### Near-Term
 
-* Real Kafka cluster integration
-* Kafka Admin API support
+* lag trend analysis
+* rebalance storm diagnostics
+* producer spike analysis
+* deployment correlation
+* flow diagnostics
 * Prometheus metrics ingestion
-* Dynatrace integration
-* Datadog integration
+* Grafana integration
+* summarized Splunk log correlation
 * GitHub PR reviews
+
+---
 
 ### Long-Term
 
-* Infrastructure graph intelligence
-* Deployment risk analysis
-* Runtime operational reasoning
+* distributed operational intelligence
+* deployment risk analysis
+* runtime operational reasoning
 * Kubernetes operational intelligence
-* AI-assisted infrastructure diagnostics
+* AI-assisted root-cause reasoning
+* operational pattern memory
+* distributed flow correlation engine
 
 ---
 
@@ -189,39 +334,19 @@ Run infrastructure review:
 python3 -m beacon.cli scan ./examples/bad-infra
 ```
 
-Run runtime Kafka advisor:
+Run Kafka runtime diagnostics:
 
 ```bash
-python3 -m beacon.cli runtime ./examples/runtime/kafka-runtime.yaml
+python3 -m beacon.cli diagnose kafka \
+  --bootstrap-server localhost:9092
 ```
 
-## Planned Secure Kafka Runtime Connection
+---
 
-Beacon currently supports runtime analysis using a YAML snapshot.
+## Beacon Philosophy
 
-runtime-kafka uses Kafka AdminClient in read-only diagnostic mode.
-It does not consume messages, produce messages, alter topics, delete topics, or update offsets.
-```bash
-python3 -m beacon.cli runtime-kafka \
-  --bootstrap-server kafka1.example.com:9093 \
-  --security-protocol SSL \
-  --ca-cert /secure/path/ca.pem \
-  --client-cert /secure/path/client.pem \
-  --client-key /secure/path/client.key
+Observability tools show signals.
 
-## Planned Secure Kafka Runtime Connection
+Beacon focuses on:
 
-Beacon currently supports runtime analysis using a YAML snapshot.
-
-Future versions will support direct Kafka cluster analysis using:
-
-```bash
-python3 -m beacon.cli runtime-kafka \
-  --bootstrap-server kafka1.example.com:9093 \
-  --security-protocol SSL \
-  --ca-cert /secure/path/ca.pem \
-  --client-cert /secure/path/client.pem \
-  --client-key /secure/path/client.key
-
-
-Direct Kafka bootstrap-server runtime connection is planned, not yet implemented.
+# operational causality and runtime reasoning.
