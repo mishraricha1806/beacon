@@ -199,8 +199,8 @@ python3 -m beacon.cli runtime ./examples/runtime/kafka-runtime.yaml
 
 Beacon currently supports runtime analysis using a YAML snapshot.
 
-Future versions will support direct Kafka cluster analysis using:
-
+runtime-kafka uses Kafka AdminClient in read-only diagnostic mode.
+It does not consume messages, produce messages, alter topics, delete topics, or update offsets.
 ```bash
 python3 -m beacon.cli runtime-kafka \
   --bootstrap-server kafka1.example.com:9093 \

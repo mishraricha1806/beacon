@@ -1,3 +1,5 @@
+import json
+
 from rich.console import Console
 from rich.table import Table
 
@@ -26,8 +28,17 @@ def calculate_score(findings):
     return max(0, 100 - penalty)
 
 
-def print_report(findings, html=True, open_report=True):
+def print_report(findings, html=True, open_report=True, output="terminal"):
     score = calculate_score(findings)
+
+    if output == "json":
+        payload = {
+            "score": score,
+            "findings": findings
+        }
+
+        console.print(json.dumps(payload, indent=2))
+        return
 
     console.print(f"\n[bold cyan]Beacon Production Readiness Score:[/bold cyan] {score}/100\n")
 

@@ -4,4 +4,4 @@ python-hcl2
 rich
 jinja2
 confluent-kafka
-
+pytest
