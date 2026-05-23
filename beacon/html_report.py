@@ -61,14 +61,15 @@ Production Readiness Score: <strong>{{ score }}/100</strong>
 </html>
 """
 
-def generate_html_report(findings, score, open_report=True):
+def generate_html_report(findings, score, open_report=True, readiness_summary=None):
     os.makedirs("reports", exist_ok=True)
 
     template = Template(HTML_TEMPLATE)
 
     html_content = template.render(
         findings=findings,
-        score=score
+        score=score,
+        readiness_summary=readiness_summary
     )
 
     output_path = "reports/report.html"
