@@ -1,11 +1,23 @@
-def finding(severity, title, impact, recommendation, file):
-    return {
+def finding(severity, title, impact, recommendation, file, rule_id=None, evidence=None):
+    """Create a finding dict. New optional fields:
+    - rule_id: stable identifier for the rule that produced this finding
+    - evidence: small dict describing the source/path/value that triggered the rule
+    """
+    out = {
         "severity": severity,
         "title": title,
         "impact": impact,
         "recommendation": recommendation,
-        "file": file
+        "file": file,
     }
+
+    if rule_id:
+        out["rule_id"] = rule_id
+
+    if evidence:
+        out["evidence"] = evidence
+
+    return out
 
 
 # =========================================================
@@ -17,7 +29,7 @@ def evaluate_kafka_config(data, file):
 
     topics = data.get("topics", [])
 
-    for topic in topics:
+    for idx, topic in enumerate(topics):
         name = topic.get("name", "unknown-topic")
 
         rf = topic.get("replication_factor")
@@ -36,7 +48,13 @@ def evaluate_kafka_config(data, file):
                 f"Kafka topic '{name}' has replication factor {rf}",
                 "A broker failure can make this topic unavailable and interrupt production workflows.",
                 "Use replication_factor=3 for production topics.",
-                file
+                file,
+                rule_id="kafka.topic.replication_factor.min",
+                evidence={
+                    "source": "file",
+                    "path": f"topics[{idx}].replication_factor",
+                    "value": rf
+                }
             ))
 
         # Partition count
@@ -86,7 +104,13 @@ def evaluate_kafka_config(data, file):
                 f"Kafka topic '{name}' does not define retention_bytes",
                 "Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.",
                 "Set retention_bytes based on broker disk capacity, expected throughput, and recovery needs.",
-                file
+                file,
+                rule_id="kafka.topic.retention_bytes.missing",
+                evidence={
+                    "source": "file",
+                    "path": f"topics[{idx}].retention_bytes",
+                    "value": retention_bytes
+                }
             ))
 
         # High storage multiplier
@@ -157,18 +181,24 @@ def evaluate_terraform_config(data, file):
             # AWS S3 public access block
             if resource_type == "aws_s3_bucket_public_access_block":
                 for name, config in instances.items():
-                    if (
-                        config.get("block_public_acls") is False
-                        or config.get("block_public_policy") is False
-                        or config.get("ignore_public_acls") is False
-                        or config.get("restrict_public_buckets") is False
-                    ):
+                    offending = []
+                    for key in ("block_public_acls", "block_public_policy", "ignore_public_acls", "restrict_public_buckets"):
+                        if config.get(key) is False:
+                            offending.append(key)
+
+                    if offending:
                         findings.append(finding(
                             "CRITICAL",
                             f"Object storage public access protection is weak: {name}",
                             "Public object storage exposure can lead to sensitive data leakage.",
                             "Block public access unless there is an explicit approved exception.",
-                            file
+                            file,
+                            rule_id="aws.s3.public_access_block.weak",
+                            evidence={
+                                "source": "file",
+                                "path": f"resource.{resource_type}.{name}",
+                                "offending_keys": offending
+                            }
                         ))
 
             # AWS S3 bucket

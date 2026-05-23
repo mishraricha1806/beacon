@@ -131,6 +131,16 @@ HTML_TEMPLATE = """
             color: #94a3b8;
         }
 
+        .evidence {
+            margin-top: 8px;
+            background: #0b1220;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 13px;
+            color: #cbd5e1;
+            border: 1px solid #1f2937;
+        }
+
         .text-block {
             line-height: 1.6;
             color: #cbd5e1;
@@ -284,9 +294,23 @@ HTML_TEMPLATE = """
             <div class="finding {{ finding.severity }}">
                 <div class="severity {{ finding.severity }}">{{ finding.severity }}</div>
                 <div class="finding-title">{{ finding.title }}</div>
+                {% if finding.rule_id %}
+                <div class="muted">Rule: <strong>{{ finding.rule_id }}</strong></div>
+                {% endif %}
                 <p class="text-block"><strong>Impact:</strong> {{ finding.impact }}</p>
                 <p class="text-block"><strong>Recommendation:</strong> {{ finding.recommendation }}</p>
                 <p class="muted"><strong>File:</strong> {{ finding.file }}</p>
+
+                {% if finding.evidence %}
+                <div class="evidence">
+                    <strong>Evidence</strong>
+                    <ul>
+                        {% for k, v in finding.evidence.items() %}
+                        <li><span class="muted">{{ k }}:</span> {{ v }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
         {% else %}
