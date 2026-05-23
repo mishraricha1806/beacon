@@ -17,6 +17,8 @@ def print_readiness_summary(summary):
     console.print(f"[bold]High Findings:[/bold] {summary['high']}")
     console.print(f"[bold]Medium Findings:[/bold] {summary['medium']}")
     console.print(f"[bold]Low Findings:[/bold] {summary['low']}\n")
+    console.print(f"[bold]Production Decision:[/bold] {summary['production_decision']}")
+    console.print(f"[bold]Primary Risk Area:[/bold] {summary['primary_risk_area']}\n")
 
     table = Table(title="Production Readiness Categories")
     table.add_column("Category")
@@ -29,5 +31,15 @@ def print_readiness_summary(summary):
             data["risk"],
             str(data["findings"])
         )
+
+    console.print("[bold]Top Reasons:[/bold]")
+    for reason in summary["top_reasons"]:
+        console.print(f"- {reason}")
+
+    console.print("\n[bold]Next Best Actions:[/bold]")
+    for action in summary["next_best_actions"]:
+         console.print(f"- {action}")
+
+    console.print()
 
     console.print(table)

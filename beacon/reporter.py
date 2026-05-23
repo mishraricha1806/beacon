@@ -28,12 +28,18 @@ def calculate_score(findings):
     return max(0, 100 - penalty)
 
 
-def print_report(findings, html=True, open_report=True, output="terminal"):
+def print_report(findings, html=True, open_report=True, output="terminal", readiness_summary=None):
+    """Print or emit the report in a chosen format.
+
+    readiness_summary: optional dict produced by readiness engines. When provided,
+    the JSON and HTML outputs will include it for richer reports.
+    """
     score = calculate_score(findings)
 
     if output == "json":
         payload = {
             "score": score,
+            "readiness_summary": readiness_summary,
             "findings": findings
         }
 
@@ -46,7 +52,7 @@ def print_report(findings, html=True, open_report=True, output="terminal"):
         console.print("[green]No major production risks found.[/green]")
 
         if html:
-            generate_html_report(findings, score, open_report=open_report)
+            generate_html_report(findings, score, open_report=open_report, readiness_summary=readiness_summary)
 
         return
 
@@ -70,4 +76,4 @@ def print_report(findings, html=True, open_report=True, output="terminal"):
     console.print(table)
 
     if html:
-        generate_html_report(findings, score, open_report=open_report)
+        generate_html_report(findings, score, open_report=open_report, readiness_summary=readiness_summary)

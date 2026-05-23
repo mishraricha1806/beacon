@@ -147,13 +147,18 @@ def analyze_kafka_cluster(
             str(e),
             "Check bootstrap server, network access, security protocol, certificates, and firewall rules."
         ))
-    findings.extend(
-        analyze_consumer_group_lag(
-            admin_client=admin_client,
-            consumer_group=consumer_group,
-            max_groups=max_groups,
+        # If we failed to build or connect the AdminClient, return early.
+        return findings
+    # Only analyze consumer groups when admin client was created successfully
+    if 'admin_client' in locals() and admin_client is not None:
+        findings.extend(
+            analyze_consumer_group_lag(
+                admin_client=admin_client,
+                consumer_group=consumer_group,
+                max_groups=max_groups,
+            )
         )
-    )
+
     return findings
 
 

@@ -167,7 +167,8 @@ def readiness_kafka(
         findings,
         html=html,
         open_report=open_report,
-        output=output
+        output=output,
+        readiness_summary=readiness_summary
     )
 
 @readiness_app.command("static")
@@ -189,7 +190,8 @@ def readiness_static(
             findings,
             html=html,
             open_report=open_report,
-            output=output
+            output=output,
+            readiness_summary=readiness_summary
         )
 
 if __name__ == "__main__":
