@@ -1,6 +1,7 @@
 from beacon.rules.models import finding
 
-
+from beacon.engine.registry import register_rule
+from beacon.engine.rule_model import Rule
 def evaluate_kafka_config(data, file):
     findings = []
     topics = data.get("topics", [])
@@ -237,3 +238,59 @@ def evaluate_kafka_config(data, file):
             )
 
     return findings
+
+def replication_factor_rule(resource, context):
+    findings = []
+
+    rf = resource.get("replication_factor")
+    name = resource.get("name")
+
+    if rf is not None and rf < 3:
+        findings.append(
+            finding(
+                rule_id="kafka.topic.replication_factor.low",
+                domain="kafka",
+                category="resiliency",
+                severity="CRITICAL",
+                title=(
+                    f"Kafka topic '{name}' has "
+                    f"replication factor {rf}"
+                ),
+                impact=(
+                    "A broker failure can make "
+                    "this topic unavailable."
+                ),
+                recommendation=(
+                    "Use replication_factor=3 "
+                    "for production topics."
+                ),
+                file=context["file"],
+                evidence={
+                    "topic": name,
+                    "replication_factor": rf,
+                    "expected_minimum": 3,
+                },
+                tags=[
+                    "availability",
+                    "resiliency",
+                ],
+            )
+        )
+
+    return findings
+
+register_rule(
+    Rule(
+        rule_id="kafka.topic.replication_factor.low",
+        domain="kafka",
+        category="resiliency",
+        severity="CRITICAL",
+        title="Kafka replication factor too low",
+        evaluator=replication_factor_rule,
+        supported_types=["kafka_topic"],
+        tags=[
+            "availability",
+            "resiliency",
+        ],
+    )
+)

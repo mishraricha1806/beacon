@@ -6,7 +6,8 @@ import yaml
 from beacon.rules.kafka_rules import evaluate_kafka_config
 from beacon.rules.kubernetes_rules import evaluate_kubernetes_config
 from beacon.rules.terraform_rules import evaluate_terraform_config
-
+from beacon.engine.evaluator import evaluate_resource
+from beacon.engine.resource_normalizer import normalize_kafka_topics
 
 SUPPORTED_EXTENSIONS = (".tf", ".yaml", ".yml")
 
