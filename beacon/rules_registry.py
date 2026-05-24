@@ -17,7 +17,9 @@ def _load_from_dir(path: str) -> Dict[str, Dict[str, Any]]:
     if not os.path.isdir(path):
         return out
 
-    for p in glob.glob(os.path.join(path, "*.yml")) + glob.glob(os.path.join(path, "*.yaml")):
+    for p in glob.glob(os.path.join(path, "*.yml")) + glob.glob(
+        os.path.join(path, "*.yaml")
+    ):
         try:
             with open(p, "r") as f:
                 data = yaml.safe_load(f) or {}

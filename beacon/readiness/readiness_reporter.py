@@ -8,7 +8,9 @@ def print_readiness_summary(summary):
     console.print("\n[bold cyan]Beacon Production Readiness[/bold cyan]\n")
 
     console.print(f"[bold]Production Readiness Score:[/bold] {summary['score']}/100")
-    console.print(f"[bold]Operational Survivability:[/bold] {summary['survivability']}\n")
+    console.print(
+        f"[bold]Operational Survivability:[/bold] {summary['survivability']}\n"
+    )
 
     console.print(f"[bold]Business Summary:[/bold] {summary['business_summary']}")
     console.print(f"[bold]Recommended Action:[/bold] {summary['recommended_action']}\n")
@@ -27,9 +29,7 @@ def print_readiness_summary(summary):
 
     for category, data in summary["categories"].items():
         table.add_row(
-            category.replace("_", " ").title(),
-            data["risk"],
-            str(data["findings"])
+            category.replace("_", " ").title(), data["risk"], str(data["findings"])
         )
 
     console.print("[bold]Top Reasons:[/bold]")
@@ -38,7 +38,7 @@ def print_readiness_summary(summary):
 
     console.print("\n[bold]Next Best Actions:[/bold]")
     for action in summary["next_best_actions"]:
-         console.print(f"- {action}")
+        console.print(f"- {action}")
 
     console.print()
 

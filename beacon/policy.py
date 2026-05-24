@@ -32,7 +32,9 @@ def load_policy(path: Optional[str] = None) -> Dict[str, Any]:
         return {}
 
 
-def apply_policy_to_findings(findings: list, policy: Optional[Dict[str, Any]] = None) -> list:
+def apply_policy_to_findings(
+    findings: list, policy: Optional[Dict[str, Any]] = None
+) -> list:
     """Return a new list of findings after applying policy overrides.
 
     Policy keys per rule_id:
@@ -69,4 +71,3 @@ def apply_policy_to_findings(findings: list, policy: Optional[Dict[str, Any]] = 
         out.append(newf)
 
     return out
-

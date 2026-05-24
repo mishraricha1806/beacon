@@ -10,42 +10,24 @@ from beacon.scanner import scan_path
 from beacon.reporter import print_report
 from beacon.runtime_advisor import analyze_runtime_file
 from beacon.kafka_runtime_connector import analyze_kafka_cluster
-from beacon.readiness.kafka.readiness_engine import (
-    calculate_readiness
-)
+from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon import rules_registry
 from rich.table import Table
 from beacon.policy import load_policy, apply_policy_to_findings
 
 
-from beacon.readiness.readiness_reporter import (
-    print_readiness_summary
-)
+from beacon.readiness.readiness_reporter import print_readiness_summary
 
 
+app = typer.Typer(help="Beacon - Operational intelligence for modern infrastructure.")
 
+diagnose_app = typer.Typer(help="Runtime operational diagnostics.")
 
-app = typer.Typer(
-    help="Beacon - Operational intelligence for modern infrastructure."
-)
+app.add_typer(diagnose_app, name="diagnose")
 
-diagnose_app = typer.Typer(
-    help="Runtime operational diagnostics."
-)
+readiness_app = typer.Typer(help="Production readiness analysis.")
 
-app.add_typer(
-    diagnose_app,
-    name="diagnose"
-)
-
-readiness_app = typer.Typer(
-    help="Production readiness analysis."
-)
-
-app.add_typer(
-    readiness_app,
-    name="readiness"
-)
+app.add_typer(readiness_app, name="readiness")
 
 rules_app = typer.Typer(help="Rules metadata and management.")
 app.add_typer(rules_app, name="rules")
@@ -73,7 +55,7 @@ def list_rules(output: str = typer.Option("terminal", help="Output: terminal or 
             rule_id,
             meta.get("title", ""),
             meta.get("category", ""),
-            meta.get("severity_default", "")
+            meta.get("severity_default", ""),
         )
 
     from rich.console import Console
@@ -86,7 +68,7 @@ def scan(
     path: str,
     html: bool = typer.Option(True, help="Generate browser-based HTML report."),
     open_report: bool = typer.Option(True, help="Open HTML report in browser."),
-    output: str = typer.Option("terminal", help="Output format: terminal or json.")
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
 ):
     """Scan infrastructure configuration for production risks."""
     findings = scan_path(path)
@@ -94,12 +76,7 @@ def scan(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    print_report(
-        findings,
-        html=html,
-        open_report=open_report,
-        output=output
-    )
+    print_report(findings, html=html, open_report=open_report, output=output)
 
 
 @app.command()
@@ -107,19 +84,14 @@ def runtime(
     path: str,
     html: bool = typer.Option(True, help="Generate browser-based HTML report."),
     open_report: bool = typer.Option(True, help="Open HTML report in browser."),
-    output: str = typer.Option("terminal", help="Output format: terminal or json.")
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
 ):
     """Analyze runtime snapshot YAML."""
     findings = analyze_runtime_file(path)
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    print_report(
-        findings,
-        html=html,
-        open_report=open_report,
-        output=output
-    )
+    print_report(findings, html=html, open_report=open_report, output=output)
 
 
 @diagnose_app.command("kafka")
@@ -129,16 +101,15 @@ def diagnose_kafka(
     ca_cert: str = typer.Option(None, help="Path to CA certificate"),
     client_cert: str = typer.Option(None, help="Path to client certificate"),
     client_key: str = typer.Option(None, help="Path to client private key"),
-
     topic: str = typer.Option(None, help="Analyze only a specific topic."),
-    consumer_group: str = typer.Option(None, help="Analyze only a specific consumer group."),
-
+    consumer_group: str = typer.Option(
+        None, help="Analyze only a specific consumer group."
+    ),
     max_topics: int = typer.Option(50, help="Maximum topics to analyze."),
     max_groups: int = typer.Option(20, help="Maximum consumer groups to analyze."),
-
     html: bool = typer.Option(True, help="Generate browser-based HTML report."),
     open_report: bool = typer.Option(True, help="Open HTML report in browser."),
-    output: str = typer.Option("terminal", help="Output format: terminal or json.")
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
 ):
     """Diagnose Kafka runtime operational behavior."""
 
@@ -156,12 +127,7 @@ def diagnose_kafka(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    print_report(
-        findings,
-        html=html,
-        open_report=open_report,
-        output=output
-    )
+    print_report(findings, html=html, open_report=open_report, output=output)
 
 
 @diagnose_app.command("flow")
@@ -183,15 +149,12 @@ def readiness_kafka(
     ca_cert: str = typer.Option(None),
     client_cert: str = typer.Option(None),
     client_key: str = typer.Option(None),
-
     topic: str = typer.Option(None),
-
     max_topics: int = typer.Option(50),
     max_groups: int = typer.Option(20),
-
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
-    output: str = typer.Option("terminal")
+    output: str = typer.Option("terminal"),
 ):
     findings = analyze_kafka_cluster(
         bootstrap_server=bootstrap_server,
@@ -216,31 +179,33 @@ def readiness_kafka(
         html=html,
         open_report=open_report,
         output=output,
-        readiness_summary=readiness_summary
+        readiness_summary=readiness_summary,
     )
+
 
 @readiness_app.command("static")
 def readiness_static(
-        path: str,
-        html: bool = typer.Option(True),
-        open_report: bool = typer.Option(True),
-        output: str = typer.Option("terminal")
-   ):
-        """Analyze infrastructure production readiness."""
+    path: str,
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Analyze infrastructure production readiness."""
 
-        findings = scan_path(path)
+    findings = scan_path(path)
 
-        readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(findings)
 
-        print_readiness_summary(readiness_summary)
+    print_readiness_summary(readiness_summary)
 
-        print_report(
-            findings,
-            html=html,
-            open_report=open_report,
-            output=output,
-            readiness_summary=readiness_summary
-        )
+    print_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        readiness_summary=readiness_summary,
+    )
+
 
 if __name__ == "__main__":
     app()

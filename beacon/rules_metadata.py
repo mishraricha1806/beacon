@@ -12,7 +12,7 @@ RULES = {
         "severity_default": "CRITICAL",
         "category": "resiliency",
         "author": "beacon.rules",
-        "recommendation": "Set replication_factor=3 for production topics."
+        "recommendation": "Set replication_factor=3 for production topics.",
     },
     "kafka.topic.retention_bytes.missing": {
         "title": "Kafka topic missing retention_bytes",
@@ -20,7 +20,7 @@ RULES = {
         "severity_default": "HIGH",
         "category": "storage_sustainability",
         "author": "beacon.rules",
-        "recommendation": "Set retention_bytes based on broker disk capacity and expected throughput."
+        "recommendation": "Set retention_bytes based on broker disk capacity and expected throughput.",
     },
     "aws.s3.public_access_block.weak": {
         "title": "S3 public access block is weak",
@@ -28,7 +28,6 @@ RULES = {
         "severity_default": "CRITICAL",
         "category": "operational_safety",
         "author": "beacon.rules",
-        "recommendation": "Block public access unless there is an explicit approved exception."
-    }
+        "recommendation": "Block public access unless there is an explicit approved exception.",
+    },
 }
-

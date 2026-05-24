@@ -364,9 +364,7 @@ def generate_html_report(findings, score, open_report=True, readiness_summary=No
         enriched.append(nf)
 
     html_content = template.render(
-        findings=enriched,
-        score=score,
-        readiness_summary=readiness_summary
+        findings=enriched, score=score, readiness_summary=readiness_summary
     )
 
     output_path = "reports/report.html"

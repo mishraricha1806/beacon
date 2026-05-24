@@ -1,12 +1,8 @@
 from confluent_kafka import TopicPartition, ConsumerGroupTopicPartitions
-from confluent_kafka.admin import (
-    AdminClient,
-    ConfigResource,
-    ResourceType,
-    OffsetSpec
-)
+from confluent_kafka.admin import AdminClient, ConfigResource, ResourceType, OffsetSpec
 
 from beacon.rules import evaluate_kafka_config
+
 
 def finding(severity, title, impact, recommendation, file="runtime-kafka"):
     return {
@@ -14,7 +10,7 @@ def finding(severity, title, impact, recommendation, file="runtime-kafka"):
         "title": title,
         "impact": impact,
         "recommendation": recommendation,
-        "file": file
+        "file": file,
     }
 
 
@@ -56,12 +52,14 @@ def analyze_kafka_cluster(
     max_groups=20,
 ):
     findings = []
-    findings.append(finding(
+    findings.append(
+        finding(
             "LOW",
             "Beacon Kafka runtime connector is running in read-only diagnostic mode",
             "Beacon will only collect Kafka metadata and configuration signals for analysis.",
-            "No produce, consume, offset update, topic mutation, ACL mutation, or infrastructure mutation operation will be performed."
-       ))
+            "No produce, consume, offset update, topic mutation, ACL mutation, or infrastructure mutation operation will be performed.",
+        )
+    )
 
     try:
         config = build_admin_config(
@@ -85,72 +83,76 @@ def analyze_kafka_cluster(
 
         if topic:
             user_topics = [
-                topic_name
-                for topic_name in user_topics
-                if topic_name == topic
+                topic_name for topic_name in user_topics if topic_name == topic
             ]
 
         topic_count = len(user_topics)
 
-        findings.append(finding(
-            "LOW",
-            "Kafka cluster connection successful",
-            f"Beacon connected successfully. Brokers detected: {broker_count}, user topics detected: {topic_count}.",
-            "Beacon used read-only metadata access. No Kafka mutation operation was performed."
-        ))
+        findings.append(
+            finding(
+                "LOW",
+                "Kafka cluster connection successful",
+                f"Beacon connected successfully. Brokers detected: {broker_count}, user topics detected: {topic_count}.",
+                "Beacon used read-only metadata access. No Kafka mutation operation was performed.",
+            )
+        )
 
         if broker_count < 3:
-            findings.append(finding(
-                "HIGH",
-                f"Kafka cluster has only {broker_count} broker(s)",
-                "Low broker count can reduce resiliency and limit safe replication for production workloads.",
-                "Use at least 3 brokers for production Kafka clusters where high availability is required."
-            ))
+            findings.append(
+                finding(
+                    "HIGH",
+                    f"Kafka cluster has only {broker_count} broker(s)",
+                    "Low broker count can reduce resiliency and limit safe replication for production workloads.",
+                    "Use at least 3 brokers for production Kafka clusters where high availability is required.",
+                )
+            )
 
         if topic_count > 200:
-            findings.append(finding(
-                "MEDIUM",
-                f"Kafka cluster has high topic count: {topic_count}",
-                "Large topic count can increase controller metadata load and operational complexity.",
-                "Review topic lifecycle, ownership, retention, and whether old topics can be retired."
-            ))
+            findings.append(
+                finding(
+                    "MEDIUM",
+                    f"Kafka cluster has high topic count: {topic_count}",
+                    "Large topic count can increase controller metadata load and operational complexity.",
+                    "Review topic lifecycle, ownership, retention, and whether old topics can be retired.",
+                )
+            )
 
         selected_topics = user_topics[:max_topics]
 
         live_topic_models = build_live_topic_models(
-            admin_client=admin_client,
-            metadata=metadata,
-            topic_names=selected_topics
+            admin_client=admin_client, metadata=metadata, topic_names=selected_topics
         )
 
         if live_topic_models:
-            kafka_config_payload = {
-                "topics": live_topic_models
-            }
+            kafka_config_payload = {"topics": live_topic_models}
 
             findings.extend(
                 evaluate_kafka_config(kafka_config_payload, "runtime-kafka")
             )
 
         if topic_count > max_topics:
-            findings.append(finding(
-                "LOW",
-                f"Beacon analyzed first {max_topics} topics out of {topic_count}",
-                "Topic analysis was limited to keep runtime diagnostics fast and lightweight.",
-                "Increase --max-topics if deeper cluster-wide analysis is required."
-            ))
+            findings.append(
+                finding(
+                    "LOW",
+                    f"Beacon analyzed first {max_topics} topics out of {topic_count}",
+                    "Topic analysis was limited to keep runtime diagnostics fast and lightweight.",
+                    "Increase --max-topics if deeper cluster-wide analysis is required.",
+                )
+            )
 
     except Exception as e:
-        findings.append(finding(
-            "ERROR",
-            "Kafka cluster connection failed",
-            str(e),
-            "Check bootstrap server, network access, security protocol, certificates, and firewall rules."
-        ))
+        findings.append(
+            finding(
+                "ERROR",
+                "Kafka cluster connection failed",
+                str(e),
+                "Check bootstrap server, network access, security protocol, certificates, and firewall rules.",
+            )
+        )
         # If we failed to build or connect the AdminClient, return early.
         return findings
     # Only analyze consumer groups when admin client was created successfully
-    if 'admin_client' in locals() and admin_client is not None:
+    if "admin_client" in locals() and admin_client is not None:
         findings.extend(
             analyze_consumer_group_lag(
                 admin_client=admin_client,
@@ -166,8 +168,7 @@ def build_live_topic_models(admin_client, metadata, topic_names):
     topic_models = []
 
     config_resources = [
-        ConfigResource(ResourceType.TOPIC, topic_name)
-        for topic_name in topic_names
+        ConfigResource(ResourceType.TOPIC, topic_name) for topic_name in topic_names
     ]
 
     topic_configs = {}
@@ -212,6 +213,7 @@ def build_live_topic_models(admin_client, metadata, topic_names):
 
     return topic_models
 
+
 def analyze_consumer_group_lag(
     admin_client,
     consumer_group=None,
@@ -226,12 +228,14 @@ def analyze_consumer_group_lag(
     )
 
     if not group_ids:
-        findings.append(finding(
-            "LOW",
-            "No Kafka consumer groups selected for lag diagnostics",
-            "Beacon did not find consumer groups to analyze, or no matching group was provided.",
-            "Provide --consumer-group for targeted lag diagnostics."
-        ))
+        findings.append(
+            finding(
+                "LOW",
+                "No Kafka consumer groups selected for lag diagnostics",
+                "Beacon did not find consumer groups to analyze, or no matching group was provided.",
+                "Provide --consumer-group for targeted lag diagnostics.",
+            )
+        )
         return findings
 
     for group_id in group_ids:
@@ -244,12 +248,14 @@ def analyze_consumer_group_lag(
             findings.extend(build_lag_findings(group_id, lag_summary))
 
         except Exception as e:
-            findings.append(finding(
-                "ERROR",
-                f"Failed to analyze consumer group lag for '{group_id}'",
-                str(e),
-                "Check Kafka permissions for describing consumer groups and listing offsets."
-            ))
+            findings.append(
+                finding(
+                    "ERROR",
+                    f"Failed to analyze consumer group lag for '{group_id}'",
+                    str(e),
+                    "Check Kafka permissions for describing consumer groups and listing offsets.",
+                )
+            )
 
     return findings
 
@@ -259,16 +265,12 @@ def discover_consumer_groups(admin_client, consumer_group=None, max_groups=20):
         return [consumer_group]
 
     try:
-        result = admin_client.list_consumer_groups(
-            request_timeout=3
-        ).result(timeout=3)
+        result = admin_client.list_consumer_groups(request_timeout=3).result(timeout=3)
 
         valid_groups = getattr(result, "valid", []) or []
 
         group_ids = [
-            group.group_id
-            for group in valid_groups
-            if getattr(group, "group_id", None)
+            group.group_id for group in valid_groups if getattr(group, "group_id", None)
         ]
 
         return group_ids[:max_groups]
@@ -290,7 +292,7 @@ def calculate_group_lag_admin_only(admin_client, group_id):
             "max_partition_lag": 0,
             "hot_partitions": [],
             "topics": set(),
-            "status": "NO_OFFSETS"
+            "status": "NO_OFFSETS",
         }
 
     latest_offsets = fetch_latest_offsets(
@@ -324,13 +326,15 @@ def calculate_group_lag_admin_only(admin_client, group_id):
         max_partition_lag = max(max_partition_lag, lag)
 
         if lag >= 50000:
-            hot_partitions.append({
-                "topic": tp.topic,
-                "partition": tp.partition,
-                "lag": lag,
-                "committed_offset": committed_offset,
-                "latest_offset": latest_offset,
-            })
+            hot_partitions.append(
+                {
+                    "topic": tp.topic,
+                    "partition": tp.partition,
+                    "lag": lag,
+                    "committed_offset": committed_offset,
+                    "latest_offset": latest_offset,
+                }
+            )
 
     return {
         "total_lag": total_lag,
@@ -338,17 +342,14 @@ def calculate_group_lag_admin_only(admin_client, group_id):
         "max_partition_lag": max_partition_lag,
         "hot_partitions": hot_partitions,
         "topics": topics,
-        "status": "OK"
+        "status": "OK",
     }
 
 
 def fetch_committed_offsets(admin_client, group_id):
     request = ConsumerGroupTopicPartitions(group_id)
 
-    futures = admin_client.list_consumer_group_offsets(
-        [request],
-        request_timeout=3
-    )
+    futures = admin_client.list_consumer_group_offsets([request], request_timeout=3)
 
     future = futures.get(group_id)
 
@@ -362,10 +363,7 @@ def fetch_committed_offsets(admin_client, group_id):
     if topic_partitions is None:
         return []
 
-    return [
-        tp for tp in topic_partitions
-        if tp.topic and not tp.topic.startswith("__")
-    ]
+    return [tp for tp in topic_partitions if tp.topic and not tp.topic.startswith("__")]
 
 
 def fetch_latest_offsets(admin_client, committed_partitions):
@@ -375,26 +373,21 @@ def fetch_latest_offsets(admin_client, committed_partitions):
         if tp.topic.startswith("__"):
             continue
 
-        offset_requests[
-            TopicPartition(tp.topic, tp.partition)
-        ] = OffsetSpec.latest()
+        offset_requests[TopicPartition(tp.topic, tp.partition)] = OffsetSpec.latest()
 
     if not offset_requests:
         return {}
 
-    futures = admin_client.list_offsets(
-        offset_requests,
-        request_timeout=3
-    )
+    futures = admin_client.list_offsets(offset_requests, request_timeout=3)
 
     latest_offsets = {}
 
     for topic_partition, future in futures.items():
         try:
             result = future.result(timeout=3)
-            latest_offsets[
-                (topic_partition.topic, topic_partition.partition)
-            ] = result.offset
+            latest_offsets[(topic_partition.topic, topic_partition.partition)] = (
+                result.offset
+            )
         except Exception:
             continue
 
@@ -411,56 +404,64 @@ def build_lag_findings(group_id, lag_summary):
     status = lag_summary["status"]
 
     if status == "NO_OFFSETS":
-        findings.append(finding(
-            "LOW",
-            f"No committed offsets found for consumer group '{group_id}'",
-            "Beacon could not calculate lag because the group has no committed offsets.",
-            "Verify whether the consumer group is active and committing offsets."
-        ))
+        findings.append(
+            finding(
+                "LOW",
+                f"No committed offsets found for consumer group '{group_id}'",
+                "Beacon could not calculate lag because the group has no committed offsets.",
+                "Verify whether the consumer group is active and committing offsets.",
+            )
+        )
         return findings
 
     if total_lag >= 100000:
-        findings.append(finding(
-            "HIGH",
-            f"High Kafka consumer lag detected for group '{group_id}'",
-            f"Total lag is approximately {total_lag} across {partition_count} partitions.",
-            "Check consumer processing latency, downstream dependency slowness, retry loops, rebalance frequency, and producer throughput."
-        ))
+        findings.append(
+            finding(
+                "HIGH",
+                f"High Kafka consumer lag detected for group '{group_id}'",
+                f"Total lag is approximately {total_lag} across {partition_count} partitions.",
+                "Check consumer processing latency, downstream dependency slowness, retry loops, rebalance frequency, and producer throughput.",
+            )
+        )
 
     elif total_lag >= 10000:
-        findings.append(finding(
-            "MEDIUM",
-            f"Moderate Kafka consumer lag detected for group '{group_id}'",
-            f"Total lag is approximately {total_lag} across {partition_count} partitions.",
-            "Monitor lag trend and compare consumer throughput against producer rate."
-        ))
+        findings.append(
+            finding(
+                "MEDIUM",
+                f"Moderate Kafka consumer lag detected for group '{group_id}'",
+                f"Total lag is approximately {total_lag} across {partition_count} partitions.",
+                "Monitor lag trend and compare consumer throughput against producer rate.",
+            )
+        )
 
     else:
-        findings.append(finding(
-            "LOW",
-            f"Kafka consumer group '{group_id}' lag is currently low",
-            f"Total lag is approximately {total_lag} across {partition_count} partitions.",
-            "No major lag pressure detected from current offset snapshot."
-        ))
+        findings.append(
+            finding(
+                "LOW",
+                f"Kafka consumer group '{group_id}' lag is currently low",
+                f"Total lag is approximately {total_lag} across {partition_count} partitions.",
+                "No major lag pressure detected from current offset snapshot.",
+            )
+        )
 
     if hot_partitions:
-        top_hot = sorted(
-            hot_partitions,
-            key=lambda item: item["lag"],
-            reverse=True
-        )[:5]
+        top_hot = sorted(hot_partitions, key=lambda item: item["lag"], reverse=True)[:5]
 
-        hot_summary = ", ".join([
-            f"{item['topic']}[{item['partition']}]=lag:{item['lag']}"
-            for item in top_hot
-        ])
+        hot_summary = ", ".join(
+            [
+                f"{item['topic']}[{item['partition']}]=lag:{item['lag']}"
+                for item in top_hot
+            ]
+        )
 
-        findings.append(finding(
-            "HIGH",
-            f"Potential hot partition behavior detected for group '{group_id}'",
-            f"Max partition lag is {max_partition_lag}. Top hot partitions: {hot_summary}.",
-            "Review partition key distribution, producer key changes, skewed events, and whether consumer parallelism matches partition distribution."
-        ))
+        findings.append(
+            finding(
+                "HIGH",
+                f"Potential hot partition behavior detected for group '{group_id}'",
+                f"Max partition lag is {max_partition_lag}. Top hot partitions: {hot_summary}.",
+                "Review partition key distribution, producer key changes, skewed events, and whether consumer parallelism matches partition distribution.",
+            )
+        )
 
     findings.append(build_lag_decision_finding(group_id, lag_summary))
 
@@ -477,7 +478,7 @@ def build_lag_decision_finding(group_id, lag_summary):
             "HIGH",
             f"Decision: Consumer delay for '{group_id}' may be caused by partition skew",
             "Lag is high and concentrated on one or more partitions, which usually means adding more consumers alone may not solve the issue.",
-            "Investigate message key distribution, hot keys, uneven partition assignment, and recent producer key changes."
+            "Investigate message key distribution, hot keys, uneven partition assignment, and recent producer key changes.",
         )
 
     if total_lag >= 100000 and partition_count <= 3:
@@ -485,7 +486,7 @@ def build_lag_decision_finding(group_id, lag_summary):
             "HIGH",
             f"Decision: Consumer delay for '{group_id}' may be limited by partition parallelism",
             "Lag is high while partition count is low, which can cap consumer parallelism.",
-            "Review topic partition count and consumer concurrency. Increase partitions only after validating ordering and keying impact."
+            "Review topic partition count and consumer concurrency. Increase partitions only after validating ordering and keying impact.",
         )
 
     if total_lag >= 100000:
@@ -493,15 +494,16 @@ def build_lag_decision_finding(group_id, lag_summary):
             "HIGH",
             f"Decision: Consumer delay for '{group_id}' needs consumer-side investigation",
             "Lag is high but current offset snapshot alone does not prove Kafka broker failure.",
-            "Check consumer processing time, DB/API latency, thread pools, retries, poison messages, and recent application deployments."
+            "Check consumer processing time, DB/API latency, thread pools, retries, poison messages, and recent application deployments.",
         )
 
     return finding(
         "LOW",
         f"Decision: No urgent consumer delay action required for '{group_id}'",
         "Current offset snapshot does not show severe consumer lag.",
-        "Continue monitoring lag trend and correlate with producer rate and application logs."
+        "Continue monitoring lag trend and correlate with producer rate and application logs.",
     )
+
 
 def infer_replication_factor(partitions):
     replication_factors = []

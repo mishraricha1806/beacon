@@ -10,7 +10,7 @@ def test_print_report_json_outputs_valid_json(capsys):
             "title": "test issue",
             "impact": "impact",
             "recommendation": "fix",
-            "file": "test"
+            "file": "test",
         }
     ]
 

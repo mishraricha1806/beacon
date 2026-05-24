@@ -28,7 +28,9 @@ def calculate_score(findings):
     return max(0, 100 - penalty)
 
 
-def print_report(findings, html=True, open_report=True, output="terminal", readiness_summary=None):
+def print_report(
+    findings, html=True, open_report=True, output="terminal", readiness_summary=None
+):
     """Print or emit the report in a chosen format.
 
     readiness_summary: optional dict produced by readiness engines. When provided,
@@ -40,19 +42,26 @@ def print_report(findings, html=True, open_report=True, output="terminal", readi
         payload = {
             "score": score,
             "readiness_summary": readiness_summary,
-            "findings": findings
+            "findings": findings,
         }
 
         console.print(json.dumps(payload, indent=2))
         return
 
-    console.print(f"\n[bold cyan]Beacon Production Readiness Score:[/bold cyan] {score}/100\n")
+    console.print(
+        f"\n[bold cyan]Beacon Production Readiness Score:[/bold cyan] {score}/100\n"
+    )
 
     if not findings:
         console.print("[green]No major production risks found.[/green]")
 
         if html:
-            generate_html_report(findings, score, open_report=open_report, readiness_summary=readiness_summary)
+            generate_html_report(
+                findings,
+                score,
+                open_report=open_report,
+                readiness_summary=readiness_summary,
+            )
 
         return
 
@@ -66,14 +75,15 @@ def print_report(findings, html=True, open_report=True, output="terminal", readi
 
     for f in findings:
         table.add_row(
-            f["severity"],
-            f["title"],
-            f["impact"],
-            f["recommendation"],
-            f["file"]
+            f["severity"], f["title"], f["impact"], f["recommendation"], f["file"]
         )
 
     console.print(table)
 
     if html:
-        generate_html_report(findings, score, open_report=open_report, readiness_summary=readiness_summary)
+        generate_html_report(
+            findings,
+            score,
+            open_report=open_report,
+            readiness_summary=readiness_summary,
+        )

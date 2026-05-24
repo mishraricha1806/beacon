@@ -21,7 +21,7 @@ SKIP_DIRS = {
     "dist",
     ".terraform",
     ".terragrunt-cache",
-    "reports"
+    "reports",
 }
 
 MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB
@@ -31,13 +31,15 @@ def scan_path(path: str):
     findings = []
 
     if not os.path.exists(path):
-        return [{
-            "severity": "ERROR",
-            "title": f"Path does not exist: {path}",
-            "impact": "Beacon cannot scan a missing path.",
-            "recommendation": "Provide a valid file or directory path.",
-            "file": path
-        }]
+        return [
+            {
+                "severity": "ERROR",
+                "title": f"Path does not exist: {path}",
+                "impact": "Beacon cannot scan a missing path.",
+                "recommendation": "Provide a valid file or directory path.",
+                "file": path,
+            }
+        ]
 
     if os.path.isfile(path):
         return scan_file(path)
@@ -62,13 +64,15 @@ def scan_file(full_path: str):
         file_size = os.path.getsize(full_path)
 
         if file_size > MAX_FILE_SIZE_BYTES:
-            return [{
-                "severity": "LOW",
-                "title": f"Skipped large file: {os.path.basename(full_path)}",
-                "impact": "Large files can slow down scanning and may not be suitable for lightweight static analysis.",
-                "recommendation": "Split large infrastructure files or increase scanner limit intentionally.",
-                "file": full_path
-            }]
+            return [
+                {
+                    "severity": "LOW",
+                    "title": f"Skipped large file: {os.path.basename(full_path)}",
+                    "impact": "Large files can slow down scanning and may not be suitable for lightweight static analysis.",
+                    "recommendation": "Split large infrastructure files or increase scanner limit intentionally.",
+                    "file": full_path,
+                }
+            ]
 
         if full_path.endswith((".yaml", ".yml")):
             with open(full_path, "r") as f:
@@ -83,12 +87,14 @@ def scan_file(full_path: str):
             findings.extend(evaluate_terraform_config(data, full_path))
 
     except Exception as e:
-        findings.append({
-            "severity": "ERROR",
-            "title": f"Failed to parse {os.path.basename(full_path)}",
-            "impact": str(e),
-            "recommendation": "Check file syntax and ensure it is a valid supported infrastructure file.",
-            "file": full_path
-        })
+        findings.append(
+            {
+                "severity": "ERROR",
+                "title": f"Failed to parse {os.path.basename(full_path)}",
+                "impact": str(e),
+                "recommendation": "Check file syntax and ensure it is a valid supported infrastructure file.",
+                "file": full_path,
+            }
+        )
 
     return findings

@@ -22,7 +22,7 @@ def test_registry_loads_overrides_from_dir(monkeypatch):
             "description": "override",
             "severity_default": "HIGH",
             "category": "resiliency",
-            "recommendation": "Use replication_factor=2 for some reason"
+            "recommendation": "Use replication_factor=2 for some reason",
         }
 
         path = os.path.join(td.name, "replication_override.yaml")
@@ -39,6 +39,5 @@ def test_registry_loads_overrides_from_dir(monkeypatch):
     finally:
         td.cleanup()
 
+
 # ...existing code...
-
-

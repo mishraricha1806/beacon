@@ -18,7 +18,7 @@ def calculate_readiness(findings):
         "production_decision": "",
         "primary_risk_area": "",
         "top_reasons": [],
-        "next_best_actions": []
+        "next_best_actions": [],
     }
 
     for finding in findings:
@@ -62,29 +62,61 @@ def calculate_readiness(findings):
 def classify_finding(title, impact):
     text = f"{title} {impact}"
 
-    if any(word in text for word in [
-        "replication", "broker failure", "min.insync", "under-replicated", "availability"
-    ]):
+    if any(
+        word in text
+        for word in [
+            "replication",
+            "broker failure",
+            "min.insync",
+            "under-replicated",
+            "availability",
+        ]
+    ):
         return "resiliency"
 
-    if any(word in text for word in [
-        "partition", "parallelism", "throughput", "consumer lag", "scalability"
-    ]):
+    if any(
+        word in text
+        for word in [
+            "partition",
+            "parallelism",
+            "throughput",
+            "consumer lag",
+            "scalability",
+        ]
+    ):
         return "scalability"
 
-    if any(word in text for word in [
-        "retention", "disk", "storage", "segment", "cleanup", "message size"
-    ]):
+    if any(
+        word in text
+        for word in [
+            "retention",
+            "disk",
+            "storage",
+            "segment",
+            "cleanup",
+            "message size",
+        ]
+    ):
         return "storage_sustainability"
 
-    if any(word in text for word in [
-        "public", "iam", "permission", "encryption", "access", "wildcard", "tags"
-    ]):
+    if any(
+        word in text
+        for word in [
+            "public",
+            "iam",
+            "permission",
+            "encryption",
+            "access",
+            "wildcard",
+            "tags",
+        ]
+    ):
         return "operational_safety"
 
-    if any(word in text for word in [
-        "replay", "recovery", "versioning", "overwrite", "delete"
-    ]):
+    if any(
+        word in text
+        for word in ["replay", "recovery", "versioning", "overwrite", "delete"]
+    ):
         return "recovery_readiness"
 
     return "operational_safety"
@@ -130,20 +162,20 @@ def build_recommended_action(summary):
         return "Resolve all critical findings before production rollout."
 
     if summary["high"] > 0:
-        return "Review and fix high-risk operational findings before production approval."
+        return (
+            "Review and fix high-risk operational findings before production approval."
+        )
 
     if summary["medium"] > 0:
         return "Address medium-risk findings or document accepted operational risk."
 
     return "Continue with standard production review and monitoring."
 
+
 def determine_primary_risk_area(summary):
     categories = summary["categories"]
 
-    highest = max(
-        categories.items(),
-        key=lambda item: item[1]["findings"]
-    )
+    highest = max(categories.items(), key=lambda item: item[1]["findings"])
 
     if highest[1]["findings"] == 0:
         return "None"
@@ -165,23 +197,11 @@ def determine_production_decision(summary):
 
 
 def build_top_reasons(findings):
-    priority = {
-        "CRITICAL": 1,
-        "HIGH": 2,
-        "MEDIUM": 3,
-        "LOW": 4,
-        "ERROR": 5
-    }
+    priority = {"CRITICAL": 1, "HIGH": 2, "MEDIUM": 3, "LOW": 4, "ERROR": 5}
 
-    sorted_findings = sorted(
-        findings,
-        key=lambda f: priority.get(f["severity"], 99)
-    )
+    sorted_findings = sorted(findings, key=lambda f: priority.get(f["severity"], 99))
 
-    return [
-        f"{f['severity']}: {f['title']}"
-        for f in sorted_findings[:5]
-    ]
+    return [f"{f['severity']}: {f['title']}" for f in sorted_findings[:5]]
 
 
 def build_next_best_actions(summary):
@@ -191,16 +211,30 @@ def build_next_best_actions(summary):
         actions.append("Resolve all critical production-readiness gaps before rollout.")
 
     if summary["categories"]["resiliency"]["risk"] in ["HIGH RISK", "CRITICAL RISK"]:
-        actions.append("Fix resiliency risks such as replication, broker failure tolerance, and min ISR configuration.")
+        actions.append(
+            "Fix resiliency risks such as replication, broker failure tolerance, and min ISR configuration."
+        )
 
-    if summary["categories"]["storage_sustainability"]["risk"] in ["HIGH RISK", "CRITICAL RISK"]:
-        actions.append("Review storage growth controls such as retention_bytes, cleanup policy, segment size, and message size.")
+    if summary["categories"]["storage_sustainability"]["risk"] in [
+        "HIGH RISK",
+        "CRITICAL RISK",
+    ]:
+        actions.append(
+            "Review storage growth controls such as retention_bytes, cleanup policy, segment size, and message size."
+        )
 
     if summary["categories"]["scalability"]["risk"] in ["HIGH RISK", "CRITICAL RISK"]:
-        actions.append("Review partition strategy, consumer parallelism, and throughput capacity before production traffic.")
+        actions.append(
+            "Review partition strategy, consumer parallelism, and throughput capacity before production traffic."
+        )
 
-    if summary["categories"]["operational_safety"]["risk"] in ["HIGH RISK", "CRITICAL RISK"]:
-        actions.append("Fix operational safety risks such as public access, IAM permissions, encryption, and governance tags.")
+    if summary["categories"]["operational_safety"]["risk"] in [
+        "HIGH RISK",
+        "CRITICAL RISK",
+    ]:
+        actions.append(
+            "Fix operational safety risks such as public access, IAM permissions, encryption, and governance tags."
+        )
 
     if not actions:
         actions.append("Continue with standard production approval and monitoring.")

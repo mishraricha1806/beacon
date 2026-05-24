@@ -17,7 +17,10 @@ def test_apply_policy_disables_and_overrides():
         policy = {
             "rules": {
                 "kafka.topic.replication_factor.min": {"enabled": False},
-                "kafka.topic.retention_bytes.missing": {"enabled": True, "severity": "LOW"}
+                "kafka.topic.retention_bytes.missing": {
+                    "enabled": True,
+                    "severity": "LOW",
+                },
             }
         }
 
@@ -40,7 +43,9 @@ def test_apply_policy_disables_and_overrides():
         assert all(f["rule_id"] != "kafka.topic.replication_factor.min" for f in out)
 
         # retention_bytes severity overridden to LOW
-        r = next(f for f in out if f["rule_id"] == "kafka.topic.retention_bytes.missing")
+        r = next(
+            f for f in out if f["rule_id"] == "kafka.topic.retention_bytes.missing"
+        )
         assert r["severity"] == "LOW"
 
         # unrelated rule preserved
@@ -48,4 +53,3 @@ def test_apply_policy_disables_and_overrides():
 
     finally:
         td.cleanup()
-

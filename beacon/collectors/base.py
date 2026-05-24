@@ -52,4 +52,3 @@ class KafkaCollector(Collector):
 
         # Return the raw findings for now; analyzers can consume this payload.
         return {"findings": findings}
-
