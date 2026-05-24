@@ -1,0 +1,12 @@
+rule_id: kafka.topic.retention_unbounded
+title: Kafka topic has unbounded retention
+description: |
+  Topics configured with retention.ms=-1 will keep data indefinitely and can exhaust broker storage.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.rules
+recommendation: Avoid unbounded retention; set retention_bytes or bounded retention_ms.
+version: "1.0"
+remediation_link: https://example.com/remediation/retention-unbounded
+runbook_url: https://example.com/runbooks/retention-unbounded
+

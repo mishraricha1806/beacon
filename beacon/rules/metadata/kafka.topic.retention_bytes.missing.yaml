@@ -1,0 +1,12 @@
+rule_id: kafka.topic.retention_bytes.missing
+title: Kafka topic missing retention_bytes
+description: |
+  Missing retention_bytes can allow topics to grow uncontrollably if producer volume increases.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.rules
+recommendation: Set retention_bytes based on broker disk capacity and expected throughput.
+version: "1.0"
+remediation_link: https://example.com/remediation/retention
+runbook_url: https://example.com/runbooks/retention
+

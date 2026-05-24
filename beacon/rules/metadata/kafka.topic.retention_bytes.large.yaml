@@ -1,0 +1,12 @@
+rule_id: kafka.topic.retention_bytes.large
+title: Kafka topic retention_bytes is very large
+description: |
+  Very large retention_bytes settings can exhaust broker disk and increase recovery time. Consider tiered storage or shorter retention.
+severity_default: MEDIUM
+category: storage_sustainability
+author: beacon.rules
+recommendation: Review retention_bytes and consider tiered storage or shorter retention.
+version: "1.0"
+remediation_link: https://example.com/remediation/retention-large
+runbook_url: https://example.com/runbooks/retention-large
+

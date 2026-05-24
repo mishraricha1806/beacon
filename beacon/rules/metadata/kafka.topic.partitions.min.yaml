@@ -1,0 +1,12 @@
+rule_id: kafka.topic.partitions.min
+title: Kafka topic has low partition count
+description: |
+  Topics with very few partitions can limit consumer parallelism and throughput. Use at least 3 partitions for production workloads.
+severity_default: HIGH
+category: scalability
+author: beacon.rules
+recommendation: Use at least 3 partitions for production workloads.
+version: "1.0"
+remediation_link: https://example.com/remediation/partitions
+runbook_url: https://example.com/runbooks/partitions
+

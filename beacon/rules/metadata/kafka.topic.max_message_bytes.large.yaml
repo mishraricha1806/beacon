@@ -1,0 +1,12 @@
+rule_id: kafka.topic.max_message_bytes.large
+title: Kafka topic allows messages larger than 1MB
+description: |
+  Large messages increase broker disk I/O, memory pressure, network usage, and consumer processing latency. Prefer small messages and store large payloads externally.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.rules
+recommendation: Keep messages small; use object storage for large payloads and send references in Kafka messages.
+version: "1.0"
+remediation_link: https://example.com/remediation/large-messages
+runbook_url: https://example.com/runbooks/large-messages
+

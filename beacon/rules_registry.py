@@ -42,20 +42,22 @@ def _load_from_dir(path: str) -> Dict[str, Dict[str, Any]]:
 
 
 def _load_registry() -> Dict[str, Dict[str, Any]]:
-    # start with builtin metadata
-    registry: Dict[str, Dict[str, Any]] = dict(getattr(builtin_metadata, "RULES", {}))
+    # Prefer package-level YAML metadata as canonical builtins
+    registry: Dict[str, Dict[str, Any]] = {}
+
+    package_dir = os.path.join(os.path.dirname(__file__), "rules", "metadata")
+    registry.update(_load_from_dir(package_dir))
 
     # allow overriding/augmentation via env var pointing to a directory of yaml files
     override_dir = os.environ.get("BEACON_RULES_METADATA_DIR")
-
     if override_dir:
-        loaded = _load_from_dir(override_dir)
-        registry.update(loaded)
-    else:
-        # also load package-level directory if present: beacon/rules/metadata
-        package_dir = os.path.join(os.path.dirname(__file__), "rules", "metadata")
-        loaded = _load_from_dir(package_dir)
-        registry.update(loaded)
+        registry.update(_load_from_dir(override_dir))
+
+    # fallback to builtin python metadata for any missing rules
+    builtin = dict(getattr(builtin_metadata, "RULES", {}))
+    for k, v in builtin.items():
+        if k not in registry:
+            registry[k] = v
 
     return registry
 

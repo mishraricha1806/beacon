@@ -64,7 +64,13 @@ def evaluate_kafka_config(data, file):
                 f"Kafka topic '{name}' has low partition count",
                 "Low partitions can limit consumer parallelism and reduce throughput.",
                 "Use at least 3 partitions for production workloads.",
-                file
+                file,
+                rule_id="kafka.topic.partitions.min",
+                evidence={
+                    "source": "file",
+                    "path": f"topics[{idx}].partitions",
+                    "value": partitions
+                }
             ))
 
         # Retention time
@@ -74,7 +80,29 @@ def evaluate_kafka_config(data, file):
                 f"Kafka topic '{name}' retention is below 24 hours",
                 "Short retention reduces replay capability during incidents.",
                 "Increase retention based on recovery and audit requirements.",
-                file
+                file,
+                rule_id="kafka.topic.retention_ms.min",
+                evidence={
+                    "source": "file",
+                    "path": f"topics[{idx}].retention_ms",
+                    "value": retention_ms
+                }
+            ))
+
+        # Unbounded retention (retention.ms = -1)
+        if retention_ms == -1:
+            findings.append(finding(
+                "HIGH",
+                f"Kafka topic '{name}' has unbounded retention (retention.ms=-1)",
+                "Unbounded retention can lead to unlimited disk growth and operational risk.",
+                "Avoid unbounded retention; set retention_bytes or bounded retention_ms.",
+                file,
+                rule_id="kafka.topic.retention_unbounded",
+                evidence={
+                    "source": "file",
+                    "path": f"topics[{idx}].retention_ms",
+                    "value": retention_ms
+                }
             ))
 
         # Missing cleanup policy
@@ -84,7 +112,13 @@ def evaluate_kafka_config(data, file):
                 f"Kafka topic '{name}' does not define cleanup policy",
                 "Undefined cleanup policy may create unpredictable retention and disk behavior.",
                 "Explicitly configure cleanup_policy as delete, compact, or compact,delete.",
-                file
+                file,
+                rule_id="kafka.topic.cleanup_policy.missing",
+                evidence={
+                    "source": "file",
+                    "path": f"topics[{idx}].cleanup_policy",
+                    "value": cleanup_policy
+                }
             ))
 
         # Missing min ISR
@@ -94,7 +128,13 @@ def evaluate_kafka_config(data, file):
                 f"Kafka topic '{name}' does not define min.insync.replicas",
                 "Missing min ISR configuration can weaken durability guarantees during broker failure.",
                 "Configure min.insync.replicas for production topics.",
-                file
+                file,
+                rule_id="kafka.topic.min_insync_replicas.missing",
+                evidence={
+                    "source": "file",
+                    "path": f"topics[{idx}].min_insync_replicas",
+                    "value": min_isr
+                }
             ))
 
         # Missing retention bytes
@@ -110,6 +150,55 @@ def evaluate_kafka_config(data, file):
                     "source": "file",
                     "path": f"topics[{idx}].retention_bytes",
                     "value": retention_bytes
+                }
+            ))
+
+        # retention_bytes present but very large (suspicious)
+        if retention_bytes is not None and retention_bytes > 10 * 1024 * 1024 * 1024:
+            findings.append(finding(
+                "MEDIUM",
+                f"Kafka topic '{name}' defines very large retention_bytes: {retention_bytes}",
+                "Very large retention_bytes may exhaust broker disk over time and increase recovery time.",
+                "Review retention_bytes and consider tiered storage or shorter retention.",
+                file,
+                rule_id="kafka.topic.retention_bytes.large",
+                evidence={
+                    "source": "file",
+                    "path": f"topics[{idx}].retention_bytes",
+                    "value": retention_bytes
+                }
+            ))
+
+        # Large message size risk
+        if max_message_bytes is not None and max_message_bytes > 1048576:
+            findings.append(finding(
+                "HIGH",
+                f"Kafka topic '{name}' allows messages larger than 1MB",
+                "Large messages increase broker disk I/O, memory pressure, network usage, and consumer processing latency.",
+                "Keep Kafka messages small where possible; store large payloads externally and pass references through Kafka.",
+                file,
+                rule_id="kafka.topic.max_message_bytes.large",
+                evidence={
+                    "source": "file",
+                    "path": f"topics[{idx}].max_message_bytes",
+                    "value": max_message_bytes
+                }
+            ))
+
+        # If segment_bytes is set and message size approaches segment size, warn
+        if segment_bytes is not None and max_message_bytes is not None and max_message_bytes > (segment_bytes / 4):
+            findings.append(finding(
+                "MEDIUM",
+                f"Kafka topic '{name}' max.message.bytes is large relative to segment.bytes",
+                "Very large messages relative to segment size can affect log segmentation and cleanup behavior.",
+                "Adjust segment.bytes or limit message size to reasonable bounds.",
+                file,
+                rule_id="kafka.topic.message_size_relative_segment",
+                evidence={
+                    "source": "file",
+                    "path": f"topics[{idx}]",
+                    "segment_bytes": segment_bytes,
+                    "max_message_bytes": max_message_bytes
                 }
             ))
 
@@ -134,16 +223,6 @@ def evaluate_kafka_config(data, file):
                     "Review whether partition count and replication factor match actual throughput needs.",
                     file
                 ))
-
-        # Large message size risk
-        if max_message_bytes is not None and max_message_bytes > 1048576:
-            findings.append(finding(
-                "HIGH",
-                f"Kafka topic '{name}' allows messages larger than 1MB",
-                "Large messages increase broker disk I/O, memory pressure, network usage, and consumer processing latency.",
-                "Keep Kafka messages small where possible; store large payloads externally and pass references through Kafka.",
-                file
-            ))
 
         # Very large segment size risk
         if segment_bytes is not None and segment_bytes > 1073741824:

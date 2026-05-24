@@ -1,0 +1,12 @@
+rule_id: kafka.topic.retention_ms.min
+title: Kafka topic retention shorter than 24 hours
+description: |
+  Short retention reduces replay capability during incidents and audits. Consider increasing retention for production topics.
+severity_default: MEDIUM
+category: storage_sustainability
+author: beacon.rules
+recommendation: Increase retention based on recovery and audit requirements.
+version: "1.0"
+remediation_link: https://example.com/remediation/retention-ms
+runbook_url: https://example.com/runbooks/retention-ms
+

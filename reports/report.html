@@ -322,11 +322,11 @@
                 
                 <div class="muted">Rule: <strong>kafka.topic.replication_factor.min</strong></div>
                 
-                <p class="text-block"><strong>Impact:</strong> A broker failure can make this topic unavailable and interrupt production workflows.</p>
+                                <p class="text-block"><strong>Impact:</strong> A broker failure can make this topic unavailable and interrupt production workflows.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Use replication_factor=3 for production topics.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
-                
+                                
                 <div class="evidence">
                     <strong>Evidence</strong>
                     <ul>
@@ -340,50 +340,180 @@
                     </ul>
                 </div>
                 
+
+                                
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>Production Kafka topics should use replication_factor >= 3 for high availability.
+</p>
+                                    
+                                    <p><a href="https://example.com/remediation/replication" target="_blank">Remediation</a></p>
+                                    
+                                    
+                                    <p><a href="https://example.com/runbooks/replication" target="_blank">Runbook</a></p>
+                                    
+                                </div>
+                                
             </div>
             
             <div class="finding HIGH">
                 <div class="severity HIGH">HIGH</div>
                 <div class="finding-title">Kafka topic 'payments' has low partition count</div>
                 
-                <p class="text-block"><strong>Impact:</strong> Low partitions can limit consumer parallelism and reduce throughput.</p>
+                <div class="muted">Rule: <strong>kafka.topic.partitions.min</strong></div>
+                
+                                <p class="text-block"><strong>Impact:</strong> Low partitions can limit consumer parallelism and reduce throughput.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Use at least 3 partitions for production workloads.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
+                                
+                <div class="evidence">
+                    <strong>Evidence</strong>
+                    <ul>
+                        
+                        <li><span class="muted">source:</span> file</li>
+                        
+                        <li><span class="muted">path:</span> topics[0].partitions</li>
+                        
+                        <li><span class="muted">value:</span> 1</li>
+                        
+                    </ul>
+                </div>
                 
+
+                                
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>Topics with very few partitions can limit consumer parallelism and throughput. Use at least 3 partitions for production workloads.
+</p>
+                                    
+                                    <p><a href="https://example.com/remediation/partitions" target="_blank">Remediation</a></p>
+                                    
+                                    
+                                    <p><a href="https://example.com/runbooks/partitions" target="_blank">Runbook</a></p>
+                                    
+                                </div>
+                                
             </div>
             
             <div class="finding MEDIUM">
                 <div class="severity MEDIUM">MEDIUM</div>
                 <div class="finding-title">Kafka topic 'payments' retention is below 24 hours</div>
                 
-                <p class="text-block"><strong>Impact:</strong> Short retention reduces replay capability during incidents.</p>
+                <div class="muted">Rule: <strong>kafka.topic.retention_ms.min</strong></div>
+                
+                                <p class="text-block"><strong>Impact:</strong> Short retention reduces replay capability during incidents.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Increase retention based on recovery and audit requirements.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
+                                
+                <div class="evidence">
+                    <strong>Evidence</strong>
+                    <ul>
+                        
+                        <li><span class="muted">source:</span> file</li>
+                        
+                        <li><span class="muted">path:</span> topics[0].retention_ms</li>
+                        
+                        <li><span class="muted">value:</span> 3600000</li>
+                        
+                    </ul>
+                </div>
                 
+
+                                
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>Short retention reduces replay capability during incidents and audits. Consider increasing retention for production topics.
+</p>
+                                    
+                                    <p><a href="https://example.com/remediation/retention-ms" target="_blank">Remediation</a></p>
+                                    
+                                    
+                                    <p><a href="https://example.com/runbooks/retention-ms" target="_blank">Runbook</a></p>
+                                    
+                                </div>
+                                
             </div>
             
             <div class="finding MEDIUM">
                 <div class="severity MEDIUM">MEDIUM</div>
                 <div class="finding-title">Kafka topic 'payments' does not define cleanup policy</div>
                 
-                <p class="text-block"><strong>Impact:</strong> Undefined cleanup policy may create unpredictable retention and disk behavior.</p>
+                <div class="muted">Rule: <strong>kafka.topic.cleanup_policy.missing</strong></div>
+                
+                                <p class="text-block"><strong>Impact:</strong> Undefined cleanup policy may create unpredictable retention and disk behavior.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Explicitly configure cleanup_policy as delete, compact, or compact,delete.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
+                                
+                <div class="evidence">
+                    <strong>Evidence</strong>
+                    <ul>
+                        
+                        <li><span class="muted">source:</span> file</li>
+                        
+                        <li><span class="muted">path:</span> topics[0].cleanup_policy</li>
+                        
+                        <li><span class="muted">value:</span> None</li>
+                        
+                    </ul>
+                </div>
                 
+
+                                
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>Topics without an explicit cleanup.policy can have unpredictable retention and disk behavior. Set cleanup.policy to delete, compact, or compact,delete as appropriate.
+</p>
+                                    
+                                    <p><a href="https://example.com/remediation/cleanup-policy" target="_blank">Remediation</a></p>
+                                    
+                                    
+                                    <p><a href="https://example.com/runbooks/cleanup-policy" target="_blank">Runbook</a></p>
+                                    
+                                </div>
+                                
             </div>
             
             <div class="finding HIGH">
                 <div class="severity HIGH">HIGH</div>
                 <div class="finding-title">Kafka topic 'payments' does not define min.insync.replicas</div>
                 
-                <p class="text-block"><strong>Impact:</strong> Missing min ISR configuration can weaken durability guarantees during broker failure.</p>
+                <div class="muted">Rule: <strong>kafka.topic.min_insync_replicas.missing</strong></div>
+                
+                                <p class="text-block"><strong>Impact:</strong> Missing min ISR configuration can weaken durability guarantees during broker failure.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Configure min.insync.replicas for production topics.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
+                                
+                <div class="evidence">
+                    <strong>Evidence</strong>
+                    <ul>
+                        
+                        <li><span class="muted">source:</span> file</li>
+                        
+                        <li><span class="muted">path:</span> topics[0].min_insync_replicas</li>
+                        
+                        <li><span class="muted">value:</span> None</li>
+                        
+                    </ul>
+                </div>
                 
+
+                                
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>min.insync.replicas is important to guarantee message durability; missing configuration can weaken durability guarantees.
+</p>
+                                    
+                                    <p><a href="https://example.com/remediation/min-insync" target="_blank">Remediation</a></p>
+                                    
+                                    
+                                    <p><a href="https://example.com/runbooks/min-insync" target="_blank">Runbook</a></p>
+                                    
+                                </div>
+                                
             </div>
             
             <div class="finding HIGH">
@@ -392,11 +522,11 @@
                 
                 <div class="muted">Rule: <strong>kafka.topic.retention_bytes.missing</strong></div>
                 
-                <p class="text-block"><strong>Impact:</strong> Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.</p>
+                                <p class="text-block"><strong>Impact:</strong> Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Set retention_bytes based on broker disk capacity, expected throughput, and recovery needs.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
-                
+                                
                 <div class="evidence">
                     <strong>Evidence</strong>
                     <ul>
@@ -410,17 +540,60 @@
                     </ul>
                 </div>
                 
+
+                                
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>Missing retention_bytes can allow topics to grow uncontrollably if producer volume increases.
+</p>
+                                    
+                                    <p><a href="https://example.com/remediation/retention" target="_blank">Remediation</a></p>
+                                    
+                                    
+                                    <p><a href="https://example.com/runbooks/retention" target="_blank">Runbook</a></p>
+                                    
+                                </div>
+                                
             </div>
             
             <div class="finding HIGH">
                 <div class="severity HIGH">HIGH</div>
                 <div class="finding-title">Kafka topic 'payments' allows messages larger than 1MB</div>
                 
-                <p class="text-block"><strong>Impact:</strong> Large messages increase broker disk I/O, memory pressure, network usage, and consumer processing latency.</p>
+                <div class="muted">Rule: <strong>kafka.topic.max_message_bytes.large</strong></div>
+                
+                                <p class="text-block"><strong>Impact:</strong> Large messages increase broker disk I/O, memory pressure, network usage, and consumer processing latency.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Keep Kafka messages small where possible; store large payloads externally and pass references through Kafka.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
+                                
+                <div class="evidence">
+                    <strong>Evidence</strong>
+                    <ul>
+                        
+                        <li><span class="muted">source:</span> file</li>
+                        
+                        <li><span class="muted">path:</span> topics[0].max_message_bytes</li>
+                        
+                        <li><span class="muted">value:</span> 2097152</li>
+                        
+                    </ul>
+                </div>
                 
+
+                                
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>Large messages increase broker disk I/O, memory pressure, network usage, and consumer processing latency. Prefer small messages and store large payloads externally.
+</p>
+                                    
+                                    <p><a href="https://example.com/remediation/large-messages" target="_blank">Remediation</a></p>
+                                    
+                                    
+                                    <p><a href="https://example.com/runbooks/large-messages" target="_blank">Runbook</a></p>
+                                    
+                                </div>
+                                
             </div>
             
             <div class="finding HIGH">
@@ -429,11 +602,11 @@
                 
                 <div class="muted">Rule: <strong>kafka.topic.retention_bytes.missing</strong></div>
                 
-                <p class="text-block"><strong>Impact:</strong> Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.</p>
+                                <p class="text-block"><strong>Impact:</strong> Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Set retention_bytes based on broker disk capacity, expected throughput, and recovery needs.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
-                
+                                
                 <div class="evidence">
                     <strong>Evidence</strong>
                     <ul>
@@ -447,39 +620,86 @@
                     </ul>
                 </div>
                 
+
+                                
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>Missing retention_bytes can allow topics to grow uncontrollably if producer volume increases.
+</p>
+                                    
+                                    <p><a href="https://example.com/remediation/retention" target="_blank">Remediation</a></p>
+                                    
+                                    
+                                    <p><a href="https://example.com/runbooks/retention" target="_blank">Runbook</a></p>
+                                    
+                                </div>
+                                
             </div>
             
             <div class="finding HIGH">
                 <div class="severity HIGH">HIGH</div>
                 <div class="finding-title">Kafka topic 'orders' has high storage multiplier: partitions(12) x replication_factor(3) = 36</div>
                 
-                <p class="text-block"><strong>Impact:</strong> High partition and replica count increases broker disk usage, replication traffic, and recovery load.</p>
+                                <p class="text-block"><strong>Impact:</strong> High partition and replica count increases broker disk usage, replication traffic, and recovery load.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Validate broker disk capacity, partition distribution, and expected data volume.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
-                
+                                
+
+                                
             </div>
             
             <div class="finding MEDIUM">
                 <div class="severity MEDIUM">MEDIUM</div>
                 <div class="finding-title">Kafka topic 'orders' has segment_bytes greater than 1GB</div>
                 
-                <p class="text-block"><strong>Impact:</strong> Large log segments can delay cleanup and make disk recovery behavior less predictable.</p>
+                                <p class="text-block"><strong>Impact:</strong> Large log segments can delay cleanup and make disk recovery behavior less predictable.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Use segment size based on retention, cleanup frequency, and operational recovery needs.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
-                
+                                
+
+                                
             </div>
             
             <div class="finding HIGH">
                 <div class="severity HIGH">HIGH</div>
                 <div class="finding-title">Kafka topic 'customer-profile-cache' does not define min.insync.replicas</div>
                 
-                <p class="text-block"><strong>Impact:</strong> Missing min ISR configuration can weaken durability guarantees during broker failure.</p>
+                <div class="muted">Rule: <strong>kafka.topic.min_insync_replicas.missing</strong></div>
+                
+                                <p class="text-block"><strong>Impact:</strong> Missing min ISR configuration can weaken durability guarantees during broker failure.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Configure min.insync.replicas for production topics.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
+                                
+                <div class="evidence">
+                    <strong>Evidence</strong>
+                    <ul>
+                        
+                        <li><span class="muted">source:</span> file</li>
+                        
+                        <li><span class="muted">path:</span> topics[2].min_insync_replicas</li>
+                        
+                        <li><span class="muted">value:</span> None</li>
+                        
+                    </ul>
+                </div>
                 
+
+                                
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>min.insync.replicas is important to guarantee message durability; missing configuration can weaken durability guarantees.
+</p>
+                                    
+                                    <p><a href="https://example.com/remediation/min-insync" target="_blank">Remediation</a></p>
+                                    
+                                    
+                                    <p><a href="https://example.com/runbooks/min-insync" target="_blank">Runbook</a></p>
+                                    
+                                </div>
+                                
             </div>
             
             <div class="finding HIGH">
@@ -488,11 +708,11 @@
                 
                 <div class="muted">Rule: <strong>kafka.topic.retention_bytes.missing</strong></div>
                 
-                <p class="text-block"><strong>Impact:</strong> Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.</p>
+                                <p class="text-block"><strong>Impact:</strong> Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Set retention_bytes based on broker disk capacity, expected throughput, and recovery needs.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
-                
+                                
                 <div class="evidence">
                     <strong>Evidence</strong>
                     <ul>
@@ -506,28 +726,46 @@
                     </ul>
                 </div>
                 
+
+                                
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>Missing retention_bytes can allow topics to grow uncontrollably if producer volume increases.
+</p>
+                                    
+                                    <p><a href="https://example.com/remediation/retention" target="_blank">Remediation</a></p>
+                                    
+                                    
+                                    <p><a href="https://example.com/runbooks/retention" target="_blank">Runbook</a></p>
+                                    
+                                </div>
+                                
             </div>
             
             <div class="finding MEDIUM">
                 <div class="severity MEDIUM">MEDIUM</div>
                 <div class="finding-title">Kafka topic 'customer-profile-cache' has moderate storage multiplier: partitions(6) x replication_factor(3) = 18</div>
                 
-                <p class="text-block"><strong>Impact:</strong> Replica storage grows with every partition and can increase disk pressure during traffic spikes.</p>
+                                <p class="text-block"><strong>Impact:</strong> Replica storage grows with every partition and can increase disk pressure during traffic spikes.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Review whether partition count and replication factor match actual throughput needs.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
-                
+                                
+
+                                
             </div>
             
             <div class="finding MEDIUM">
                 <div class="severity MEDIUM">MEDIUM</div>
                 <div class="finding-title">Kafka compacted topic 'customer-profile-cache' has no retention_bytes limit</div>
                 
-                <p class="text-block"><strong>Impact:</strong> Compacted topics can still consume significant disk if key cardinality is high or tombstone cleanup is delayed.</p>
+                                <p class="text-block"><strong>Impact:</strong> Compacted topics can still consume significant disk if key cardinality is high or tombstone cleanup is delayed.</p>
                 <p class="text-block"><strong>Recommendation:</strong> Set retention_bytes or review compaction and key cardinality assumptions.</p>
                 <p class="muted"><strong>File:</strong> ./examples/bad-infra/kafka-topics.yaml</p>
 
-                
+                                
+
+                                
             </div>
             
         

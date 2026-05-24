@@ -1,0 +1,12 @@
+rule_id: aws.s3.public_access_block.weak
+title: S3 public access block is weak
+description: |
+  S3 public access block settings are disabled or set to permissive values, which may expose buckets publicly.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.rules
+recommendation: Block public access unless there is an explicit approved exception.
+version: "1.0"
+remediation_link: https://example.com/remediation/s3-public
+runbook_url: https://example.com/runbooks/s3-public
+

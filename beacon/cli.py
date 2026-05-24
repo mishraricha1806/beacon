@@ -13,6 +13,10 @@ from beacon.kafka_runtime_connector import analyze_kafka_cluster
 from beacon.readiness.kafka.readiness_engine import (
     calculate_readiness
 )
+from beacon import rules_registry
+from rich.table import Table
+from beacon.policy import load_policy, apply_policy_to_findings
+
 
 from beacon.readiness.readiness_reporter import (
     print_readiness_summary
@@ -43,6 +47,40 @@ app.add_typer(
     name="readiness"
 )
 
+rules_app = typer.Typer(help="Rules metadata and management.")
+app.add_typer(rules_app, name="rules")
+
+
+@rules_app.command("list")
+def list_rules(output: str = typer.Option("terminal", help="Output: terminal or json")):
+    """List available rule metadata."""
+    rules = rules_registry.list_rules()
+
+    if output == "json":
+        import json
+
+        typer.echo(json.dumps(rules, indent=2))
+        return
+
+    table = Table(title="Beacon Rules")
+    table.add_column("Rule ID", style="bold")
+    table.add_column("Title")
+    table.add_column("Category")
+    table.add_column("Default Severity")
+
+    for rule_id, meta in sorted(rules.items()):
+        table.add_row(
+            rule_id,
+            meta.get("title", ""),
+            meta.get("category", ""),
+            meta.get("severity_default", "")
+        )
+
+    from rich.console import Console
+
+    Console().print(table)
+
+
 @app.command()
 def scan(
     path: str,
@@ -52,6 +90,9 @@ def scan(
 ):
     """Scan infrastructure configuration for production risks."""
     findings = scan_path(path)
+    # apply runtime policy overrides (if present)
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
 
     print_report(
         findings,
@@ -70,6 +111,8 @@ def runtime(
 ):
     """Analyze runtime snapshot YAML."""
     findings = analyze_runtime_file(path)
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
 
     print_report(
         findings,
@@ -110,6 +153,8 @@ def diagnose_kafka(
         consumer_group=consumer_group,
         max_groups=max_groups,
     )
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
 
     print_report(
         findings,
@@ -158,6 +203,9 @@ def readiness_kafka(
         topic=topic,
         max_groups=max_groups,
     )
+
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
 
     readiness_summary = calculate_readiness(findings)
 

@@ -1,0 +1,12 @@
+rule_id: kafka.topic.min_insync_replicas.missing
+title: Kafka topic missing min.insync.replicas
+description: |
+  min.insync.replicas is important to guarantee message durability; missing configuration can weaken durability guarantees.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Set min.insync.replicas appropriately for production topics.
+version: "1.0"
+remediation_link: https://example.com/remediation/min-insync
+runbook_url: https://example.com/runbooks/min-insync
+

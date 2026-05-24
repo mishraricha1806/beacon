@@ -1,0 +1,12 @@
+rule_id: kafka.topic.cleanup_policy.missing
+title: Kafka topic missing cleanup policy
+description: |
+  Topics without an explicit cleanup.policy can have unpredictable retention and disk behavior. Set cleanup.policy to delete, compact, or compact,delete as appropriate.
+severity_default: MEDIUM
+category: storage_sustainability
+author: beacon.rules
+recommendation: Explicitly configure cleanup_policy for topics.
+version: "1.0"
+remediation_link: https://example.com/remediation/cleanup-policy
+runbook_url: https://example.com/runbooks/cleanup-policy
+

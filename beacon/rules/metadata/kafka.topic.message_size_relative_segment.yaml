@@ -1,0 +1,12 @@
+rule_id: kafka.topic.message_size_relative_segment
+title: Kafka topic max.message.bytes is large relative to segment.bytes
+description: |
+  When max.message.bytes approaches segment.bytes, segmentation and cleanup behavior may be impacted. Adjust segment size or limit message size.
+severity_default: MEDIUM
+category: storage_sustainability
+author: beacon.rules
+recommendation: Adjust segment.bytes or limit message size to reasonable bounds.
+version: "1.0"
+remediation_link: https://example.com/remediation/message-segment
+runbook_url: https://example.com/runbooks/message-segment
+

@@ -1,6 +1,7 @@
 from jinja2 import Template
 import os
 import webbrowser
+from beacon import rules_registry
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -297,11 +298,11 @@ HTML_TEMPLATE = """
                 {% if finding.rule_id %}
                 <div class="muted">Rule: <strong>{{ finding.rule_id }}</strong></div>
                 {% endif %}
-                <p class="text-block"><strong>Impact:</strong> {{ finding.impact }}</p>
+                                <p class="text-block"><strong>Impact:</strong> {{ finding.impact }}</p>
                 <p class="text-block"><strong>Recommendation:</strong> {{ finding.recommendation }}</p>
                 <p class="muted"><strong>File:</strong> {{ finding.file }}</p>
 
-                {% if finding.evidence %}
+                                {% if finding.evidence %}
                 <div class="evidence">
                     <strong>Evidence</strong>
                     <ul>
@@ -311,6 +312,19 @@ HTML_TEMPLATE = """
                     </ul>
                 </div>
                 {% endif %}
+
+                                {% if finding.rule_description %}
+                                <div class="evidence">
+                                    <strong>Rule description</strong>
+                                    <p>{{ finding.rule_description }}</p>
+                                    {% if finding.remediation_link %}
+                                    <p><a href="{{ finding.remediation_link }}" target="_blank">Remediation</a></p>
+                                    {% endif %}
+                                    {% if finding.runbook_url %}
+                                    <p><a href="{{ finding.runbook_url }}" target="_blank">Runbook</a></p>
+                                    {% endif %}
+                                </div>
+                                {% endif %}
             </div>
             {% endfor %}
         {% else %}
@@ -335,8 +349,22 @@ def generate_html_report(findings, score, open_report=True, readiness_summary=No
 
     template = Template(HTML_TEMPLATE)
 
+    # enrich findings with rule metadata when available for richer HTML
+    enriched = []
+    for f in findings:
+        nf = dict(f)
+        rid = nf.get("rule_id")
+        if rid:
+            meta = rules_registry.get(rid) or {}
+            # include optional metadata fields
+            nf["rule_title"] = meta.get("title")
+            nf["rule_description"] = meta.get("description")
+            nf["remediation_link"] = meta.get("remediation_link")
+            nf["runbook_url"] = meta.get("runbook_url")
+        enriched.append(nf)
+
     html_content = template.render(
-        findings=findings,
+        findings=enriched,
         score=score,
         readiness_summary=readiness_summary
     )
