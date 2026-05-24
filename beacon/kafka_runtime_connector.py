@@ -1,16 +1,32 @@
 from confluent_kafka import TopicPartition, ConsumerGroupTopicPartitions
 from confluent_kafka.admin import AdminClient, ConfigResource, ResourceType, OffsetSpec
 
-from beacon.rules import evaluate_kafka_config
+from beacon.rules.kafka_rules import evaluate_kafka_config
 
 
-def finding(severity, title, impact, recommendation, file="runtime-kafka"):
+def finding(
+    severity,
+    title,
+    impact,
+    recommendation,
+    file="runtime-kafka",
+    rule_id="kafka.runtime.diagnostic",
+    domain="kafka",
+    category="runtime_stability",
+    evidence=None,
+    tags=None,
+):
     return {
+        "rule_id": rule_id,
+        "domain": domain,
+        "category": category,
         "severity": severity,
         "title": title,
         "impact": impact,
         "recommendation": recommendation,
         "file": file,
+        "evidence": evidence or {},
+        "tags": tags or [],
     }
 
 

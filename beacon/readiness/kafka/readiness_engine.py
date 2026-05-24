@@ -39,7 +39,7 @@ def calculate_readiness(findings):
             summary["low"] += 1
             summary["score"] -= 2
 
-        category = classify_finding(title, impact)
+        category = finding.get("category", "operational_safety")
 
         if category:
             summary["categories"][category]["findings"] += 1

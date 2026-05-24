@@ -17,22 +17,22 @@ def test_kafka_replication_rule_includes_rule_id_and_evidence():
     findings = evaluate_kafka_config(data, "examples/kafka-topics.yaml")
 
     assert any(
-        f.get("rule_id") == "kafka.topic.replication_factor.min" for f in findings
+        f.get("rule_id") == "kafka.topic.replication_factor.low" for f in findings
     )
 
     f = next(
-        f for f in findings if f.get("rule_id") == "kafka.topic.replication_factor.min"
+        f for f in findings if f.get("rule_id") == "kafka.topic.replication_factor.low"
     )
     assert "evidence" in f
-    assert f["evidence"]["path"].startswith("topics[")
-    assert f["evidence"]["value"] == 1
+    assert f["evidence"]["topic"] == "payments"
+    assert f["evidence"]["replication_factor"] == 1
 
 
 def test_kafka_retention_bytes_missing_includes_rule_id_and_evidence():
     data = {
         "topics": [
             {
-                "name": "orders",
+                "name": "payments",
                 "replication_factor": 3,
                 "partitions": 3,
                 # retention_bytes intentionally missing
@@ -50,7 +50,8 @@ def test_kafka_retention_bytes_missing_includes_rule_id_and_evidence():
         f for f in findings if f.get("rule_id") == "kafka.topic.retention_bytes.missing"
     )
     assert "evidence" in f
-    assert f["evidence"]["path"].startswith("topics[")
+    assert f["evidence"]["topic"] == "payments"
+    assert "retention_bytes" in f["evidence"]
 
 
 def test_terraform_s3_public_access_includes_offending_keys_and_rule_id():
@@ -71,10 +72,14 @@ def test_terraform_s3_public_access_includes_offending_keys_and_rule_id():
 
     findings = evaluate_terraform_config(data, "examples/main.tf")
 
-    assert any(f.get("rule_id") == "aws.s3.public_access_block.weak" for f in findings)
+    assert any(
+        f.get("rule_id") == "object_storage.public_access.enabled" for f in findings
+    )
 
     f = next(
-        f for f in findings if f.get("rule_id") == "aws.s3.public_access_block.weak"
+        f
+        for f in findings
+        if f.get("rule_id") == "object_storage.public_access.enabled"
     )
     assert "evidence" in f
     assert "offending_keys" in f["evidence"]

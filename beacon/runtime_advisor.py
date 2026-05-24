@@ -1,13 +1,29 @@
 import yaml
 
 
-def finding(severity, title, impact, recommendation, file):
+def finding(
+    severity,
+    title,
+    impact,
+    recommendation,
+    file,
+    rule_id="runtime.snapshot.diagnostic",
+    domain="runtime",
+    category="runtime_stability",
+    evidence=None,
+    tags=None,
+):
     return {
+        "rule_id": rule_id,
+        "domain": domain,
+        "category": category,
         "severity": severity,
         "title": title,
         "impact": impact,
         "recommendation": recommendation,
         "file": file,
+        "evidence": evidence or {},
+        "tags": tags or [],
     }
 
 
