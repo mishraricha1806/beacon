@@ -15,8 +15,7 @@ class TestDecisionEngine:
     def test_ready_decision_no_findings(self):
         """Test READY decision with no findings."""
         decision, reason = DecisionEngine.determine_production_decision(
-            findings=[],
-            score=100
+            findings=[], score=100
         )
         assert decision == ProductionDecision.READY
         assert "ready" in reason.lower()
@@ -24,11 +23,16 @@ class TestDecisionEngine:
     def test_not_ready_critical_finding(self):
         """Test NOT READY decision with critical finding."""
         findings = [
-            finding("CRITICAL", "Replication factor 1", "Data loss risk", "Increase RF", "test.yaml")
+            finding(
+                "CRITICAL",
+                "Replication factor 1",
+                "Data loss risk",
+                "Increase RF",
+                "test.yaml",
+            )
         ]
         decision, reason = DecisionEngine.determine_production_decision(
-            findings=findings,
-            score=80
+            findings=findings, score=80
         )
         assert decision == ProductionDecision.NOT_READY
         assert "critical" in reason.lower()
@@ -41,8 +45,7 @@ class TestDecisionEngine:
             finding("MEDIUM", "Issue 3", "Impact", "Fix", "test.yaml"),
         ]
         decision, reason = DecisionEngine.determine_production_decision(
-            findings=findings,
-            score=45
+            findings=findings, score=45
         )
         assert decision == ProductionDecision.NOT_READY
         assert "below" in reason.lower() or "threshold" in reason.lower()
@@ -54,8 +57,7 @@ class TestDecisionEngine:
             finding("LOW", "Suggestion", "Very low impact", "Optional", "test.yaml"),
         ]
         decision, reason = DecisionEngine.determine_production_decision(
-            findings=findings,
-            score=85
+            findings=findings, score=85
         )
         assert decision == ProductionDecision.READY
 
@@ -82,7 +84,7 @@ class TestDecisionEngine:
                 "Data loss risk",
                 "Increase RF",
                 "kafka.yaml",
-                rule_id="kafka.topic.replication_factor.min"
+                rule_id="kafka.topic.replication_factor.min",
             ),
             finding(
                 "HIGH",
@@ -90,7 +92,7 @@ class TestDecisionEngine:
                 "Data exposure",
                 "Block access",
                 "storage.tf",
-                rule_id="aws.s3.public_access_block.weak"
+                rule_id="aws.s3.public_access_block.weak",
             ),
         ]
         risk_areas = DecisionEngine.identify_primary_risk_areas(findings)
@@ -114,7 +116,13 @@ class TestDecisionEngine:
     def test_prioritize_actions_limited_count(self):
         """Test that action count is limited."""
         findings = [
-            finding(f"{'CRITICAL' if i == 0 else 'HIGH'}", f"Issue {i}", "Impact", "Action", "test.yaml")
+            finding(
+                f"{'CRITICAL' if i == 0 else 'HIGH'}",
+                f"Issue {i}",
+                "Impact",
+                "Action",
+                "test.yaml",
+            )
             for i in range(10)
         ]
         actions = DecisionEngine.prioritize_remediation_actions(findings, max_actions=3)
@@ -127,14 +135,16 @@ class TestDecisionFormatter:
     def test_format_production_decision_terminal(self):
         """Test terminal format output."""
         findings = [
-            finding("CRITICAL", "Replication issue", "Data loss", "Fix now", "test.yaml")
+            finding(
+                "CRITICAL", "Replication issue", "Data loss", "Fix now", "test.yaml"
+            )
         ]
         output = DecisionFormatter.format_production_decision(
             decision=ProductionDecision.NOT_READY,
             findings=findings,
             score=70,
             reasoning="System has critical findings",
-            analysis_type="Static"
+            analysis_type="Static",
         )
         assert "NOT READY" in output
         assert "70/100" in output
@@ -144,14 +154,20 @@ class TestDecisionFormatter:
     def test_format_production_decision_json(self):
         """Test JSON format output."""
         findings = [
-            finding("HIGH", "Storage issue", "Disk pressure", "Review retention", "test.yaml")
+            finding(
+                "HIGH",
+                "Storage issue",
+                "Disk pressure",
+                "Review retention",
+                "test.yaml",
+            )
         ]
         output = DecisionFormatter.format_json_decision(
             decision=ProductionDecision.READY,
             findings=findings,
             score=75,
             reasoning="Acceptable operational state",
-            analysis_type="Runtime"
+            analysis_type="Runtime",
         )
         assert output["production_decision"] == "READY"
         assert output["score"] == 75
@@ -168,7 +184,7 @@ class TestDecisionFormatter:
             findings=findings,
             score=100,
             reasoning="All clear",
-            analysis_type="Static"
+            analysis_type="Static",
         )
         required_fields = [
             "production_decision",

@@ -39,7 +39,7 @@ class TestSnapshotParsing:
                     "lag": 0,
                     "members": 3,
                 }
-            ]
+            ],
         }
         assert snapshot["timestamp"]
         assert len(snapshot["brokers"]) > 0
@@ -51,7 +51,7 @@ class TestSnapshotParsing:
             "brokers": [
                 {
                     "disk_bytes_total": 1099511627776,  # 1TB
-                    "disk_bytes_used": 659306596352,    # 600GB
+                    "disk_bytes_used": 659306596352,  # 600GB
                 }
             ]
         }
@@ -76,7 +76,9 @@ class TestSnapshotCorrelation:
             },
         ]
         # Growth: 50GB in 10 days = 5GB/day
-        growth_gb = (snapshots[1]["disk_used_bytes"] - snapshots[0]["disk_used_bytes"]) / (1024**3)
+        growth_gb = (
+            snapshots[1]["disk_used_bytes"] - snapshots[0]["disk_used_bytes"]
+        ) / (1024**3)
         days_elapsed = (snapshots[1]["timestamp"] - snapshots[0]["timestamp"]).days
         growth_per_day = growth_gb / days_elapsed
         assert growth_per_day == pytest.approx(5.0, abs=0.1)
@@ -102,7 +104,7 @@ class TestSnapshotCorrelation:
                     {"partition": 0, "bytes": 100000},
                     {"partition": 1, "bytes": 100000},
                     {"partition": 2, "bytes": 100000},
-                ]
+                ],
             },
             {
                 "timestamp": datetime(2025, 5, 26, 11, 0, 0),
@@ -110,12 +112,18 @@ class TestSnapshotCorrelation:
                     {"partition": 0, "bytes": 200000},  # Growing faster
                     {"partition": 1, "bytes": 105000},
                     {"partition": 2, "bytes": 105000},
-                ]
+                ],
             },
         ]
         # Partition 0 is becoming imbalanced
-        partition_0_bytes_growth = snapshots[1]["partitions"][0]["bytes"] - snapshots[0]["partitions"][0]["bytes"]
-        partition_1_bytes_growth = snapshots[1]["partitions"][1]["bytes"] - snapshots[0]["partitions"][1]["bytes"]
+        partition_0_bytes_growth = (
+            snapshots[1]["partitions"][0]["bytes"]
+            - snapshots[0]["partitions"][0]["bytes"]
+        )
+        partition_1_bytes_growth = (
+            snapshots[1]["partitions"][1]["bytes"]
+            - snapshots[0]["partitions"][1]["bytes"]
+        )
         assert partition_0_bytes_growth > partition_1_bytes_growth
 
 

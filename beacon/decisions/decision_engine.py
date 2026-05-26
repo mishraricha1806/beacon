@@ -10,12 +10,14 @@ from enum import Enum
 
 class ProductionDecision(Enum):
     """Production readiness decision."""
+
     READY = "READY"
     NOT_READY = "NOT READY"
 
 
 class RiskLevel(Enum):
     """Risk severity levels."""
+
     CRITICAL = "CRITICAL"
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -32,8 +34,7 @@ class DecisionEngine:
 
     @staticmethod
     def determine_production_decision(
-        findings: List[Dict],
-        score: int
+        findings: List[Dict], score: int
     ) -> Tuple[ProductionDecision, str]:
         """Determine if system is production ready.
 
@@ -80,9 +81,7 @@ class DecisionEngine:
         return ProductionDecision.READY, " ".join(reasoning_parts)
 
     @staticmethod
-    def categorize_findings(
-        findings: List[Dict]
-    ) -> Dict[str, List[Dict]]:
+    def categorize_findings(findings: List[Dict]) -> Dict[str, List[Dict]]:
         """Categorize findings by severity and risk area.
 
         Returns:
@@ -104,9 +103,7 @@ class DecisionEngine:
         return categorized
 
     @staticmethod
-    def identify_primary_risk_areas(
-        findings: List[Dict]
-    ) -> List[Dict]:
+    def identify_primary_risk_areas(findings: List[Dict]) -> List[Dict]:
         """Identify primary risk areas from findings.
 
         Returns:
@@ -143,22 +140,23 @@ class DecisionEngine:
 
             # Update max severity
             severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-            if severity_order.get(severity, 99) < severity_order.get(risk_areas[risk_area]["max_severity"], 99):
+            if severity_order.get(severity, 99) < severity_order.get(
+                risk_areas[risk_area]["max_severity"], 99
+            ):
                 risk_areas[risk_area]["max_severity"] = severity
 
         # Sort by severity and count
         severity_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
         sorted_areas = sorted(
             risk_areas.values(),
-            key=lambda x: (severity_order.get(x["max_severity"], 99), -x["count"])
+            key=lambda x: (severity_order.get(x["max_severity"], 99), -x["count"]),
         )
 
         return sorted_areas
 
     @staticmethod
     def prioritize_remediation_actions(
-        findings: List[Dict],
-        max_actions: int = 5
+        findings: List[Dict], max_actions: int = 5
     ) -> List[Dict]:
         """Prioritize remediation actions based on impact and severity.
 

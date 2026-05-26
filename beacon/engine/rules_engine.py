@@ -13,6 +13,7 @@ from dataclasses import dataclass
 @dataclass
 class Rule:
     """Represents a single evaluation rule."""
+
     rule_id: str
     title: str
     category: str
@@ -39,11 +40,7 @@ class RulesEngine:
             raise ValueError(f"Rule {rule.rule_id} already registered")
         self.rules[rule.rule_id] = rule
 
-    def evaluate(
-        self,
-        data: Dict[str, Any],
-        rule_ids: List[str] = None
-    ) -> List[Dict]:
+    def evaluate(self, data: Dict[str, Any], rule_ids: List[str] = None) -> List[Dict]:
         """Evaluate rules against data.
 
         Args:
@@ -76,19 +73,23 @@ class RulesEngine:
                 findings.extend(rule_findings)
 
                 # Log execution
-                self.execution_log.append({
-                    "rule_id": rule_id,
-                    "status": "success",
-                    "findings_count": len(rule_findings),
-                })
+                self.execution_log.append(
+                    {
+                        "rule_id": rule_id,
+                        "status": "success",
+                        "findings_count": len(rule_findings),
+                    }
+                )
 
             except Exception as e:
                 # Log execution error
-                self.execution_log.append({
-                    "rule_id": rule_id,
-                    "status": "error",
-                    "error": str(e),
-                })
+                self.execution_log.append(
+                    {
+                        "rule_id": rule_id,
+                        "status": "error",
+                        "error": str(e),
+                    }
+                )
 
         return findings
 

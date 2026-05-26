@@ -43,7 +43,7 @@ class TestRuntimeKafkaCollection:
                 0: {"broker": 1, "leader": 1, "replicas": [1, 2, 3]},
                 1: {"broker": 2, "leader": 2, "replicas": [2, 3, 1]},
                 2: {"broker": 3, "leader": 3, "replicas": [3, 1, 2]},
-            }
+            },
         }
         # All partitions have balanced leadership
         leaders = [p["leader"] for p in partition_distribution["partitions"].values()]
@@ -57,10 +57,12 @@ class TestRuntimeKafkaCollection:
                 {"partition": 0, "incoming_byte_rate": 100000},
                 {"partition": 1, "incoming_byte_rate": 50000},
                 {"partition": 2, "incoming_byte_rate": 900000},  # HOT
-            ]
+            ],
         }
         # Detect skew: partition 2 has 60% of traffic with 33% of partitions
-        total_traffic = sum(p["incoming_byte_rate"] for p in partition_traffic["partitions"])
+        total_traffic = sum(
+            p["incoming_byte_rate"] for p in partition_traffic["partitions"]
+        )
         partition_2_ratio = 900000 / total_traffic
         assert partition_2_ratio > 0.5  # More than 50% on one partition = hot
 
@@ -69,9 +71,11 @@ class TestRuntimeKafkaCollection:
         broker_disk = {
             "broker": 1,
             "total_disk_bytes": 1099511627776,  # 1TB
-            "used_disk_bytes": 879609302016,    # 800GB = 80%
+            "used_disk_bytes": 879609302016,  # 800GB = 80%
         }
-        disk_usage_percent = (broker_disk["used_disk_bytes"] / broker_disk["total_disk_bytes"]) * 100
+        disk_usage_percent = (
+            broker_disk["used_disk_bytes"] / broker_disk["total_disk_bytes"]
+        ) * 100
         assert disk_usage_percent == 80.0
         assert disk_usage_percent > 70  # Alert threshold
 
@@ -86,7 +90,7 @@ class TestRuntimeAnalysis:
             "lag": 5000,
             "lag_trend": "increasing",
             "producer_throughput": 1000,  # msgs/sec
-            "consumer_throughput": 500,   # msgs/sec
+            "consumer_throughput": 500,  # msgs/sec
         }
         # Producer is faster than consumer = lag increasing
         assert metrics["producer_throughput"] > metrics["consumer_throughput"]
@@ -106,7 +110,7 @@ class TestRuntimeAnalysis:
         """Test detection of producer throughput spikes."""
         producer_metrics = {
             "baseline_throughput": 1000,  # msgs/sec
-            "current_throughput": 5000,   # msgs/sec
+            "current_throughput": 5000,  # msgs/sec
             "spike_ratio": 5.0,
         }
         # 5x spike is significant
@@ -132,7 +136,10 @@ class TestRuntimeRecommendationEngine:
             "Check for retry loops",
             "Review recent deployments",
         ]
-        assert any("downstream" in action.lower() or "database" in action.lower() for action in recommended_actions)
+        assert any(
+            "downstream" in action.lower() or "database" in action.lower()
+            for action in recommended_actions
+        )
 
     def test_partition_skew_recommendation(self):
         """Test recommendations for partition skew."""

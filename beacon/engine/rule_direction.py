@@ -27,6 +27,7 @@ from typing import List, Dict
 
 class EvaluationPhase(Enum):
     """Phases of rule evaluation."""
+
     DATA_INPUT = "data_input"
     RULE_EVALUATION = "rule_evaluation"
     FINDING_GENERATION = "finding_generation"
@@ -51,11 +52,13 @@ class RuleFlowManager:
             context: Phase-specific context data
         """
         self.current_phase = phase
-        self.flow_log.append({
-            "phase": phase.value,
-            "event": "entry",
-            "context": context or {},
-        })
+        self.flow_log.append(
+            {
+                "phase": phase.value,
+                "event": "entry",
+                "context": context or {},
+            }
+        )
 
     def log_phase_exit(self, phase: EvaluationPhase, context: Dict = None) -> None:
         """Log exit from a phase.
@@ -64,11 +67,13 @@ class RuleFlowManager:
             phase: Current phase
             context: Phase-specific context data
         """
-        self.flow_log.append({
-            "phase": phase.value,
-            "event": "exit",
-            "context": context or {},
-        })
+        self.flow_log.append(
+            {
+                "phase": phase.value,
+                "event": "exit",
+                "context": context or {},
+            }
+        )
 
     def get_flow_log(self) -> List[Dict]:
         """Get complete flow log.
@@ -111,5 +116,7 @@ class RuleFlowManager:
         """
         valid_severities = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "ERROR"]
         if severity not in valid_severities:
-            raise ValueError(f"Invalid severity: {severity}. Must be one of {valid_severities}")
+            raise ValueError(
+                f"Invalid severity: {severity}. Must be one of {valid_severities}"
+            )
         return True

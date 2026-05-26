@@ -19,7 +19,7 @@ class DecisionFormatter:
         findings: List[Dict],
         score: int,
         reasoning: str,
-        analysis_type: str = "General"
+        analysis_type: str = "General",
     ) -> str:
         """Format production decision for terminal output.
 
@@ -34,9 +34,9 @@ class DecisionFormatter:
             Formatted string for terminal output
         """
         lines = [
-            "\n" + "="*70,
+            "\n" + "=" * 70,
             "BEACON PRODUCTION DECISION",
-            "="*70,
+            "=" * 70,
             "",
             f"DECISION: {decision.value}",
             "",
@@ -49,9 +49,9 @@ class DecisionFormatter:
         # Risk categories
         categorized = DecisionEngine.categorize_findings(findings)
         if any(categorized[k] for k in ["CRITICAL", "HIGH"]):
-            lines.append("="*70)
+            lines.append("=" * 70)
             lines.append("PRIMARY RISK AREAS")
-            lines.append("="*70)
+            lines.append("=" * 70)
             lines.append("")
 
             risk_areas = DecisionEngine.identify_primary_risk_areas(findings)
@@ -66,9 +66,9 @@ class DecisionFormatter:
                 lines.append("")
 
         # Remediation actions
-        lines.append("="*70)
+        lines.append("=" * 70)
         lines.append("NEXT BEST ACTIONS (Prioritized)")
-        lines.append("="*70)
+        lines.append("=" * 70)
         lines.append("")
 
         actions = DecisionEngine.prioritize_remediation_actions(findings, max_actions=5)
@@ -82,7 +82,7 @@ class DecisionFormatter:
             lines.append("No critical actions required.")
             lines.append("")
 
-        lines.append("="*70)
+        lines.append("=" * 70)
         lines.append("")
 
         return "\n".join(lines)
@@ -94,7 +94,7 @@ class DecisionFormatter:
         score: int,
         reasoning: str,
         analysis_type: str = "General",
-        readiness_summary: Optional[Dict] = None
+        readiness_summary: Optional[Dict] = None,
     ) -> Dict:
         """Format production decision as JSON.
 

@@ -32,18 +32,10 @@ def evaluate_resource(resource, context=None):
                     "domain": "engine",
                     "category": "operational_safety",
                     "severity": "ERROR",
-                    "title": (
-                        f"Rule execution failed: {rule.rule_id}"
-                    ),
+                    "title": (f"Rule execution failed: {rule.rule_id}"),
                     "impact": str(error),
-                    "recommendation": (
-                        "Review rule evaluator implementation."
-                    ),
-                    "file": (
-                        context.get("file")
-                        if context
-                        else "unknown"
-                    ),
+                    "recommendation": ("Review rule evaluator implementation."),
+                    "file": (context.get("file") if context else "unknown"),
                     "evidence": {
                         "rule_id": rule.rule_id,
                         "error": str(error),

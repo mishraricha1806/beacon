@@ -244,3 +244,44 @@ Readiness: All critical systems verified
 
 ═══════════════════════════════════════════════════════════════
 ```
+
+How to Run This Demo
+
+1. Static Analysis Phase
+
+bash
+# Scan infrastructure configuration
+python3 -m beacon.cli readiness static ./examples/demo-black-friday/kafka-config.yaml
+
+# View results
+open reports/report.html
+2. Runtime Analysis Phase
+
+bash
+# Diagnose live Kafka cluster (requires running Kafka)
+python3 -m beacon.cli readiness kafka \
+--bootstrap-server localhost:9092
+
+# View results
+open reports/report.html
+3. Snapshot Analysis Phase
+
+bash
+# Analyze historical snapshot
+python3 -m beacon.cli runtime ./examples/demo-black-friday/7-day-snapshot.yaml
+
+# View results
+open reports/report.html
+4. Generate Complete Report
+
+bash
+# All analyses in one command (shows final decision)
+python3 -m beacon.cli readiness static ./examples/demo-black-friday/kafka-config.yaml \
+&& python3 -m beacon.cli runtime ./examples/demo-black-friday/7-day-snapshot.yaml
+Key Learnings
+
+Static Analysis catches architectural issues early (replication, retention)
+Runtime Diagnostics reveal real-world bottlenecks (consumer lag, hot partitions)
+Snapshot Analysis predicts failure modes under stress (capacity planning)
+Deterministic Intelligence (no AI guessing) → trustworthy for production decisions
+Clear Recommendations → engineers know exactly what to fix
