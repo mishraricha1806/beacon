@@ -3,11 +3,13 @@ import os
 import hcl2
 import yaml
 
+import beacon.rules.kafka_registered_rules  # noqa: F401
+from beacon.engine.evaluator import evaluate
+from beacon.engine.normalizer import normalize_yaml_document
 from beacon.rules.kafka_rules import evaluate_kafka_config
 from beacon.rules.kubernetes_rules import evaluate_kubernetes_config
 from beacon.rules.terraform_rules import evaluate_terraform_config
-from beacon.engine.evaluator import evaluate_resource
-from beacon.engine.resource_normalizer import normalize_kafka_topics
+import beacon.rules.kubernetes_registered_rules  # noqa: F401
 
 SUPPORTED_EXTENSIONS = (".tf", ".yaml", ".yml")
 
@@ -28,7 +30,7 @@ SKIP_DIRS = {
     "reports",
 }
 
-MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB
+MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024
 
 
 def scanner_finding(
@@ -155,12 +157,23 @@ def scan_yaml_file(full_path: str):
         if not isinstance(data, dict):
             continue
 
-        findings.extend(route_yaml_document(data, full_path))
+        resources = normalize_yaml_document(data, full_path)
+
+        if resources:
+            findings.extend(
+                evaluate(
+                    resources,
+                    context={"file": full_path},
+                )
+            )
+            continue
+
+        findings.extend(route_unmigrated_yaml_document(data, full_path))
 
     return findings
 
 
-def route_yaml_document(data, full_path):
+def route_unmigrated_yaml_document(data, full_path):
     findings = []
 
     if is_kubernetes_document(data):

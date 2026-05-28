@@ -144,6 +144,40 @@ def retention_ms_unbounded(resource, context):
     )
 
 
+def retention_ms_low(resource, context):
+    retention_ms = resource.attributes.get("retention_ms")
+
+    if retention_ms is None:
+        return None
+
+    if retention_ms == -1:
+        return None
+
+    if retention_ms >= 86400000:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.retention_ms.low",
+        category="storage_sustainability",
+        severity="MEDIUM",
+        title=f"Kafka topic '{resource.name}' has low retention period",
+        impact=(
+            "Low retention may reduce replay capability and operational recovery "
+            "during outages or downstream failures."
+        ),
+        recommendation=(
+            "Validate retention_ms against operational replay and recovery requirements."
+        ),
+        evidence={
+            "topic": resource.name,
+            "retention_ms": retention_ms,
+            "recommended_minimum_ms": 86400000,
+        },
+        tags=["kafka", "retention", "recovery"],
+    )
+
+
 def cleanup_policy_missing(resource, context):
     cleanup_policy = resource.attributes.get("cleanup_policy")
 
@@ -415,4 +449,14 @@ register(
     "Detects Kafka topics with large log segment size.",
     segment_bytes_large,
     ["kafka", "segment", "cleanup"],
+)
+
+register(
+    "kafka.topic.retention_ms.low",
+    "storage_sustainability",
+    "MEDIUM",
+    "Kafka retention period low",
+    "Detects Kafka topics with low retention period.",
+    retention_ms_low,
+    ["kafka", "retention", "recovery"],
 )
