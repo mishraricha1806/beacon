@@ -3,13 +3,16 @@ import os
 import hcl2
 import yaml
 
+import beacon.rules.iam_registered_rules  # noqa: F401
 import beacon.rules.kafka_registered_rules  # noqa: F401
+import beacon.rules.kubernetes_registered_rules  # noqa: F401
+import beacon.rules.storage_registered_rules  # noqa: F401
 from beacon.engine.evaluator import evaluate
-from beacon.engine.normalizer import normalize_yaml_document
+from beacon.engine.normalizer import normalize_terraform_config, normalize_yaml_document
 from beacon.rules.kafka_rules import evaluate_kafka_config
 from beacon.rules.kubernetes_rules import evaluate_kubernetes_config
 from beacon.rules.terraform_rules import evaluate_terraform_config
-import beacon.rules.kubernetes_registered_rules  # noqa: F401
+
 
 SUPPORTED_EXTENSIONS = (".tf", ".yaml", ".yml")
 
@@ -173,6 +176,21 @@ def scan_yaml_file(full_path: str):
     return findings
 
 
+def scan_terraform_file(full_path: str):
+    with open(full_path, "r") as f:
+        data = hcl2.load(f)
+
+    resources = normalize_terraform_config(data, full_path)
+
+    if resources:
+        return evaluate(
+            resources,
+            context={"file": full_path},
+        )
+
+    return evaluate_terraform_config(data, full_path)
+
+
 def route_unmigrated_yaml_document(data, full_path):
     findings = []
 
@@ -193,13 +211,6 @@ def route_unmigrated_yaml_document(data, full_path):
         )
 
     return findings
-
-
-def scan_terraform_file(full_path: str):
-    with open(full_path, "r") as f:
-        data = hcl2.load(f)
-
-    return evaluate_terraform_config(data, full_path)
 
 
 def is_kubernetes_document(data):
