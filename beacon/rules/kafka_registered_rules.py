@@ -2,24 +2,45 @@ from beacon.engine.models import Finding, Rule
 from beacon.engine.registry import registry
 
 
+def build_kafka_finding(
+    resource,
+    rule_id,
+    category,
+    severity,
+    title,
+    impact,
+    recommendation,
+    evidence,
+    tags=None,
+):
+    return Finding(
+        rule_id=rule_id,
+        domain="kafka",
+        category=category,
+        severity=severity,
+        title=title,
+        impact=impact,
+        recommendation=recommendation,
+        file=resource.source,
+        evidence=evidence,
+        tags=tags or [],
+    )
+
+
 def replication_factor_low(resource, context):
     rf = resource.attributes.get("replication_factor")
 
     if rf is None or rf >= 3:
         return None
 
-    return Finding(
+    return build_kafka_finding(
+        resource=resource,
         rule_id="kafka.topic.replication_factor.low",
-        domain="kafka",
         category="resiliency",
         severity="CRITICAL",
         title=f"Kafka topic '{resource.name}' has replication factor {rf}",
-        impact=(
-            "A broker failure can make this topic unavailable and interrupt "
-            "production workflows."
-        ),
+        impact="A broker failure can make this topic unavailable and interrupt production workflows.",
         recommendation="Use replication_factor=3 for production Kafka topics.",
-        file=resource.source,
         evidence={
             "topic": resource.name,
             "replication_factor": rf,
@@ -29,19 +50,369 @@ def replication_factor_low(resource, context):
     )
 
 
-registry.register(
-    Rule(
-        rule_id="kafka.topic.replication_factor.low",
-        domain="kafka",
+def min_insync_replicas_missing(resource, context):
+    min_isr = resource.attributes.get("min_insync_replicas")
+
+    if min_isr is not None:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.min_insync_replicas.missing",
         category="resiliency",
-        severity="CRITICAL",
-        title="Kafka topic replication factor too low",
-        description=(
-            "Detects Kafka topics with replication factor below production-safe "
-            "threshold."
-        ),
-        supported_resource_types=["kafka_topic"],
-        evaluator=replication_factor_low,
-        tags=["kafka", "availability", "resiliency"],
+        severity="HIGH",
+        title=f"Kafka topic '{resource.name}' does not define min.insync.replicas",
+        impact="Missing min ISR configuration can weaken durability guarantees during broker failure.",
+        recommendation="Configure min.insync.replicas for production Kafka topics.",
+        evidence={
+            "topic": resource.name,
+            "min_insync_replicas": min_isr,
+        },
+        tags=["kafka", "durability", "isr"],
     )
+
+
+def min_insync_replicas_unsafe(resource, context):
+    min_isr = resource.attributes.get("min_insync_replicas")
+    rf = resource.attributes.get("replication_factor")
+
+    if min_isr is None:
+        return None
+
+    if rf is not None and rf >= 3 and min_isr < 2:
+        return build_kafka_finding(
+            resource=resource,
+            rule_id="kafka.topic.min_insync_replicas.unsafe",
+            category="resiliency",
+            severity="HIGH",
+            title=f"Kafka topic '{resource.name}' has unsafe min.insync.replicas",
+            impact="Low min ISR can allow writes with insufficient replica acknowledgement.",
+            recommendation="For replication_factor=3, use min.insync.replicas=2 for production durability.",
+            evidence={
+                "topic": resource.name,
+                "replication_factor": rf,
+                "min_insync_replicas": min_isr,
+                "recommended_minimum": 2,
+            },
+            tags=["kafka", "durability", "resiliency"],
+        )
+
+    return None
+
+
+def retention_bytes_missing(resource, context):
+    retention_bytes = resource.attributes.get("retention_bytes")
+
+    if retention_bytes is not None:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.retention_bytes.missing",
+        category="storage_sustainability",
+        severity="HIGH",
+        title=f"Kafka topic '{resource.name}' does not define retention_bytes",
+        impact="Disk usage can grow unpredictably if producer volume increases or cleanup is delayed.",
+        recommendation="Set retention_bytes based on broker disk capacity, throughput, and recovery needs.",
+        evidence={
+            "topic": resource.name,
+            "retention_bytes": retention_bytes,
+        },
+        tags=["kafka", "storage", "capacity"],
+    )
+
+
+def retention_ms_unbounded(resource, context):
+    retention_ms = resource.attributes.get("retention_ms")
+
+    if retention_ms != -1:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.retention_ms.unbounded",
+        category="storage_sustainability",
+        severity="HIGH",
+        title=f"Kafka topic '{resource.name}' has unbounded retention",
+        impact="Unbounded retention can cause uncontrolled storage growth and broker disk pressure.",
+        recommendation="Define a bounded retention_ms policy for production topics.",
+        evidence={
+            "topic": resource.name,
+            "retention_ms": retention_ms,
+        },
+        tags=["kafka", "storage", "retention"],
+    )
+
+
+def cleanup_policy_missing(resource, context):
+    cleanup_policy = resource.attributes.get("cleanup_policy")
+
+    if cleanup_policy is not None:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.cleanup_policy.missing",
+        category="storage_sustainability",
+        severity="MEDIUM",
+        title=f"Kafka topic '{resource.name}' does not define cleanup policy",
+        impact="Undefined cleanup policy may create unpredictable retention and disk behavior.",
+        recommendation="Explicitly configure cleanup_policy as delete, compact, or compact,delete.",
+        evidence={
+            "topic": resource.name,
+            "cleanup_policy": cleanup_policy,
+        },
+        tags=["kafka", "cleanup", "retention"],
+    )
+
+
+def max_message_bytes_large(resource, context):
+    max_message_bytes = resource.attributes.get("max_message_bytes")
+
+    if max_message_bytes is None or max_message_bytes <= 1048576:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.max_message_bytes.large",
+        category="storage_sustainability",
+        severity="HIGH",
+        title=f"Kafka topic '{resource.name}' allows messages larger than 1MB",
+        impact="Large messages increase broker disk I/O, memory pressure, network usage, and consumer latency.",
+        recommendation="Keep Kafka messages small; store large payloads externally and pass references through Kafka.",
+        evidence={
+            "topic": resource.name,
+            "max_message_bytes": max_message_bytes,
+            "recommended_max_bytes": 1048576,
+        },
+        tags=["kafka", "message-size", "latency"],
+    )
+
+
+def partitions_low(resource, context):
+    partitions = resource.attributes.get("partitions")
+
+    if partitions is None or partitions >= 3:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.partitions.low",
+        category="scalability",
+        severity="HIGH",
+        title=f"Kafka topic '{resource.name}' has low partition count",
+        impact="Low partitions can limit consumer parallelism and reduce throughput.",
+        recommendation="Use at least 3 partitions for production workloads, then tune based on throughput.",
+        evidence={
+            "topic": resource.name,
+            "partitions": partitions,
+            "expected_minimum": 3,
+        },
+        tags=["kafka", "throughput", "parallelism"],
+    )
+
+
+def partitions_high(resource, context):
+    partitions = resource.attributes.get("partitions")
+
+    if partitions is None or partitions <= 100:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.partitions.high",
+        category="scalability",
+        severity="MEDIUM",
+        title=f"Kafka topic '{resource.name}' has very high partition count",
+        impact="Very high partition count can increase broker metadata load, recovery time, and rebalance cost.",
+        recommendation="Validate whether partition count is justified by throughput and consumer parallelism needs.",
+        evidence={
+            "topic": resource.name,
+            "partitions": partitions,
+            "review_threshold": 100,
+        },
+        tags=["kafka", "partitioning", "scalability"],
+    )
+
+
+def storage_multiplier_high(resource, context):
+    rf = resource.attributes.get("replication_factor")
+    partitions = resource.attributes.get("partitions")
+
+    if rf is None or partitions is None:
+        return None
+
+    storage_units = rf * partitions
+
+    if storage_units < 30:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.storage_multiplier.high",
+        category="storage_sustainability",
+        severity="HIGH",
+        title=(
+            f"Kafka topic '{resource.name}' has high storage multiplier: "
+            f"partitions({partitions}) x replication_factor({rf}) = {storage_units}"
+        ),
+        impact="High partition and replica count increases broker disk usage, replication traffic, and recovery load.",
+        recommendation="Validate broker disk capacity, partition distribution, and expected data volume.",
+        evidence={
+            "topic": resource.name,
+            "partitions": partitions,
+            "replication_factor": rf,
+            "storage_multiplier": storage_units,
+        },
+        tags=["kafka", "storage", "capacity"],
+    )
+
+
+def segment_bytes_large(resource, context):
+    segment_bytes = resource.attributes.get("segment_bytes")
+
+    if segment_bytes is None or segment_bytes <= 1073741824:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.segment_bytes.large",
+        category="storage_sustainability",
+        severity="MEDIUM",
+        title=f"Kafka topic '{resource.name}' has segment_bytes greater than 1GB",
+        impact="Large log segments can delay cleanup and make disk recovery behavior less predictable.",
+        recommendation="Use segment size based on retention, cleanup frequency, and operational recovery needs.",
+        evidence={
+            "topic": resource.name,
+            "segment_bytes": segment_bytes,
+            "recommended_max_bytes": 1073741824,
+        },
+        tags=["kafka", "segment", "cleanup"],
+    )
+
+
+def register(rule_id, category, severity, title, description, evaluator, tags):
+    registry.register(
+        Rule(
+            rule_id=rule_id,
+            domain="kafka",
+            category=category,
+            severity=severity,
+            title=title,
+            description=description,
+            supported_resource_types=["kafka_topic"],
+            evaluator=evaluator,
+            tags=tags,
+        )
+    )
+
+
+register(
+    "kafka.topic.replication_factor.low",
+    "resiliency",
+    "CRITICAL",
+    "Kafka topic replication factor too low",
+    "Detects Kafka topics with replication factor below production-safe threshold.",
+    replication_factor_low,
+    ["kafka", "availability", "resiliency"],
+)
+
+register(
+    "kafka.topic.min_insync_replicas.missing",
+    "resiliency",
+    "HIGH",
+    "Kafka min.insync.replicas missing",
+    "Detects Kafka topics without min.insync.replicas.",
+    min_insync_replicas_missing,
+    ["kafka", "durability", "isr"],
+)
+
+register(
+    "kafka.topic.min_insync_replicas.unsafe",
+    "resiliency",
+    "HIGH",
+    "Kafka min.insync.replicas unsafe",
+    "Detects Kafka topics with unsafe min.insync.replicas.",
+    min_insync_replicas_unsafe,
+    ["kafka", "durability", "isr"],
+)
+
+register(
+    "kafka.topic.retention_bytes.missing",
+    "storage_sustainability",
+    "HIGH",
+    "Kafka retention_bytes missing",
+    "Detects Kafka topics without retention_bytes.",
+    retention_bytes_missing,
+    ["kafka", "storage", "capacity"],
+)
+
+register(
+    "kafka.topic.retention_ms.unbounded",
+    "storage_sustainability",
+    "HIGH",
+    "Kafka retention_ms unbounded",
+    "Detects Kafka topics with unbounded retention.",
+    retention_ms_unbounded,
+    ["kafka", "storage", "retention"],
+)
+
+register(
+    "kafka.topic.cleanup_policy.missing",
+    "storage_sustainability",
+    "MEDIUM",
+    "Kafka cleanup policy missing",
+    "Detects Kafka topics without explicit cleanup policy.",
+    cleanup_policy_missing,
+    ["kafka", "cleanup", "retention"],
+)
+
+register(
+    "kafka.topic.max_message_bytes.large",
+    "storage_sustainability",
+    "HIGH",
+    "Kafka max message bytes too large",
+    "Detects Kafka topics allowing large messages.",
+    max_message_bytes_large,
+    ["kafka", "message-size", "latency"],
+)
+
+register(
+    "kafka.topic.partitions.low",
+    "scalability",
+    "HIGH",
+    "Kafka partition count too low",
+    "Detects Kafka topics with low partition count.",
+    partitions_low,
+    ["kafka", "throughput", "parallelism"],
+)
+
+register(
+    "kafka.topic.partitions.high",
+    "scalability",
+    "MEDIUM",
+    "Kafka partition count very high",
+    "Detects Kafka topics with very high partition count.",
+    partitions_high,
+    ["kafka", "partitioning", "scalability"],
+)
+
+register(
+    "kafka.topic.storage_multiplier.high",
+    "storage_sustainability",
+    "HIGH",
+    "Kafka storage multiplier high",
+    "Detects Kafka topics with high partition x replication storage multiplier.",
+    storage_multiplier_high,
+    ["kafka", "storage", "capacity"],
+)
+
+register(
+    "kafka.topic.segment_bytes.large",
+    "storage_sustainability",
+    "MEDIUM",
+    "Kafka segment bytes large",
+    "Detects Kafka topics with large log segment size.",
+    segment_bytes_large,
+    ["kafka", "segment", "cleanup"],
 )
