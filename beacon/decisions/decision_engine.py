@@ -75,7 +75,7 @@ class DecisionEngine:
 
         # All checks passed
         reasoning_parts.append(
-            f"System meets production readiness criteria. "
+            f"System is production ready. "
             f"Score: {score}/100, Critical: {critical_count}, High: {high_count}."
         )
         return ProductionDecision.READY, " ".join(reasoning_parts)

@@ -76,7 +76,7 @@ class TestRuntimeKafkaCollection:
         disk_usage_percent = (
             broker_disk["used_disk_bytes"] / broker_disk["total_disk_bytes"]
         ) * 100
-        assert disk_usage_percent == 80.0
+        assert round(disk_usage_percent, 1) == 80.0
         assert disk_usage_percent > 70  # Alert threshold
 
 

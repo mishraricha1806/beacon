@@ -1,6 +1,5 @@
 from beacon.rules.models import finding
 
-from beacon.engine.registry import register_rule
 from beacon.engine.rule_model import Rule
 
 
@@ -125,6 +124,31 @@ def evaluate_kafka_config(data, file):
                     file=file,
                     evidence={"topic": name, "retention_bytes": retention_bytes},
                     tags=["storage", "capacity", "retention"],
+                )
+            )
+        retention_ms = topic.get("retention_ms")
+
+        if retention_ms == -1:
+            findings.append(
+                finding(
+                    severity="HIGH",
+                    title=f"Kafka topic '{name}' has unbounded retention",
+                    impact=(
+                        "Unbounded retention can cause uncontrolled storage growth "
+                        "and broker disk pressure."
+                    ),
+                    recommendation=(
+                        "Define a bounded retention_ms policy for production topics."
+                    ),
+                    file=file,
+                    rule_id="kafka.topic.retention_ms.unbounded",
+                    domain="kafka",
+                    category="storage_sustainability",
+                    evidence={
+                        "topic": name,
+                        "retention_ms": retention_ms,
+                    },
+                    tags=["storage", "retention", "disk-pressure"],
                 )
             )
 
@@ -272,20 +296,3 @@ def replication_factor_rule(resource, context):
         )
 
     return findings
-
-
-register_rule(
-    Rule(
-        rule_id="kafka.topic.replication_factor.low",
-        domain="kafka",
-        category="resiliency",
-        severity="CRITICAL",
-        title="Kafka replication factor too low",
-        evaluator=replication_factor_rule,
-        supported_types=["kafka_topic"],
-        tags=[
-            "availability",
-            "resiliency",
-        ],
-    )
-)

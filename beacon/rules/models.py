@@ -1,12 +1,12 @@
 def finding(
-    rule_id,
-    domain,
-    category,
     severity,
     title,
     impact,
     recommendation,
     file,
+    rule_id="generic.rule",
+    domain="generic",
+    category="operational_safety",
     evidence=None,
     tags=None,
 ):
