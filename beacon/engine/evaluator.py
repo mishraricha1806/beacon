@@ -7,9 +7,7 @@ def evaluate(resources, context=None):
     findings = []
 
     for resource in resources:
-        rules = registry.get_for_resource(resource)
-
-        for rule in rules:
+        for rule in registry.get_for_resource(resource):
             try:
                 result = rule.evaluator(resource, context)
 
@@ -47,12 +45,12 @@ def evaluate(resources, context=None):
     return findings
 
 
+def evaluate_resource(resource, context=None):
+    return evaluate([resource], context=context)
+
+
 def to_dict(finding):
     if hasattr(finding, "to_dict"):
         return finding.to_dict()
 
     return finding
-
-
-def evaluate_resource(resource, context=None):
-    return evaluate([resource], context=context)

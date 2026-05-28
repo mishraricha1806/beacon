@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List
 
 
-@dataclass
+@dataclass(frozen=True)
 class Resource:
     type: str
     name: str
@@ -12,7 +12,7 @@ class Resource:
     relationships: Dict[str, Any] = field(default_factory=dict)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Rule:
     rule_id: str
     domain: str
@@ -26,7 +26,7 @@ class Rule:
     enabled: bool = True
 
 
-@dataclass
+@dataclass(frozen=True)
 class Finding:
     rule_id: str
     domain: str

@@ -11,6 +11,9 @@ class RuleRegistry:
     def get_all(self):
         return list(self.rules.values())
 
+    def get_by_id(self, rule_id):
+        return self.rules.get(rule_id)
+
     def get_for_resource(self, resource):
         return [
             rule
@@ -18,5 +21,16 @@ class RuleRegistry:
             if rule.enabled and resource.type in rule.supported_resource_types
         ]
 
+    def clear(self):
+        self.rules = {}
+
 
 registry = RuleRegistry()
+
+
+def register_rule(rule):
+    registry.register(rule)
+
+
+def get_rules():
+    return registry.get_all()
