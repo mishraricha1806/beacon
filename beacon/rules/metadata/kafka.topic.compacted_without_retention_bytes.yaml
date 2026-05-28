@@ -1,0 +1,12 @@
+rule_id: kafka.topic.compacted_without_retention_bytes
+title: Kafka compacted topic has no retention_bytes limit
+description: |
+  Compacted topics can still grow significantly when key cardinality is high or tombstone cleanup is delayed.
+severity_default: MEDIUM
+category: storage_sustainability
+author: beacon.rules
+recommendation: Set retention_bytes or review compaction and key cardinality assumptions.
+version: "1.0"
+remediation_link: https://example.com/remediation/compacted-retention
+runbook_url: https://example.com/runbooks/compacted-retention
+

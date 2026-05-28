@@ -6,7 +6,7 @@ or a database and include author, version, and links to remediation docs.
 """
 
 RULES = {
-    "kafka.topic.replication_factor.min": {
+    "kafka.topic.replication_factor.low": {
         "title": "Kafka topic replication factor below recommended minimum",
         "description": "Production Kafka topics should use replication_factor >= 3 for high availability.",
         "severity_default": "CRITICAL",
@@ -22,8 +22,8 @@ RULES = {
         "author": "beacon.rules",
         "recommendation": "Set retention_bytes based on broker disk capacity and expected throughput.",
     },
-    "aws.s3.public_access_block.weak": {
-        "title": "S3 public access block is weak",
+    "object_storage.public_access.enabled": {
+        "title": "Object storage public access protection is weak",
         "description": "S3 public access block settings are disabled or set to permissive values, which may expose buckets publicly.",
         "severity_default": "CRITICAL",
         "category": "operational_safety",

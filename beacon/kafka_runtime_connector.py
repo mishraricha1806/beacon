@@ -1,7 +1,10 @@
 from confluent_kafka import TopicPartition, ConsumerGroupTopicPartitions
 from confluent_kafka.admin import AdminClient, ConfigResource, ResourceType, OffsetSpec
 
-from beacon.rules.kafka_rules import evaluate_kafka_config
+import beacon.rules.kafka_registered_rules  # noqa: F401
+from beacon.diagnose.kafka.server_config import KafkaServerConfig
+from beacon.engine.evaluator import evaluate
+from beacon.engine.normalizer import normalize_kafka_config
 
 
 def finding(
@@ -15,8 +18,9 @@ def finding(
     category="runtime_stability",
     evidence=None,
     tags=None,
+    confidence=None,
 ):
-    return {
+    result = {
         "rule_id": rule_id,
         "domain": domain,
         "category": category,
@@ -28,6 +32,11 @@ def finding(
         "evidence": evidence or {},
         "tags": tags or [],
     }
+
+    if confidence:
+        result["confidence"] = confidence
+
+    return result
 
 
 def build_admin_config(
@@ -67,15 +76,48 @@ def analyze_kafka_cluster(
     consumer_group=None,
     max_groups=20,
 ):
+    server_config = KafkaServerConfig(
+        bootstrap_server=bootstrap_server,
+        security_protocol=security_protocol,
+        ca_cert=ca_cert,
+        client_cert=client_cert,
+        client_key=client_key,
+        max_topics=max_topics,
+        topic=topic,
+        consumer_group=consumer_group,
+        max_groups=max_groups,
+    )
     findings = []
     findings.append(
         finding(
-            "LOW",
+            "INFO",
             "Beacon Kafka runtime connector is running in read-only diagnostic mode",
             "Beacon will only collect Kafka metadata and configuration signals for analysis.",
             "No produce, consume, offset update, topic mutation, ACL mutation, or infrastructure mutation operation will be performed.",
+            rule_id="kafka.runtime.read_only_mode",
+            evidence={"mode": "read_only", "mutation_allowed": False},
+            confidence="HIGH",
         )
     )
+
+    validation_errors = server_config.validation_errors()
+
+    if validation_errors:
+        findings.append(
+            finding(
+                "ERROR",
+                "Kafka direct server configuration is invalid",
+                "Beacon cannot safely start live Kafka readiness analysis with invalid connection settings.",
+                "Fix the reported direct server configuration values and retry.",
+                rule_id="kafka.runtime.server_config.invalid",
+                evidence={
+                    **server_config.evidence(),
+                    "validation_errors": validation_errors,
+                },
+                confidence="HIGH",
+            )
+        )
+        return findings
 
     try:
         config = build_admin_config(
@@ -110,6 +152,13 @@ def analyze_kafka_cluster(
                 "Kafka cluster connection successful",
                 f"Beacon connected successfully. Brokers detected: {broker_count}, user topics detected: {topic_count}.",
                 "Beacon used read-only metadata access. No Kafka mutation operation was performed.",
+                rule_id="kafka.runtime.connection.success",
+                evidence={
+                    **server_config.evidence(),
+                    "broker_count": broker_count,
+                    "topic_count": topic_count,
+                },
+                confidence="HIGH",
             )
         )
 
@@ -120,6 +169,12 @@ def analyze_kafka_cluster(
                     f"Kafka cluster has only {broker_count} broker(s)",
                     "Low broker count can reduce resiliency and limit safe replication for production workloads.",
                     "Use at least 3 brokers for production Kafka clusters where high availability is required.",
+                    rule_id="kafka.cluster.broker_count.low",
+                    evidence={
+                        "broker_count": broker_count,
+                        "expected_minimum": 3,
+                    },
+                    confidence="HIGH",
                 )
             )
 
@@ -130,6 +185,12 @@ def analyze_kafka_cluster(
                     f"Kafka cluster has high topic count: {topic_count}",
                     "Large topic count can increase controller metadata load and operational complexity.",
                     "Review topic lifecycle, ownership, retention, and whether old topics can be retired.",
+                    rule_id="kafka.cluster.topic_count.high",
+                    evidence={
+                        "topic_count": topic_count,
+                        "review_threshold": 200,
+                    },
+                    confidence="HIGH",
                 )
             )
 
@@ -141,9 +202,13 @@ def analyze_kafka_cluster(
 
         if live_topic_models:
             kafka_config_payload = {"topics": live_topic_models}
+            resources = normalize_kafka_config(kafka_config_payload, "runtime-kafka")
 
             findings.extend(
-                evaluate_kafka_config(kafka_config_payload, "runtime-kafka")
+                evaluate(
+                    resources,
+                    context={"file": "runtime-kafka"},
+                )
             )
 
         if topic_count > max_topics:
@@ -153,6 +218,12 @@ def analyze_kafka_cluster(
                     f"Beacon analyzed first {max_topics} topics out of {topic_count}",
                     "Topic analysis was limited to keep runtime diagnostics fast and lightweight.",
                     "Increase --max-topics if deeper cluster-wide analysis is required.",
+                    rule_id="kafka.runtime.analysis_limited",
+                    evidence={
+                        "topic_count": topic_count,
+                        "analyzed_topics": max_topics,
+                    },
+                    confidence="HIGH",
                 )
             )
 
@@ -163,6 +234,12 @@ def analyze_kafka_cluster(
                 "Kafka cluster connection failed",
                 str(e),
                 "Check bootstrap server, network access, security protocol, certificates, and firewall rules.",
+                rule_id="kafka.runtime.connection.failed",
+                evidence={
+                    **server_config.evidence(),
+                    "error": str(e),
+                },
+                confidence="HIGH",
             )
         )
         # If we failed to build or connect the AdminClient, return early.
@@ -250,6 +327,12 @@ def analyze_consumer_group_lag(
                 "No Kafka consumer groups selected for lag diagnostics",
                 "Beacon did not find consumer groups to analyze, or no matching group was provided.",
                 "Provide --consumer-group for targeted lag diagnostics.",
+                rule_id="kafka.consumer_groups.none_selected",
+                evidence={
+                    "consumer_group": consumer_group,
+                    "max_groups": max_groups,
+                },
+                confidence="HIGH",
             )
         )
         return findings
@@ -270,6 +353,9 @@ def analyze_consumer_group_lag(
                     f"Failed to analyze consumer group lag for '{group_id}'",
                     str(e),
                     "Check Kafka permissions for describing consumer groups and listing offsets.",
+                    rule_id="kafka.consumer_group.lag.analysis_failed",
+                    evidence={"consumer_group": group_id, "error": str(e)},
+                    confidence="HIGH",
                 )
             )
 
@@ -426,6 +512,9 @@ def build_lag_findings(group_id, lag_summary):
                 f"No committed offsets found for consumer group '{group_id}'",
                 "Beacon could not calculate lag because the group has no committed offsets.",
                 "Verify whether the consumer group is active and committing offsets.",
+                rule_id="kafka.consumer_group.offsets.missing",
+                evidence={"consumer_group": group_id, "status": status},
+                confidence="HIGH",
             )
         )
         return findings
@@ -437,6 +526,14 @@ def build_lag_findings(group_id, lag_summary):
                 f"High Kafka consumer lag detected for group '{group_id}'",
                 f"Total lag is approximately {total_lag} across {partition_count} partitions.",
                 "Check consumer processing latency, downstream dependency slowness, retry loops, rebalance frequency, and producer throughput.",
+                rule_id="kafka.consumer_group.lag.high",
+                evidence={
+                    "consumer_group": group_id,
+                    "total_lag": total_lag,
+                    "partition_count": partition_count,
+                    "max_partition_lag": max_partition_lag,
+                },
+                confidence="HIGH",
             )
         )
 
@@ -447,6 +544,14 @@ def build_lag_findings(group_id, lag_summary):
                 f"Moderate Kafka consumer lag detected for group '{group_id}'",
                 f"Total lag is approximately {total_lag} across {partition_count} partitions.",
                 "Monitor lag trend and compare consumer throughput against producer rate.",
+                rule_id="kafka.consumer_group.lag.moderate",
+                evidence={
+                    "consumer_group": group_id,
+                    "total_lag": total_lag,
+                    "partition_count": partition_count,
+                    "max_partition_lag": max_partition_lag,
+                },
+                confidence="HIGH",
             )
         )
 
@@ -457,6 +562,14 @@ def build_lag_findings(group_id, lag_summary):
                 f"Kafka consumer group '{group_id}' lag is currently low",
                 f"Total lag is approximately {total_lag} across {partition_count} partitions.",
                 "No major lag pressure detected from current offset snapshot.",
+                rule_id="kafka.consumer_group.lag.low",
+                evidence={
+                    "consumer_group": group_id,
+                    "total_lag": total_lag,
+                    "partition_count": partition_count,
+                    "max_partition_lag": max_partition_lag,
+                },
+                confidence="HIGH",
             )
         )
 
@@ -476,6 +589,14 @@ def build_lag_findings(group_id, lag_summary):
                 f"Potential hot partition behavior detected for group '{group_id}'",
                 f"Max partition lag is {max_partition_lag}. Top hot partitions: {hot_summary}.",
                 "Review partition key distribution, producer key changes, skewed events, and whether consumer parallelism matches partition distribution.",
+                rule_id="kafka.consumer_group.hot_partition",
+                evidence={
+                    "consumer_group": group_id,
+                    "max_partition_lag": max_partition_lag,
+                    "hot_partitions": top_hot,
+                    "hot_partition_threshold": 50000,
+                },
+                confidence="HIGH",
             )
         )
 
@@ -495,6 +616,14 @@ def build_lag_decision_finding(group_id, lag_summary):
             f"Decision: Consumer delay for '{group_id}' may be caused by partition skew",
             "Lag is high and concentrated on one or more partitions, which usually means adding more consumers alone may not solve the issue.",
             "Investigate message key distribution, hot keys, uneven partition assignment, and recent producer key changes.",
+            rule_id="kafka.consumer_group.decision.partition_skew",
+            evidence={
+                "consumer_group": group_id,
+                "total_lag": total_lag,
+                "partition_count": partition_count,
+                "hot_partitions": hot_partitions,
+            },
+            confidence="HIGH",
         )
 
     if total_lag >= 100000 and partition_count <= 3:
@@ -503,6 +632,13 @@ def build_lag_decision_finding(group_id, lag_summary):
             f"Decision: Consumer delay for '{group_id}' may be limited by partition parallelism",
             "Lag is high while partition count is low, which can cap consumer parallelism.",
             "Review topic partition count and consumer concurrency. Increase partitions only after validating ordering and keying impact.",
+            rule_id="kafka.consumer_group.decision.partition_parallelism",
+            evidence={
+                "consumer_group": group_id,
+                "total_lag": total_lag,
+                "partition_count": partition_count,
+            },
+            confidence="HIGH",
         )
 
     if total_lag >= 100000:
@@ -511,6 +647,13 @@ def build_lag_decision_finding(group_id, lag_summary):
             f"Decision: Consumer delay for '{group_id}' needs consumer-side investigation",
             "Lag is high but current offset snapshot alone does not prove Kafka broker failure.",
             "Check consumer processing time, DB/API latency, thread pools, retries, poison messages, and recent application deployments.",
+            rule_id="kafka.consumer_group.decision.consumer_side",
+            evidence={
+                "consumer_group": group_id,
+                "total_lag": total_lag,
+                "partition_count": partition_count,
+            },
+            confidence="MEDIUM",
         )
 
     return finding(
@@ -518,6 +661,13 @@ def build_lag_decision_finding(group_id, lag_summary):
         f"Decision: No urgent consumer delay action required for '{group_id}'",
         "Current offset snapshot does not show severe consumer lag.",
         "Continue monitoring lag trend and correlate with producer rate and application logs.",
+        rule_id="kafka.consumer_group.decision.no_urgent_action",
+        evidence={
+            "consumer_group": group_id,
+            "total_lag": total_lag,
+            "partition_count": partition_count,
+        },
+        confidence="HIGH",
     )
 
 

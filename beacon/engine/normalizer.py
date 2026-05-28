@@ -3,8 +3,9 @@ from beacon.engine.models import Resource
 
 def normalize_kafka_config(data, source):
     resources = []
+    kafka_data = data.get("kafka", data)
 
-    for topic in data.get("topics", []):
+    for topic in kafka_data.get("topics", []):
         resources.append(
             Resource(
                 type="kafka_topic",
@@ -33,7 +34,11 @@ def normalize_terraform_config(data, source):
 
     for block in terraform_resources:
         for resource_type, instances in block.items():
+            resource_type = normalize_hcl_identifier(resource_type)
+
             for name, config in instances.items():
+                name = normalize_hcl_identifier(name)
+
                 if is_object_storage_resource(resource_type):
                     resources.append(
                         Resource(
@@ -64,6 +69,13 @@ def normalize_terraform_config(data, source):
                     )
 
     return resources
+
+
+def normalize_hcl_identifier(value):
+    if not isinstance(value, str):
+        return value
+
+    return value.strip('"')
 
 
 def is_object_storage_resource(resource_type):
@@ -131,7 +143,7 @@ def normalize_yaml_document(data, source):
     if not isinstance(data, dict):
         return []
 
-    if "topics" in data:
+    if "topics" in data or "kafka" in data:
         return normalize_kafka_config(data, source)
 
     if "kind" in data and "apiVersion" in data:

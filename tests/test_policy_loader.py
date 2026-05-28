@@ -16,7 +16,7 @@ def test_apply_policy_disables_and_overrides():
     try:
         policy = {
             "rules": {
-                "kafka.topic.replication_factor.min": {"enabled": False},
+                "kafka.topic.replication_factor.low": {"enabled": False},
                 "kafka.topic.retention_bytes.missing": {
                     "enabled": True,
                     "severity": "LOW",
@@ -29,10 +29,10 @@ def test_apply_policy_disables_and_overrides():
             yaml.safe_dump(policy, f)
 
         p = load_policy(path=path)
-        assert "kafka.topic.replication_factor.min" in p
+        assert "kafka.topic.replication_factor.low" in p
 
         findings = [
-            {"rule_id": "kafka.topic.replication_factor.min", "severity": "CRITICAL"},
+            {"rule_id": "kafka.topic.replication_factor.low", "severity": "CRITICAL"},
             {"rule_id": "kafka.topic.retention_bytes.missing", "severity": "HIGH"},
             {"rule_id": "some.other.rule", "severity": "MEDIUM"},
         ]
@@ -40,7 +40,7 @@ def test_apply_policy_disables_and_overrides():
         out = apply_policy_to_findings(findings, p)
 
         # replication factor rule disabled -> removed
-        assert all(f["rule_id"] != "kafka.topic.replication_factor.min" for f in out)
+        assert all(f["rule_id"] != "kafka.topic.replication_factor.low" for f in out)
 
         # retention_bytes severity overridden to LOW
         r = next(

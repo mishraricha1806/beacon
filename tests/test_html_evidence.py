@@ -13,7 +13,7 @@ def test_generate_html_includes_rule_id_and_evidence(tmp_path):
             "impact": "impact",
             "recommendation": "Use replication_factor=3",
             "file": "examples/kafka-topics.yaml",
-            "rule_id": "kafka.topic.replication_factor.min",
+            "rule_id": "kafka.topic.replication_factor.low",
             "evidence": {"path": "topics[0].replication_factor", "value": 1},
         }
     ]
@@ -27,5 +27,5 @@ def test_generate_html_includes_rule_id_and_evidence(tmp_path):
     with open(out_path, "r") as f:
         html = f.read()
 
-    assert "kafka.topic.replication_factor.min" in html
+    assert "kafka.topic.replication_factor.low" in html
     assert "topics[0].replication_factor" in html

@@ -75,9 +75,11 @@ beacon/
 │
 ├── rules/
 │   ├── models.py
-│   ├── kafka_rules.py
-│   ├── terraform_rules.py
-│   └── kubernetes_rules.py
+│   ├── static_engine.py
+│   ├── kafka_registered_rules.py
+│   ├── storage_registered_rules.py
+│   ├── iam_registered_rules.py
+│   └── kubernetes_registered_rules.py
 │
 ├── readiness/
 │   ├── readiness_reporter.py
@@ -143,6 +145,28 @@ Readiness Engine
 Terminal / JSON / HTML Report
 ```
 
+### Direct Server Readiness Flow
+
+```text
+Kafka bootstrap server + direct connection options
+        ↓
+Direct server configuration validation
+        ↓
+Read-only Kafka metadata collector
+        ↓
+Kafka topic config normalization
+        ↓
+Rule Registry + Evaluator Engine
+        ↓
+Runtime health and lag findings
+        ↓
+Readiness Engine
+        ↓
+Terminal / JSON / HTML Report
+```
+
+Direct server readiness is read-only by contract. Invalid connection settings and connection failures produce `ERROR` findings and force `NOT READY` / `ANALYSIS BLOCKED` rather than pretending the system is healthy.
+
 ### Runtime Diagnostic Flow
 
 ```text
@@ -196,7 +220,7 @@ Do not add findings without `rule_id`, `domain`, `category`, and `evidence`.
 
 Rules should be small, focused, and resource-driven.
 
-Bad pattern:
+Legacy pattern:
 
 ```python
 def evaluate_kafka_config(data):
@@ -204,20 +228,22 @@ def evaluate_kafka_config(data):
         ...
 ```
 
-Preferred pattern:
+Module 1 release pattern:
 
 ```python
 def replication_factor_rule(resource, context):
-    if resource["type"] != "kafka_topic":
-        return []
+    if resource.type != "kafka_topic":
+        return None
 
-    if resource["replication_factor"] < 3:
+    if resource.attributes["replication_factor"] < 3:
         return [finding(...)]
 ```
 
 Rules should not know raw YAML, Terraform, or Kubernetes structure.
 
 Rules should evaluate normalized resources.
+
+The static scanner now follows this path for Module 1 release. `beacon.rules.kafka_rules`, `beacon.rules.terraform_rules`, and `beacon.rules.kubernetes_rules` are compatibility shims that delegate into the normalized static engine.
 
 ---
 

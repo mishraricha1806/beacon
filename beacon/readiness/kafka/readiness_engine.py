@@ -1,18 +1,33 @@
+from beacon.scoring import (
+    calculate_score,
+    count_severities,
+    production_readiness_decision,
+)
+
+
+DEFAULT_CATEGORIES = {
+    "resiliency": {"risk": "LOW RISK", "findings": 0},
+    "scalability": {"risk": "LOW RISK", "findings": 0},
+    "storage_sustainability": {"risk": "LOW RISK", "findings": 0},
+    "operational_safety": {"risk": "LOW RISK", "findings": 0},
+    "recovery_readiness": {"risk": "LOW RISK", "findings": 0},
+    "runtime_stability": {"risk": "LOW RISK", "findings": 0},
+}
+
+
 def calculate_readiness(findings):
+    severity_counts = count_severities(findings)
+
     summary = {
-        "score": 100,
-        "critical": 0,
-        "high": 0,
-        "medium": 0,
-        "low": 0,
+        "score": calculate_score(findings),
+        "critical": severity_counts["critical"],
+        "high": severity_counts["high"],
+        "medium": severity_counts["medium"],
+        "low": severity_counts["low"],
+        "error": severity_counts["error"],
+        "info": severity_counts["info"],
         "survivability": "LOW RISK",
-        "categories": {
-            "resiliency": {"risk": "LOW RISK", "findings": 0},
-            "scalability": {"risk": "LOW RISK", "findings": 0},
-            "storage_sustainability": {"risk": "LOW RISK", "findings": 0},
-            "operational_safety": {"risk": "LOW RISK", "findings": 0},
-            "recovery_readiness": {"risk": "LOW RISK", "findings": 0},
-        },
+        "categories": {key: dict(value) for key, value in DEFAULT_CATEGORIES.items()},
         "business_summary": "",
         "recommended_action": "",
         "production_decision": "",
@@ -22,30 +37,21 @@ def calculate_readiness(findings):
     }
 
     for finding in findings:
-        severity = finding["severity"]
-        title = finding["title"].lower()
-        impact = finding["impact"].lower()
-
-        if severity == "CRITICAL":
-            summary["critical"] += 1
-            summary["score"] -= 20
-        elif severity == "HIGH":
-            summary["high"] += 1
-            summary["score"] -= 10
-        elif severity == "MEDIUM":
-            summary["medium"] += 1
-            summary["score"] -= 5
-        elif severity == "LOW":
-            summary["low"] += 1
-            summary["score"] -= 2
+        if finding.get("severity") == "INFO":
+            continue
 
         category = finding.get("category", "operational_safety")
 
         if category:
+            summary["categories"].setdefault(
+                category,
+                {"risk": "LOW RISK", "findings": 0},
+            )
             summary["categories"][category]["findings"] += 1
 
-    summary["score"] = max(0, summary["score"])
-    summary["survivability"] = determine_risk(summary["score"])
+    summary["survivability"] = (
+        "ANALYSIS BLOCKED" if summary["error"] > 0 else determine_risk(summary["score"])
+    )
 
     for category, data in summary["categories"].items():
         data["risk"] = determine_category_risk(data["findings"])
@@ -143,6 +149,9 @@ def determine_category_risk(count):
 
 
 def build_business_summary(summary):
+    if summary["error"] > 0:
+        return "Beacon could not complete a production-readiness decision because one or more analysis errors must be resolved."
+
     risk = summary["survivability"]
 
     if risk == "LOW RISK":
@@ -158,6 +167,9 @@ def build_business_summary(summary):
 
 
 def build_recommended_action(summary):
+    if summary["error"] > 0:
+        return "Resolve analysis errors, then rerun Beacon before making a production readiness decision."
+
     if summary["critical"] > 0:
         return "Resolve all critical findings before production rollout."
 
@@ -184,20 +196,18 @@ def determine_primary_risk_area(summary):
 
 
 def determine_production_decision(summary):
-    if summary["critical"] > 0 or summary["score"] < 50:
-        return "NOT READY"
+    findings = []
 
-    if summary["high"] > 0 or summary["score"] < 70:
-        return "READY WITH MAJOR RISKS"
+    for severity in ("error", "critical", "high", "medium", "low", "info"):
+        findings.extend(
+            {"severity": severity.upper()} for _ in range(summary[severity])
+        )
 
-    if summary["medium"] > 0 or summary["score"] < 85:
-        return "READY WITH CONDITIONS"
-
-    return "READY"
+    return production_readiness_decision(findings, summary["score"])
 
 
 def build_top_reasons(findings):
-    priority = {"CRITICAL": 1, "HIGH": 2, "MEDIUM": 3, "LOW": 4, "ERROR": 5}
+    priority = {"ERROR": 0, "CRITICAL": 1, "HIGH": 2, "MEDIUM": 3, "LOW": 4, "INFO": 5}
 
     sorted_findings = sorted(findings, key=lambda f: priority.get(f["severity"], 99))
 
@@ -206,6 +216,9 @@ def build_top_reasons(findings):
 
 def build_next_best_actions(summary):
     actions = []
+
+    if summary["error"] > 0:
+        actions.append("Resolve Beacon analysis errors and rerun the readiness check.")
 
     if summary["critical"] > 0:
         actions.append("Resolve all critical production-readiness gaps before rollout.")

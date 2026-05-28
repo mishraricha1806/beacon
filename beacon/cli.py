@@ -150,6 +150,7 @@ def readiness_kafka(
     client_cert: str = typer.Option(None),
     client_key: str = typer.Option(None),
     topic: str = typer.Option(None),
+    consumer_group: str = typer.Option(None),
     max_topics: int = typer.Option(50),
     max_groups: int = typer.Option(20),
     html: bool = typer.Option(True),
@@ -164,6 +165,7 @@ def readiness_kafka(
         client_key=client_key,
         max_topics=max_topics,
         topic=topic,
+        consumer_group=consumer_group,
         max_groups=max_groups,
     )
 
@@ -193,6 +195,8 @@ def readiness_static(
     """Analyze infrastructure production readiness."""
 
     findings = scan_path(path)
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
 
     readiness_summary = calculate_readiness(findings)
 

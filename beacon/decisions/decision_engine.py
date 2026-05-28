@@ -117,7 +117,7 @@ class DecisionEngine:
             title = finding.get("title", "")
             severity = finding.get("severity", "MEDIUM")
 
-            # Infer risk area from rule_id (e.g., "kafka.topic.replication_factor.min" -> "Kafka Topic Configuration")
+            # Infer risk area from rule_id (e.g., "kafka.topic.replication_factor.low" -> "Kafka Configuration")
             if rule_id.startswith("kafka"):
                 risk_area = "Kafka Configuration"
             elif rule_id.startswith("aws.s3"):

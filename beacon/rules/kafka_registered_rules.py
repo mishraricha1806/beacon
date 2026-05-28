@@ -122,6 +122,29 @@ def retention_bytes_missing(resource, context):
     )
 
 
+def retention_bytes_large(resource, context):
+    retention_bytes = resource.attributes.get("retention_bytes")
+
+    if retention_bytes is None or retention_bytes <= 10 * 1024 * 1024 * 1024:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.retention_bytes.large",
+        category="storage_sustainability",
+        severity="MEDIUM",
+        title=f"Kafka topic '{resource.name}' defines very large retention_bytes",
+        impact="Very large retention_bytes may exhaust broker disk over time and increase recovery time.",
+        recommendation="Review retention_bytes and consider tiered storage, shorter retention, or stronger capacity planning.",
+        evidence={
+            "topic": resource.name,
+            "retention_bytes": retention_bytes,
+            "review_threshold_bytes": 10 * 1024 * 1024 * 1024,
+        },
+        tags=["kafka", "storage", "retention"],
+    )
+
+
 def retention_ms_unbounded(resource, context):
     retention_ms = resource.attributes.get("retention_ms")
 
@@ -302,6 +325,39 @@ def storage_multiplier_high(resource, context):
     )
 
 
+def storage_multiplier_moderate(resource, context):
+    rf = resource.attributes.get("replication_factor")
+    partitions = resource.attributes.get("partitions")
+
+    if rf is None or partitions is None:
+        return None
+
+    storage_units = rf * partitions
+
+    if storage_units < 15 or storage_units >= 30:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.storage_multiplier.moderate",
+        category="storage_sustainability",
+        severity="MEDIUM",
+        title=(
+            f"Kafka topic '{resource.name}' has moderate storage multiplier: "
+            f"partitions({partitions}) x replication_factor({rf}) = {storage_units}"
+        ),
+        impact="Replica storage grows with every partition and can increase disk pressure during traffic spikes.",
+        recommendation="Review whether partition count and replication factor match actual throughput and recovery needs.",
+        evidence={
+            "topic": resource.name,
+            "partitions": partitions,
+            "replication_factor": rf,
+            "storage_multiplier": storage_units,
+        },
+        tags=["kafka", "storage", "capacity"],
+    )
+
+
 def segment_bytes_large(resource, context):
     segment_bytes = resource.attributes.get("segment_bytes")
 
@@ -322,6 +378,57 @@ def segment_bytes_large(resource, context):
             "recommended_max_bytes": 1073741824,
         },
         tags=["kafka", "segment", "cleanup"],
+    )
+
+
+def message_size_relative_segment(resource, context):
+    segment_bytes = resource.attributes.get("segment_bytes")
+    max_message_bytes = resource.attributes.get("max_message_bytes")
+
+    if segment_bytes is None or max_message_bytes is None:
+        return None
+
+    if max_message_bytes <= segment_bytes / 4:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.message_size_relative_segment",
+        category="storage_sustainability",
+        severity="MEDIUM",
+        title=f"Kafka topic '{resource.name}' max.message.bytes is large relative to segment.bytes",
+        impact="Very large messages relative to segment size can affect log segmentation and cleanup behavior.",
+        recommendation="Adjust segment.bytes or limit message size to reasonable bounds.",
+        evidence={
+            "topic": resource.name,
+            "segment_bytes": segment_bytes,
+            "max_message_bytes": max_message_bytes,
+        },
+        tags=["kafka", "message-size", "segment"],
+    )
+
+
+def compacted_without_retention_bytes(resource, context):
+    cleanup_policy = resource.attributes.get("cleanup_policy")
+    retention_bytes = resource.attributes.get("retention_bytes")
+
+    if cleanup_policy != "compact" or retention_bytes is not None:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.compacted_without_retention_bytes",
+        category="storage_sustainability",
+        severity="MEDIUM",
+        title=f"Kafka compacted topic '{resource.name}' has no retention_bytes limit",
+        impact="Compacted topics can still consume significant disk if key cardinality is high or tombstone cleanup is delayed.",
+        recommendation="Set retention_bytes or review compaction and key cardinality assumptions.",
+        evidence={
+            "topic": resource.name,
+            "cleanup_policy": cleanup_policy,
+            "retention_bytes": retention_bytes,
+        },
+        tags=["kafka", "compaction", "storage"],
     )
 
 
@@ -379,6 +486,16 @@ register(
     "Detects Kafka topics without retention_bytes.",
     retention_bytes_missing,
     ["kafka", "storage", "capacity"],
+)
+
+register(
+    "kafka.topic.retention_bytes.large",
+    "storage_sustainability",
+    "MEDIUM",
+    "Kafka retention_bytes very large",
+    "Detects Kafka topics with very large retention_bytes settings.",
+    retention_bytes_large,
+    ["kafka", "storage", "retention"],
 )
 
 register(
@@ -442,6 +559,16 @@ register(
 )
 
 register(
+    "kafka.topic.storage_multiplier.moderate",
+    "storage_sustainability",
+    "MEDIUM",
+    "Kafka storage multiplier moderate",
+    "Detects Kafka topics with moderate partition x replication storage multiplier.",
+    storage_multiplier_moderate,
+    ["kafka", "storage", "capacity"],
+)
+
+register(
     "kafka.topic.segment_bytes.large",
     "storage_sustainability",
     "MEDIUM",
@@ -449,6 +576,26 @@ register(
     "Detects Kafka topics with large log segment size.",
     segment_bytes_large,
     ["kafka", "segment", "cleanup"],
+)
+
+register(
+    "kafka.topic.message_size_relative_segment",
+    "storage_sustainability",
+    "MEDIUM",
+    "Kafka message size large relative to segment",
+    "Detects Kafka topics where max message size is large relative to segment size.",
+    message_size_relative_segment,
+    ["kafka", "message-size", "segment"],
+)
+
+register(
+    "kafka.topic.compacted_without_retention_bytes",
+    "storage_sustainability",
+    "MEDIUM",
+    "Kafka compacted topic without retention_bytes",
+    "Detects compacted Kafka topics without retention_bytes limits.",
+    compacted_without_retention_bytes,
+    ["kafka", "compaction", "storage"],
 )
 
 register(

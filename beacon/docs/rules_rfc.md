@@ -1,6 +1,6 @@
 # Beacon Rule Registry RFC
 
-Status: Draft
+Status: Implemented for Module 1 static readiness
 
 
 Date: 2026-05-23
@@ -21,7 +21,7 @@ This RFC describes:
 
 Module 1 (Production Readiness Intelligence) must produce deterministic findings with clear evidence and a stable identifier for each rule. Enterprises require auditability, explainability, and the ability to manage rules (enable/disable, change severity, track authorship).
 
-Current state: rules are hard-coded procedural checks in `beacon/rules.py`. This RFC defines a lightweight metadata layer and loading strategy that coexists with procedural rules.
+Current state: static readiness rules are registered resource-driven checks. Raw Terraform, Kafka YAML, and Kubernetes YAML are normalized before evaluation, then executed through the shared registry/evaluator path.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ Current state: rules are hard-coded procedural checks in `beacon/rules.py`. This
 
 ## Rule metadata schema
 
-Each rule will have a stable `rule_id` of the form `<domain>.<entity>.<short-name>` (e.g., `kafka.topic.replication_factor.min`).
+Each rule will have a stable `rule_id` of the form `<domain>.<entity>.<short-name>` (e.g., `kafka.topic.replication_factor.low`).
 
 Minimal metadata fields:
 
@@ -50,7 +50,7 @@ Minimal metadata fields:
 Example (YAML):
 
 ```yaml
-rule_id: kafka.topic.replication_factor.min
+rule_id: kafka.topic.replication_factor.low
 title: Kafka topic replication factor below recommended minimum
 description: |-
   Production Kafka topics should use replication_factor >= 3 for high availability.
@@ -84,7 +84,7 @@ Example finding:
 
 ```json
 {
-  "rule_id": "kafka.topic.replication_factor.min",
+  "rule_id": "kafka.topic.replication_factor.low",
   "severity": "CRITICAL",
   "title": "Kafka topic 'payments' has replication factor 1",
   "impact": "A broker failure can make this topic unavailable...",
@@ -102,14 +102,14 @@ Example finding:
 
 Two approaches supported:
 
-1. Procedural rules (current): Python functions that evaluate inputs and call `finding(...)` with `rule_id` and `evidence`.
+1. Registered Python rules (current): small functions that evaluate normalized resources and return structured findings with `rule_id` and `evidence`.
 2. Declarative rules (future): small YAML-based checks (e.g., threshold, presence) that run via a generic evaluator.
 
-Initial rollout: keep procedural rules but adopt the metadata and evidence fields. This minimizes risk while delivering provenance.
+Module 1 rollout: route static analysis through normalized resources, the rule registry, and the shared evaluator. Legacy `evaluate_*` imports are compatibility shims only.
 
 ## Governance & lifecycle
 
-- Rule authors update metadata in `rules_metadata` or `rules/metadata/*.yaml` and create PRs for changes.
+- Rule authors update metadata in `rules/metadata/*.yaml` and create PRs for changes.
 - Version policy: bump `version` in metadata when changing semantics.
 - Runtime policy overrides: platform operators can provide a `policy.yaml` to adjust severity or disable rules per environment.
 
@@ -120,21 +120,22 @@ Initial rollout: keep procedural rules but adopt the metadata and evidence field
 
 ## Developer workflow
 
-- Add or modify a rule: implement procedural rule in `beacon/rules.py` and add an entry in `beacon/rules_metadata.py`.
+- Add or modify a rule: implement a registered rule in `beacon/rules/*_registered_rules.py`, ensure the normalizer emits the required resource attributes, and add metadata in `beacon/rules/metadata/*.yaml`.
 - Add unit tests: provide positive and negative example inputs and assert that `evaluate_*` returns findings with expected `rule_id` and `evidence`.
 - For declarative rules: add YAML in `beacon/rules/metadata/` and update loader.
 
 ## Next steps / roadmap
 
-Short-term (this sprint):
-- Add `rules_metadata.py` (done)
-- Update a sample set of rules to include `rule_id` and `evidence` (done: replication_factor, retention_bytes, s3 public access)
-- Add rule-level unit tests (done)
+Completed for Module 1:
+- Static scanner uses normalized resources before rule evaluation.
+- Kafka, Terraform object storage/IAM, and Kubernetes readiness rules run through the shared registry/evaluator.
+- Findings include `rule_id`, `domain`, `category`, `evidence`, and remediation fields.
+- Metadata is loaded from YAML under `beacon/rules/metadata/`.
+- Runtime policy overrides apply before readiness scoring.
 
-Medium-term:
-- Move metadata files to YAML under `beacon/rules/metadata/`.
-- Implement `rules_registry` API and runtime policy overrides.
-- Add UI wireframes to display `rule_id`, evidence, and remediation links.
+Next:
+- Add a declarative rule DSL for low-complexity presence/threshold checks.
+- Add UI wireframes to display rule provenance, evidence, and remediation links.
 
 Long-term:
 - Add a declarative rule DSL for basic checks.
@@ -142,8 +143,6 @@ Long-term:
 
 ## Open questions
 
-- Do we want rule IDs to follow a stricter naming convention (e.g., semantic segments)? Proposal: `<domain>.<resource>.<check>`, optional subtypes e.g., `kafka.topic.replication_factor.min`.
+- Do we want rule IDs to follow a stricter naming convention (e.g., semantic segments)? Proposal: `<domain>.<resource>.<check>`, optional subtypes e.g., `kafka.topic.replication_factor.low`.
 - Where should runtime policy overrides live? Candidate: `~/.beacon/policy.yaml` or CI-driven config per environment.
-
-
 

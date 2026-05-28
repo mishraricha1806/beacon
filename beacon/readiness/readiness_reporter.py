@@ -19,6 +19,8 @@ def print_readiness_summary(summary):
     console.print(f"[bold]High Findings:[/bold] {summary['high']}")
     console.print(f"[bold]Medium Findings:[/bold] {summary['medium']}")
     console.print(f"[bold]Low Findings:[/bold] {summary['low']}\n")
+    if summary.get("error"):
+        console.print(f"[bold]Error Findings:[/bold] {summary['error']}")
     console.print(f"[bold]Production Decision:[/bold] {summary['production_decision']}")
     console.print(f"[bold]Primary Risk Area:[/bold] {summary['primary_risk_area']}\n")
 

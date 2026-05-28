@@ -4,28 +4,9 @@ from rich.console import Console
 from rich.table import Table
 
 from beacon.html_report import generate_html_report
+from beacon.scoring import calculate_score
 
 console = Console()
-
-
-def calculate_score(findings):
-    penalty = 0
-
-    for f in findings:
-        severity = f["severity"]
-
-        if severity == "CRITICAL":
-            penalty += 20
-        elif severity == "HIGH":
-            penalty += 12
-        elif severity == "MEDIUM":
-            penalty += 7
-        elif severity == "LOW":
-            penalty += 3
-        elif severity == "ERROR":
-            penalty += 5
-
-    return max(0, 100 - penalty)
 
 
 def print_report(

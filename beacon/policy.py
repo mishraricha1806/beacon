@@ -11,7 +11,7 @@ def load_policy(path: Optional[str] = None) -> Dict[str, Any]:
 
     Policy file format (YAML):
     rules:
-      kafka.topic.replication_factor.min:
+      kafka.topic.replication_factor.low:
         enabled: true
         severity: HIGH
       kafka.topic.retention_bytes.missing:

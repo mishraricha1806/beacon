@@ -84,7 +84,7 @@ class TestDecisionEngine:
                 "Data loss risk",
                 "Increase RF",
                 "kafka.yaml",
-                rule_id="kafka.topic.replication_factor.min",
+                rule_id="kafka.topic.replication_factor.low",
             ),
             finding(
                 "HIGH",
@@ -92,7 +92,7 @@ class TestDecisionEngine:
                 "Data exposure",
                 "Block access",
                 "storage.tf",
-                rule_id="aws.s3.public_access_block.weak",
+                rule_id="object_storage.public_access.enabled",
             ),
         ]
         risk_areas = DecisionEngine.identify_primary_risk_areas(findings)

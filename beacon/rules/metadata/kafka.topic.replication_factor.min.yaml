@@ -1,4 +1,4 @@
-rule_id: kafka.topic.replication_factor.min
+rule_id: kafka.topic.replication_factor.low
 title: Kafka topic replication factor below recommended minimum
 description: |
   Production Kafka topics should use replication_factor >= 3 for high availability.
@@ -9,4 +9,3 @@ recommendation: Set replication_factor=3 for production topics.
 version: "1.0"
 remediation_link: https://example.com/remediation/replication
 runbook_url: https://example.com/runbooks/replication
-

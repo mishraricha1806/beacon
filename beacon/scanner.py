@@ -9,9 +9,6 @@ import beacon.rules.kubernetes_registered_rules  # noqa: F401
 import beacon.rules.storage_registered_rules  # noqa: F401
 from beacon.engine.evaluator import evaluate
 from beacon.engine.normalizer import normalize_terraform_config, normalize_yaml_document
-from beacon.rules.kafka_rules import evaluate_kafka_config
-from beacon.rules.kubernetes_rules import evaluate_kubernetes_config
-from beacon.rules.terraform_rules import evaluate_terraform_config
 
 
 SUPPORTED_EXTENSIONS = (".tf", ".yaml", ".yml")
@@ -171,7 +168,7 @@ def scan_yaml_file(full_path: str):
             )
             continue
 
-        findings.extend(route_unmigrated_yaml_document(data, full_path))
+        continue
 
     return findings
 
@@ -188,34 +185,4 @@ def scan_terraform_file(full_path: str):
             context={"file": full_path},
         )
 
-    return evaluate_terraform_config(data, full_path)
-
-
-def route_unmigrated_yaml_document(data, full_path):
-    findings = []
-
-    if is_kubernetes_document(data):
-        findings.extend(
-            evaluate_kubernetes_config(
-                data,
-                full_path,
-            )
-        )
-
-    elif is_kafka_document(data):
-        findings.extend(
-            evaluate_kafka_config(
-                data,
-                full_path,
-            )
-        )
-
-    return findings
-
-
-def is_kubernetes_document(data):
-    return isinstance(data, dict) and "kind" in data and "apiVersion" in data
-
-
-def is_kafka_document(data):
-    return isinstance(data, dict) and ("topics" in data or "kafka" in data)
+    return []

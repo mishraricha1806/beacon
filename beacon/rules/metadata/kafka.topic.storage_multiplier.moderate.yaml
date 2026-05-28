@@ -1,0 +1,12 @@
+rule_id: kafka.topic.storage_multiplier.moderate
+title: Kafka topic storage multiplier is moderate
+description: |
+  Moderate partition and replica count can increase storage pressure during traffic spikes and recovery.
+severity_default: MEDIUM
+category: storage_sustainability
+author: beacon.rules
+recommendation: Review whether partition count and replication factor match actual throughput and recovery needs.
+version: "1.0"
+remediation_link: https://example.com/remediation/storage-multiplier
+runbook_url: https://example.com/runbooks/storage-multiplier
+
