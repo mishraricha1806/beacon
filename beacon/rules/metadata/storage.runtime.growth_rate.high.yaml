@@ -1,0 +1,8 @@
+rule_id: storage.runtime.growth_rate.high
+title: Storage growth rate is high
+description: Fast storage growth can exhaust capacity before normal planning cycles catch up.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.rules
+recommendation: Investigate workload changes, retention policy, payload size, and cleanup behavior.
+version: "1.0"

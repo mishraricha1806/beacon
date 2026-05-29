@@ -1,0 +1,10 @@
+rule_id: cloud.database.rds.backup_retention_missing
+title: RDS instance has no backup retention
+description: |
+  Missing database backups reduce recovery ability after corruption, deletion, or operational mistakes.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Set backup_retention_period to a production-appropriate value and validate restore procedures.
+version: "1.0"
+

@@ -1,0 +1,10 @@
+rule_id: k8s.runtime.node.pressure
+title: Kubernetes node reports pressure
+description: |
+  Node pressure can cause pod evictions, scheduling failures, and degraded workload stability.
+severity_default: HIGH
+category: scalability
+author: beacon.rules
+recommendation: Review node CPU, memory, disk, and PID pressure. Add capacity or rebalance workloads.
+version: "1.0"
+

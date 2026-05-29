@@ -39,17 +39,27 @@ Beacon focuses on:
 Beacon analyzes infrastructure configurations and detects:
 
 * Kafka production-readiness risks
+* Kafka broker/server configuration risks
 * Terraform infrastructure weaknesses
+* Terraform plan/state JSON risks
+* Helm-rendered Kubernetes manifest risks
+* Kubernetes manifest readiness risks
+* Kubernetes runtime snapshot risks
+* CI/CD deployment workflow risks
 * object storage exposure risks
 * Kafka storage configuration issues
 * IAM permission risks
+* cloud inventory snapshot risks
+* service topology and blast-radius risks
 * operational anti-patterns
 
 ---
 
-### Runtime Kafka Intelligence
+### Runtime Intelligence
 
-Beacon can connect directly to Kafka in:
+Beacon runtime intelligence is multi-domain. Kafka remains the first deep wedge, Kubernetes is the second live runtime surface, and Flow Intelligence connects the signals across systems.
+
+Beacon can connect directly to Kafka and Kubernetes in:
 
 # read-only diagnostic mode
 
@@ -74,6 +84,23 @@ Beacon can generate operational recommendations such as:
 * increase partition parallelism
 * investigate rebalance instability
 * review producer throughput growth
+
+Flow Intelligence can analyze runtime snapshots across:
+
+* API latency and timeout signals
+* Kafka consumer lag
+* consumer retry pressure
+* database latency
+* deployment timing
+* component health
+
+Beacon uses those signals to explain cross-system degradation, such as a likely downstream database bottleneck, deployment-triggered degradation, or cascading latency across API, Kafka, consumers, and the database.
+
+Beacon also supports standalone runtime snapshots for:
+
+* API/service latency, errors, timeouts, retry amplification, and deployment-correlated degradation
+* database latency, connection pool pressure, replication lag, lock contention, and storage saturation
+* storage/cloud capacity, growth rate, I/O saturation, and backup freshness
 
 ---
 
@@ -131,6 +158,52 @@ retention settings, and topic growth patterns before scaling storage.
 python3 -m beacon.cli diagnose kafka \
   --bootstrap-server localhost:9092
 ```
+
+---
+
+## Example: Live Kubernetes Diagnostics
+
+```bash
+python3 -m beacon.cli diagnose kubernetes \
+  --namespace payments \
+  --no-open-report
+```
+
+Beacon uses read-only `kubectl get` calls for nodes, pods, and deployments, then evaluates normalized runtime resources through the same deterministic rule engine.
+
+---
+
+## Example: Kubernetes Readiness
+
+```bash
+python3 -m beacon.cli readiness kubernetes \
+  --namespace payments \
+  --output json
+```
+
+---
+
+## Example: Flow Diagnostics
+
+```bash
+python3 -m beacon.cli diagnose flow ./examples/runtime/checkout-flow.yaml
+```
+
+Flow diagnostics answer where degradation is most likely coming from across service paths such as:
+
+```text
+API -> Kafka -> Consumer -> Database
+```
+
+---
+
+## Example: Platform Runtime Snapshot
+
+```bash
+python3 -m beacon.cli diagnose snapshot ./examples/runtime/platform-runtime.yaml
+```
+
+Use this for API, database, storage, Kubernetes, and Flow runtime snapshots when there is not yet a live collector attached.
 
 ---
 
@@ -213,7 +286,7 @@ Beacon does NOT:
 * update consumer offsets
 * mutate infrastructure
 
-Beacon only uses metadata and offset inspection APIs for diagnostics.
+Beacon only uses metadata, status, snapshot, and offset inspection signals for diagnostics.
 
 ---
 
@@ -222,14 +295,33 @@ Beacon only uses metadata and offset inspection APIs for diagnostics.
 ### Infrastructure Providers
 
 * Terraform
+* Terraform plan/state JSON
+* Helm charts through rendered Kubernetes manifests
 * Kafka configurations
+* Kafka broker/server configurations
+* Kubernetes YAML
+* Kubernetes runtime snapshots
+* GitHub Actions workflow YAML
 * AWS object storage
+* AWS security groups, RDS, and EC2 inventory snapshots
 * GCP object storage
 * Azure storage configurations
+* cloud inventory snapshots
+* service topology snapshots
 
 ### Runtime Intelligence
 
 * Kafka consumer lag diagnostics
+* Kafka direct server metadata diagnostics
+* Kafka broker configuration diagnostics
+* Kubernetes node, pod, and deployment diagnostics
+* flow runtime snapshot diagnostics
+* API/service runtime snapshot diagnostics
+* database runtime snapshot diagnostics
+* storage/cloud runtime snapshot diagnostics
+* downstream database bottleneck detection
+* deployment-correlated degradation detection
+* cascading latency detection
 * hot partition detection
 * partition parallelism analysis
 * Kafka storage pressure analysis
@@ -244,8 +336,9 @@ Beacon only uses metadata and offset inspection APIs for diagnostics.
 ```text
 diagnose/
 ├── kafka
-├── flow          (planned)
-└── kubernetes    (planned)
+├── kubernetes
+├── flow
+└── snapshot
 ```
 
 ---
@@ -291,8 +384,9 @@ but helping engineers understand:
 * lag trend analysis
 * rebalance storm diagnostics
 * producer spike analysis
-* deployment correlation
-* flow diagnostics
+* deeper deployment correlation
+* live flow collectors
+* live API, database, and cloud collectors
 * Prometheus metrics ingestion
 * Grafana integration
 * summarized Splunk log correlation

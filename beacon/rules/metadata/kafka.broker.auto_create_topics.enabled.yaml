@@ -1,0 +1,10 @@
+rule_id: kafka.broker.auto_create_topics.enabled
+title: Kafka broker automatic topic creation is enabled
+description: |
+  Automatic topic creation can bypass production topic standards for replication, partitions, retention, and ownership.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Disable auto.create.topics.enable in production or enforce strict topic creation controls.
+version: "1.0"
+

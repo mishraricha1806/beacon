@@ -1,0 +1,10 @@
+rule_id: cicd.deployment.environment.missing
+title: CI/CD deployment job has no protected environment
+description: |
+  Deploy-like CI/CD jobs without environments can bypass production approval and environment-specific controls.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Attach deployment jobs to protected environments with required reviewers or equivalent release controls.
+version: "1.0"
+

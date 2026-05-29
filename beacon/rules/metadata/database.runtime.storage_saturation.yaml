@@ -1,0 +1,8 @@
+rule_id: database.runtime.storage_saturation
+title: Database storage saturation detected
+description: Database storage saturation can cause write failures, replication instability, and recovery risk.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.rules
+recommendation: Create storage headroom, review growth drivers, retention, indexing, and backup/restore timelines.
+version: "1.0"

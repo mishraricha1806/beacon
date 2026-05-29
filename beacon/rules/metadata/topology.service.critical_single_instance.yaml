@@ -1,0 +1,10 @@
+rule_id: topology.service.critical_single_instance
+title: Critical service has a single instance
+description: |
+  A single-instance critical service creates a direct availability bottleneck.
+severity_default: CRITICAL
+category: resiliency
+author: beacon.rules
+recommendation: Run multiple instances across failure domains or document an approved singleton exception.
+version: "1.0"
+

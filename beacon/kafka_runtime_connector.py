@@ -211,6 +211,22 @@ def analyze_kafka_cluster(
                 )
             )
 
+        live_broker_models = build_live_broker_models(
+            admin_client=admin_client,
+            metadata=metadata,
+        )
+
+        if live_broker_models:
+            kafka_config_payload = {"brokers": live_broker_models}
+            resources = normalize_kafka_config(kafka_config_payload, "runtime-kafka")
+
+            findings.extend(
+                evaluate(
+                    resources,
+                    context={"file": "runtime-kafka"},
+                )
+            )
+
         if topic_count > max_topics:
             findings.append(
                 finding(
@@ -305,6 +321,56 @@ def build_live_topic_models(admin_client, metadata, topic_names):
         topic_models.append(topic_model)
 
     return topic_models
+
+
+def build_live_broker_models(admin_client, metadata):
+    broker_ids = [str(broker_id) for broker_id in metadata.brokers.keys()]
+
+    if not broker_ids:
+        return []
+
+    config_resources = [
+        ConfigResource(ResourceType.BROKER, broker_id) for broker_id in broker_ids
+    ]
+
+    broker_configs = {}
+
+    try:
+        config_futures = admin_client.describe_configs(config_resources)
+
+        for resource, future in config_futures.items():
+            try:
+                broker_configs[resource.name] = future.result(timeout=3)
+            except Exception:
+                broker_configs[resource.name] = {}
+    except Exception:
+        broker_configs = {}
+
+    broker_models = []
+
+    for broker_id in broker_ids:
+        configs = broker_configs.get(broker_id, {})
+
+        broker_models.append(
+            {
+                "id": broker_id,
+                "default_replication_factor": get_config_int(
+                    configs, "default.replication.factor"
+                ),
+                "offsets_topic_replication_factor": get_config_int(
+                    configs, "offsets.topic.replication.factor"
+                ),
+                "transaction_state_log_replication_factor": get_config_int(
+                    configs, "transaction.state.log.replication.factor"
+                ),
+                "log_retention_bytes": get_config_int(configs, "log.retention.bytes"),
+                "auto_create_topics_enable": get_config_bool(
+                    configs, "auto.create.topics.enable"
+                ),
+            }
+        )
+
+    return broker_models
 
 
 def analyze_consumer_group_lag(
@@ -705,3 +771,12 @@ def get_config_int(configs, key):
         return int(value)
     except ValueError:
         return None
+
+
+def get_config_bool(configs, key):
+    value = get_config_value(configs, key)
+
+    if value is None:
+        return None
+
+    return str(value).lower() == "true"

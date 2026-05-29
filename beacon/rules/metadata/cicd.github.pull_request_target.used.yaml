@@ -1,0 +1,10 @@
+rule_id: cicd.github.pull_request_target.used
+title: GitHub Actions workflow uses pull_request_target
+description: |
+  pull_request_target runs with elevated repository context and can be risky if untrusted code is checked out or executed.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Use pull_request where possible, or strictly avoid executing untrusted fork code in pull_request_target workflows.
+version: "1.0"
+

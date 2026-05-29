@@ -1,0 +1,10 @@
+rule_id: kafka.broker.transaction_log_replication_factor.low
+title: Kafka broker transaction state log replication factor is low
+description: |
+  Low transaction state log replication can weaken exactly-once and transactional producer recovery.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Use transaction.state.log.replication.factor=3 for production Kafka clusters.
+version: "1.0"
+

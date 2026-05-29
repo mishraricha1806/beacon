@@ -1,17 +1,32 @@
 import os
+import json
+import shutil
+import subprocess
 
 import hcl2
 import yaml
 
 import beacon.rules.iam_registered_rules  # noqa: F401
+import beacon.rules.api_runtime_registered_rules  # noqa: F401
+import beacon.rules.cicd_registered_rules  # noqa: F401
+import beacon.rules.cloud_registered_rules  # noqa: F401
+import beacon.rules.database_runtime_registered_rules  # noqa: F401
+import beacon.rules.flow_registered_rules  # noqa: F401
 import beacon.rules.kafka_registered_rules  # noqa: F401
 import beacon.rules.kubernetes_registered_rules  # noqa: F401
+import beacon.rules.kubernetes_runtime_registered_rules  # noqa: F401
+import beacon.rules.storage_runtime_registered_rules  # noqa: F401
 import beacon.rules.storage_registered_rules  # noqa: F401
+import beacon.rules.topology_registered_rules  # noqa: F401
 from beacon.engine.evaluator import evaluate
-from beacon.engine.normalizer import normalize_terraform_config, normalize_yaml_document
+from beacon.engine.normalizer import (
+    normalize_terraform_config,
+    normalize_terraform_json,
+    normalize_yaml_document,
+)
 
 
-SUPPORTED_EXTENSIONS = (".tf", ".yaml", ".yml")
+SUPPORTED_EXTENSIONS = (".tf", ".yaml", ".yml", ".json")
 
 SKIP_DIRS = {
     ".git",
@@ -78,6 +93,10 @@ def scan_path(path: str):
     for root, dirs, files in os.walk(path):
         dirs[:] = [directory for directory in dirs if directory not in SKIP_DIRS]
 
+        if "Chart.yaml" in files and "templates" in dirs:
+            findings.extend(scan_helm_chart(root))
+            dirs[:] = [directory for directory in dirs if directory != "templates"]
+
         for file_name in files:
             if not file_name.endswith(SUPPORTED_EXTENSIONS):
                 continue
@@ -122,6 +141,9 @@ def scan_file(full_path: str):
 
         elif full_path.endswith(".tf"):
             findings.extend(scan_terraform_file(full_path))
+
+        elif full_path.endswith(".json"):
+            findings.extend(scan_json_file(full_path))
 
     except Exception as error:
         findings.append(
@@ -186,3 +208,85 @@ def scan_terraform_file(full_path: str):
         )
 
     return []
+
+
+def scan_json_file(full_path: str):
+    with open(full_path, "r") as f:
+        data = json.load(f)
+
+    resources = normalize_terraform_json(data, full_path)
+
+    if not resources:
+        return []
+
+    return evaluate(
+        resources,
+        context={"file": full_path},
+    )
+
+
+def scan_helm_chart(chart_path: str):
+    helm = shutil.which("helm")
+
+    if not helm:
+        return [
+            scanner_finding(
+                rule_id="helm.render.unavailable",
+                severity="ERROR",
+                title=f"Helm chart could not be rendered: {os.path.basename(chart_path)}",
+                impact="Beacon cannot evaluate Helm templates without rendered Kubernetes manifests.",
+                recommendation="Install the helm CLI or provide rendered Kubernetes manifests for scanning.",
+                file=chart_path,
+                evidence={"chart_path": chart_path, "required_binary": "helm"},
+            )
+        ]
+
+    try:
+        result = subprocess.run(
+            [helm, "template", chart_path, "--include-crds"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except Exception as error:
+        return [
+            scanner_finding(
+                rule_id="helm.render.failed",
+                severity="ERROR",
+                title=f"Helm chart render failed: {os.path.basename(chart_path)}",
+                impact="Beacon cannot evaluate Helm chart output until it renders successfully.",
+                recommendation="Run helm template locally, fix chart rendering errors, and retry Beacon.",
+                file=chart_path,
+                evidence={"chart_path": chart_path, "error": str(error)},
+            )
+        ]
+
+    return scan_yaml_documents(
+        result.stdout,
+        source=f"helm:{chart_path}",
+    )
+
+
+def scan_yaml_documents(content: str, source: str):
+    findings = []
+
+    documents = list(yaml.safe_load_all(content))
+
+    for data in documents:
+        data = data or {}
+
+        if not isinstance(data, dict):
+            continue
+
+        resources = normalize_yaml_document(data, source)
+
+        if resources:
+            findings.extend(
+                evaluate(
+                    resources,
+                    context={"file": source},
+                )
+            )
+
+    return findings

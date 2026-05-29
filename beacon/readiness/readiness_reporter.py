@@ -7,7 +7,12 @@ console = Console()
 def print_readiness_summary(summary):
     console.print("\n[bold cyan]Beacon Production Readiness[/bold cyan]\n")
 
-    console.print(f"[bold]Production Readiness Score:[/bold] {summary['score']}/100")
+    if summary.get("score_status") == "BLOCKED_BY_ANALYSIS_ERROR":
+        console.print(
+            f"[bold]Production Readiness Score:[/bold] BLOCKED ({summary['score']}/100 raw signal score)"
+        )
+    else:
+        console.print(f"[bold]Production Readiness Score:[/bold] {summary['score']}/100")
     console.print(
         f"[bold]Operational Survivability:[/bold] {summary['survivability']}\n"
     )

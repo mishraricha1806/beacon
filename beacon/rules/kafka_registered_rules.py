@@ -27,6 +27,94 @@ def build_kafka_finding(
     )
 
 
+def broker_default_replication_factor_low(resource, context):
+    value = resource.attributes.get("default_replication_factor")
+
+    if value is None or value >= 3:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.default_replication_factor.low",
+        "resiliency",
+        "HIGH",
+        f"Kafka broker '{resource.name}' has low default replication factor",
+        "Low default replication factor can create under-replicated topics when topics are auto-created or created without explicit replication settings.",
+        "Use default.replication.factor=3 for production Kafka clusters.",
+        {
+            "broker": resource.name,
+            "default_replication_factor": value,
+            "expected_minimum": 3,
+        },
+        ["kafka", "broker", "resiliency"],
+    )
+
+
+def broker_offsets_replication_factor_low(resource, context):
+    value = resource.attributes.get("offsets_topic_replication_factor")
+
+    if value is None or value >= 3:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.offsets_replication_factor.low",
+        "resiliency",
+        "HIGH",
+        f"Kafka broker '{resource.name}' has low offsets topic replication factor",
+        "Low offsets topic replication can weaken consumer group recovery during broker failure.",
+        "Use offsets.topic.replication.factor=3 for production Kafka clusters.",
+        {
+            "broker": resource.name,
+            "offsets_topic_replication_factor": value,
+            "expected_minimum": 3,
+        },
+        ["kafka", "broker", "consumer-groups"],
+    )
+
+
+def broker_transaction_log_replication_factor_low(resource, context):
+    value = resource.attributes.get("transaction_state_log_replication_factor")
+
+    if value is None or value >= 3:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.transaction_log_replication_factor.low",
+        "resiliency",
+        "HIGH",
+        f"Kafka broker '{resource.name}' has low transaction state log replication factor",
+        "Low transaction state log replication can weaken exactly-once and transactional producer recovery.",
+        "Use transaction.state.log.replication.factor=3 for production Kafka clusters.",
+        {
+            "broker": resource.name,
+            "transaction_state_log_replication_factor": value,
+            "expected_minimum": 3,
+        },
+        ["kafka", "broker", "transactions"],
+    )
+
+
+def broker_auto_create_topics_enabled(resource, context):
+    value = resource.attributes.get("auto_create_topics_enable")
+
+    if value is not True:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.auto_create_topics.enabled",
+        "operational_safety",
+        "MEDIUM",
+        f"Kafka broker '{resource.name}' allows automatic topic creation",
+        "Automatic topic creation can bypass production topic standards for replication, partitions, retention, and ownership.",
+        "Disable auto.create.topics.enable in production or enforce strict topic creation controls.",
+        {"broker": resource.name, "auto_create_topics_enable": value},
+        ["kafka", "broker", "governance"],
+    )
+
+
 def replication_factor_low(resource, context):
     rf = resource.attributes.get("replication_factor")
 
@@ -432,7 +520,16 @@ def compacted_without_retention_bytes(resource, context):
     )
 
 
-def register(rule_id, category, severity, title, description, evaluator, tags):
+def register(
+    rule_id,
+    category,
+    severity,
+    title,
+    description,
+    evaluator,
+    tags,
+    supported_resource_types=None,
+):
     registry.register(
         Rule(
             rule_id=rule_id,
@@ -441,12 +538,56 @@ def register(rule_id, category, severity, title, description, evaluator, tags):
             severity=severity,
             title=title,
             description=description,
-            supported_resource_types=["kafka_topic"],
+            supported_resource_types=supported_resource_types or ["kafka_topic"],
             evaluator=evaluator,
             tags=tags,
         )
     )
 
+
+register(
+    "kafka.broker.default_replication_factor.low",
+    "resiliency",
+    "HIGH",
+    "Kafka broker default replication factor low",
+    "Detects broker default replication factor below production-safe threshold.",
+    broker_default_replication_factor_low,
+    ["kafka", "broker", "resiliency"],
+    ["kafka_broker_config"],
+)
+
+register(
+    "kafka.broker.offsets_replication_factor.low",
+    "resiliency",
+    "HIGH",
+    "Kafka broker offsets replication factor low",
+    "Detects offsets topic replication factor below production-safe threshold.",
+    broker_offsets_replication_factor_low,
+    ["kafka", "broker", "consumer-groups"],
+    ["kafka_broker_config"],
+)
+
+register(
+    "kafka.broker.transaction_log_replication_factor.low",
+    "resiliency",
+    "HIGH",
+    "Kafka broker transaction log replication factor low",
+    "Detects transaction state log replication factor below production-safe threshold.",
+    broker_transaction_log_replication_factor_low,
+    ["kafka", "broker", "transactions"],
+    ["kafka_broker_config"],
+)
+
+register(
+    "kafka.broker.auto_create_topics.enabled",
+    "operational_safety",
+    "MEDIUM",
+    "Kafka broker auto topic creation enabled",
+    "Detects production Kafka brokers with automatic topic creation enabled.",
+    broker_auto_create_topics_enabled,
+    ["kafka", "broker", "governance"],
+    ["kafka_broker_config"],
+)
 
 register(
     "kafka.topic.replication_factor.low",

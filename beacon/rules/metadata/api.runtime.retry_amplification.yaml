@@ -1,0 +1,8 @@
+rule_id: api.runtime.retry_amplification
+title: API retry amplification detected
+description: High retries during API errors or timeouts can intensify cascading degradation.
+severity_default: CRITICAL
+category: runtime_stability
+author: beacon.rules
+recommendation: Reduce retry aggressiveness, add backoff/jitter, protect downstream dependencies, and consider throttling.
+version: "1.0"

@@ -1,0 +1,10 @@
+rule_id: kafka.broker.offsets_replication_factor.low
+title: Kafka broker offsets topic replication factor is low
+description: |
+  Low offsets topic replication can weaken consumer group recovery during broker failure.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Use offsets.topic.replication.factor=3 for production Kafka clusters.
+version: "1.0"
+

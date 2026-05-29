@@ -1,0 +1,8 @@
+rule_id: api.runtime.timeout_rate.high
+title: API timeout rate is high
+description: API timeouts can amplify retries and create cascading load across dependencies.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Review timeout budgets, dependency latency, queueing, and retry policy before scaling broadly.
+version: "1.0"

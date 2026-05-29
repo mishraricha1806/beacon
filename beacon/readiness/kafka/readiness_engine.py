@@ -20,6 +20,7 @@ def calculate_readiness(findings):
 
     summary = {
         "score": calculate_score(findings),
+        "score_status": "CALCULATED",
         "critical": severity_counts["critical"],
         "high": severity_counts["high"],
         "medium": severity_counts["medium"],
@@ -52,6 +53,8 @@ def calculate_readiness(findings):
     summary["survivability"] = (
         "ANALYSIS BLOCKED" if summary["error"] > 0 else determine_risk(summary["score"])
     )
+    if summary["error"] > 0:
+        summary["score_status"] = "BLOCKED_BY_ANALYSIS_ERROR"
 
     for category, data in summary["categories"].items():
         data["risk"] = determine_category_risk(data["findings"])

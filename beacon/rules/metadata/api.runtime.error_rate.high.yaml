@@ -1,0 +1,8 @@
+rule_id: api.runtime.error_rate.high
+title: API error rate is high
+description: Elevated API errors can indicate runtime regression, dependency failure, or capacity exhaustion.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Check error classes, recent deployment changes, dependency health, and rollback safety.
+version: "1.0"

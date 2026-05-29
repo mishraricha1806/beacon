@@ -1,0 +1,8 @@
+rule_id: database.runtime.latency.high
+title: Database latency is high
+description: High database latency can slow consumers, APIs, and background jobs.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Inspect slow queries, indexes, connection pool pressure, locks, and recent workload changes.
+version: "1.0"

@@ -1,0 +1,9 @@
+rule_id: flow.runtime.component_unhealthy
+title: Flow component is unhealthy
+description: >
+  A component in a runtime flow snapshot is unhealthy and may be the bottleneck or failure source for dependent services.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Inspect the unhealthy component first, then validate upstream retry behavior and downstream saturation.
+version: "1.0"

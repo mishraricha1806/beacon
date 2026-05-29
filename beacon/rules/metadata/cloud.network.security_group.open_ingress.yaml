@@ -1,0 +1,10 @@
+rule_id: cloud.network.security_group.open_ingress
+title: Cloud security group allows public ingress
+description: |
+  Public ingress can expose services directly to the internet and increase attack surface.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Restrict ingress CIDRs to trusted networks or front services with approved load balancers and WAF controls.
+version: "1.0"
+

@@ -1,0 +1,9 @@
+rule_id: flow.runtime.deployment_correlated_degradation
+title: Flow degradation is correlated with deployment
+description: >
+  Runtime degradation signals are present after a recent deployment.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Review the deployment diff, rollout health, error budget impact, and rollback safety before scaling unrelated infrastructure.
+version: "1.0"

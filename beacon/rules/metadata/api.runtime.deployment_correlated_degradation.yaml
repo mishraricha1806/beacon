@@ -1,0 +1,8 @@
+rule_id: api.runtime.deployment_correlated_degradation
+title: API degradation is correlated with deployment
+description: API degradation is correlated with a recent deployment signal.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Inspect the deployment diff, rollout health, feature flags, and rollback options.
+version: "1.0"

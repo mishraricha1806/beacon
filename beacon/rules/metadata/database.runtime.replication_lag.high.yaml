@@ -1,0 +1,8 @@
+rule_id: database.runtime.replication_lag.high
+title: Database replication lag is high
+description: High replication lag can weaken failover safety and produce stale reads.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Investigate replica throughput, write spikes, network health, long transactions, and failover readiness.
+version: "1.0"

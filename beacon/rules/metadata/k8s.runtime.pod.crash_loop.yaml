@@ -1,0 +1,10 @@
+rule_id: k8s.runtime.pod.crash_loop
+title: Kubernetes pod is crash looping
+description: |
+  Crash looping pods indicate unstable application startup or runtime failure.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Inspect pod events, container logs, recent deployments, configuration, and dependency availability.
+version: "1.0"
+

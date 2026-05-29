@@ -1,0 +1,10 @@
+rule_id: k8s.runtime.pod.pending
+title: Kubernetes pod is Pending
+description: |
+  Pending pods can indicate insufficient cluster capacity, missing volumes, or scheduling constraints.
+severity_default: HIGH
+category: scalability
+author: beacon.rules
+recommendation: Review scheduler events, node capacity, affinity rules, taints, tolerations, and persistent volumes.
+version: "1.0"
+

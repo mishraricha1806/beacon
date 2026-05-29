@@ -1,0 +1,10 @@
+rule_id: k8s.runtime.node.not_ready
+title: Kubernetes node is not Ready
+description: |
+  NotReady nodes reduce available capacity and can disrupt workloads during scheduling or failover.
+severity_default: CRITICAL
+category: resiliency
+author: beacon.rules
+recommendation: Investigate node health, kubelet status, networking, disk pressure, and recent node changes.
+version: "1.0"
+

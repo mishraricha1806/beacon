@@ -1,0 +1,9 @@
+rule_id: flow.runtime.cascading_latency
+title: Flow shows cascading latency
+description: >
+  API timeouts, consumer retries, and Kafka lag are increasing together, indicating a cascading runtime failure.
+severity_default: CRITICAL
+category: runtime_stability
+author: beacon.rules
+recommendation: Stabilize the highest-pressure downstream dependency, reduce retry amplification, and consider rollback or throttling before broad scaling.
+version: "1.0"

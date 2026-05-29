@@ -1,0 +1,9 @@
+rule_id: flow.runtime.downstream_db_bottleneck
+title: Flow indicates downstream database bottleneck
+description: >
+  Kafka lag is increasing while Kafka appears healthy and database latency is elevated.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Investigate database latency, connection pools, slow queries, retries, and consumer processing time before scaling Kafka.
+version: "1.0"

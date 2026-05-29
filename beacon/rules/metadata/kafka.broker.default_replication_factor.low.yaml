@@ -1,0 +1,10 @@
+rule_id: kafka.broker.default_replication_factor.low
+title: Kafka broker default replication factor is low
+description: |
+  Low default replication factor can create under-replicated topics when topics are auto-created or created without explicit replication settings.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Use default.replication.factor=3 for production Kafka clusters.
+version: "1.0"
+

@@ -1,0 +1,8 @@
+rule_id: storage.runtime.backup_stale
+title: Storage backup is stale
+description: Stale backups increase data-loss exposure during recovery.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Verify backup jobs, snapshot policy, restore testing, and alerting for backup freshness.
+version: "1.0"

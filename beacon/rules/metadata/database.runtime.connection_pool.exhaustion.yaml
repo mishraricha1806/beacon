@@ -1,0 +1,8 @@
+rule_id: database.runtime.connection_pool.exhaustion
+title: Database connection pool is near exhaustion
+description: Connection pool exhaustion can block API and consumer progress even when the database host is healthy.
+severity_default: HIGH
+category: scalability
+author: beacon.rules
+recommendation: Tune pool limits, reduce connection leaks, review query time, and add backpressure before only scaling app replicas.
+version: "1.0"

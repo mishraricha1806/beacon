@@ -1,0 +1,10 @@
+rule_id: k8s.runtime.deployment.unavailable
+title: Kubernetes deployment has unavailable replicas
+description: |
+  Unavailable replicas reduce service capacity and can indicate rollout or runtime failure.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Inspect rollout status, pod events, readiness probes, resource pressure, and recent deployments.
+version: "1.0"
+

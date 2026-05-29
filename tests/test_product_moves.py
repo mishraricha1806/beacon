@@ -116,7 +116,9 @@ def test_live_kafka_topics_use_normalized_evaluator(monkeypatch):
             return {resource: FakeFuture() for resource in resources}
 
     def capture_evaluate(resources, context=None):
-        captured["resource_types"] = [resource.type for resource in resources]
+        captured.setdefault("resource_types", []).extend(
+            resource.type for resource in resources
+        )
         captured["context"] = context
         return []
 
@@ -128,7 +130,8 @@ def test_live_kafka_topics_use_normalized_evaluator(monkeypatch):
 
     kafka_runtime_connector.analyze_kafka_cluster("localhost:9092")
 
-    assert captured["resource_types"] == ["kafka_topic"]
+    assert "kafka_topic" in captured["resource_types"]
+    assert "kafka_broker_config" in captured["resource_types"]
     assert captured["context"] == {"file": "runtime-kafka"}
 
 
@@ -261,6 +264,527 @@ def test_readiness_error_forces_not_ready():
     )
 
     assert summary["error"] == 1
+    assert summary["score_status"] == "BLOCKED_BY_ANALYSIS_ERROR"
     assert summary["production_decision"] == "NOT READY"
     assert summary["survivability"] == "ANALYSIS BLOCKED"
     assert "Resolve analysis errors" in summary["recommended_action"]
+
+
+def test_terraform_plan_json_is_scanned(tmp_path):
+    import json
+
+    from beacon.scanner import scan_file
+
+    plan = {
+        "format_version": "1.2",
+        "resource_changes": [
+            {
+                "type": "aws_s3_bucket_public_access_block",
+                "name": "bad_bucket_access",
+                "change": {
+                    "after": {
+                        "block_public_acls": False,
+                        "block_public_policy": True,
+                        "ignore_public_acls": True,
+                        "restrict_public_buckets": False,
+                    }
+                },
+            }
+        ],
+    }
+    plan_path = tmp_path / "tfplan.json"
+    plan_path.write_text(json.dumps(plan))
+
+    findings = scan_file(str(plan_path))
+
+    assert any(
+        finding["rule_id"] == "object_storage.public_access.enabled"
+        for finding in findings
+    )
+
+
+def test_terraform_state_json_is_scanned(tmp_path):
+    import json
+
+    from beacon.scanner import scan_file
+
+    state = {
+        "values": {
+            "root_module": {
+                "resources": [
+                    {
+                        "type": "aws_s3_bucket",
+                        "name": "data",
+                        "values": {"bucket": "data"},
+                    }
+                ]
+            }
+        }
+    }
+    state_path = tmp_path / "state.json"
+    state_path.write_text(json.dumps(state))
+
+    findings = scan_file(str(state_path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "object_storage.encryption.missing" in rule_ids
+    assert "object_storage.versioning.missing" in rule_ids
+
+
+def test_helm_chart_rendering_is_scanned(monkeypatch, tmp_path):
+    from types import SimpleNamespace
+
+    from beacon import scanner
+
+    chart_dir = tmp_path / "payments"
+    templates_dir = chart_dir / "templates"
+    templates_dir.mkdir(parents=True)
+    (chart_dir / "Chart.yaml").write_text(
+        "apiVersion: v2\nname: payments\nversion: 0.1.0\n"
+    )
+    (templates_dir / "deployment.yaml").write_text("{{ .Values.placeholder }}\n")
+
+    rendered_manifest = """
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+        - name: api
+          image: payments:latest
+"""
+
+    monkeypatch.setattr(scanner.shutil, "which", lambda binary: "/usr/bin/helm")
+    monkeypatch.setattr(
+        scanner.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=rendered_manifest),
+    )
+
+    findings = scanner.scan_path(str(chart_dir))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "k8s.workload.replicas.single" in rule_ids
+    assert "k8s.workload.resources.missing" in rule_ids
+    assert "k8s.image.latest_tag" in rule_ids
+
+
+def test_helm_chart_without_helm_blocks_analysis(monkeypatch, tmp_path):
+    from beacon import scanner
+
+    chart_dir = tmp_path / "payments"
+    (chart_dir / "templates").mkdir(parents=True)
+    (chart_dir / "Chart.yaml").write_text(
+        "apiVersion: v2\nname: payments\nversion: 0.1.0\n"
+    )
+
+    monkeypatch.setattr(scanner.shutil, "which", lambda binary: None)
+
+    findings = scanner.scan_path(str(chart_dir))
+
+    assert any(finding["rule_id"] == "helm.render.unavailable" for finding in findings)
+
+
+def test_github_actions_deployment_risk_is_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    workflow = """
+name: Release
+on:
+  pull_request_target:
+  push:
+    branches: [main]
+permissions: write-all
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./deploy production
+"""
+    workflow_path = tmp_path / "release.yaml"
+    workflow_path.write_text(workflow)
+
+    findings = scan_file(str(workflow_path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "cicd.deployment.environment.missing" in rule_ids
+    assert "cicd.github.pull_request_target.used" in rule_ids
+    assert "cicd.github.permissions.write_all" in rule_ids
+
+
+def test_kubernetes_runtime_snapshot_is_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    snapshot = """
+kubernetes_runtime:
+  nodes:
+    - name: node-a
+      ready: false
+      memory_pressure: true
+  pods:
+    - name: payments-api-123
+      namespace: payments
+      phase: Running
+      restart_count: 8
+      waiting_reason: CrashLoopBackOff
+    - name: worker-456
+      namespace: payments
+      phase: Pending
+  deployments:
+    - name: payments-api
+      namespace: payments
+      desired_replicas: 3
+      available_replicas: 1
+"""
+    snapshot_path = tmp_path / "k8s-runtime.yaml"
+    snapshot_path.write_text(snapshot)
+
+    findings = scan_file(str(snapshot_path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "k8s.runtime.node.not_ready" in rule_ids
+    assert "k8s.runtime.node.pressure" in rule_ids
+    assert "k8s.runtime.pod.crash_loop" in rule_ids
+    assert "k8s.runtime.pod.pending" in rule_ids
+    assert "k8s.runtime.deployment.unavailable" in rule_ids
+
+
+def test_deeper_aws_terraform_risks_are_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    terraform = """
+resource "aws_security_group" "open" {
+  ingress {
+    from_port = 0
+    to_port = 65535
+    protocol = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_db_instance" "db" {
+  publicly_accessible = true
+  backup_retention_period = 0
+}
+
+resource "aws_instance" "api" {
+  ami = "ami-123"
+  instance_type = "t3.micro"
+}
+"""
+    tf_path = tmp_path / "main.tf"
+    tf_path.write_text(terraform)
+
+    findings = scan_file(str(tf_path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "cloud.network.security_group.open_ingress" in rule_ids
+    assert "cloud.database.rds.publicly_accessible" in rule_ids
+    assert "cloud.database.rds.backup_retention_missing" in rule_ids
+    assert "cloud.compute.ec2.detailed_monitoring.disabled" in rule_ids
+
+
+def test_live_kubernetes_connector_uses_read_only_kubectl(monkeypatch):
+    import json
+    from types import SimpleNamespace
+
+    from beacon import kubernetes_runtime_connector
+
+    payloads = {
+        "nodes": {
+            "items": [
+                {
+                    "metadata": {"name": "node-a"},
+                    "status": {
+                        "conditions": [
+                            {"type": "Ready", "status": "False"},
+                            {"type": "MemoryPressure", "status": "True"},
+                        ]
+                    },
+                }
+            ]
+        },
+        "pods": {
+            "items": [
+                {
+                    "metadata": {"name": "api-123", "namespace": "payments"},
+                    "status": {
+                        "phase": "Running",
+                        "containerStatuses": [
+                            {
+                                "restartCount": 6,
+                                "state": {"waiting": {"reason": "CrashLoopBackOff"}},
+                            }
+                        ],
+                    },
+                }
+            ]
+        },
+        "deployments": {
+            "items": [
+                {
+                    "metadata": {"name": "api", "namespace": "payments"},
+                    "spec": {"replicas": 3},
+                    "status": {"availableReplicas": 1},
+                }
+            ]
+        },
+    }
+
+    def fake_run(command, **kwargs):
+        command_text = " ".join(command)
+
+        if "get nodes" in command_text:
+            return SimpleNamespace(stdout=json.dumps(payloads["nodes"]))
+        if "get pods" in command_text:
+            return SimpleNamespace(stdout=json.dumps(payloads["pods"]))
+        if "get deployments" in command_text:
+            return SimpleNamespace(stdout=json.dumps(payloads["deployments"]))
+
+        raise AssertionError(command)
+
+    monkeypatch.setattr(kubernetes_runtime_connector.shutil, "which", lambda binary: "/usr/bin/kubectl")
+    monkeypatch.setattr(kubernetes_runtime_connector.subprocess, "run", fake_run)
+
+    findings = kubernetes_runtime_connector.analyze_kubernetes_cluster(namespace="payments")
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "k8s.runtime.read_only_mode" in rule_ids
+    assert "k8s.runtime.collection.success" in rule_ids
+    assert "k8s.runtime.node.not_ready" in rule_ids
+    assert "k8s.runtime.pod.crash_loop" in rule_ids
+    assert "k8s.runtime.deployment.unavailable" in rule_ids
+
+
+def test_kafka_broker_config_is_scanned():
+    from beacon.rules import evaluate_kafka_config
+
+    findings = evaluate_kafka_config(
+        {
+            "brokers": [
+                {
+                    "id": 1,
+                    "default_replication_factor": 1,
+                    "offsets_topic_replication_factor": 1,
+                    "transaction_state_log_replication_factor": 1,
+                    "auto_create_topics_enable": True,
+                }
+            ]
+        },
+        "kafka.yaml",
+    )
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "kafka.broker.default_replication_factor.low" in rule_ids
+    assert "kafka.broker.offsets_replication_factor.low" in rule_ids
+    assert "kafka.broker.transaction_log_replication_factor.low" in rule_ids
+    assert "kafka.broker.auto_create_topics.enabled" in rule_ids
+
+
+def test_cloud_inventory_snapshot_is_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    inventory = """
+cloud_inventory:
+  resources:
+    - type: aws_db_instance
+      name: customer-db
+      config:
+        publicly_accessible: true
+        backup_retention_period: 0
+"""
+    path = tmp_path / "cloud.yaml"
+    path.write_text(inventory)
+
+    findings = scan_file(str(path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "cloud.database.rds.publicly_accessible" in rule_ids
+    assert "cloud.database.rds.backup_retention_missing" in rule_ids
+
+
+def test_topology_blast_radius_is_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    topology = """
+topology:
+  services:
+    - name: auth
+      criticality: critical
+      instances: 1
+    - name: payments
+      owner: team-payments
+      depends_on: [auth]
+    - name: orders
+      owner: team-orders
+      depends_on: [auth]
+    - name: profile
+      owner: team-profile
+      depends_on: [auth]
+"""
+    path = tmp_path / "topology.yaml"
+    path.write_text(topology)
+
+    findings = scan_file(str(path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "topology.service.blast_radius.high" in rule_ids
+    assert "topology.service.critical_single_instance" in rule_ids
+    assert "topology.service.owner.missing" in rule_ids
+
+
+def test_flow_runtime_snapshot_is_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    flow = """
+flow_runtime:
+  name: checkout
+  signals:
+    kafka_consumer_lag_increasing: true
+    kafka_broker_unhealthy: false
+    db_latency_ms: 850
+    recent_deployment: true
+    api_error_rate_percent: 7
+    api_timeout_rate_percent: 4
+    consumer_retry_rate_percent: 9
+  components:
+    api:
+      type: api
+      signals:
+        unhealthy: true
+    database:
+      type: database
+      signals:
+        unhealthy: true
+"""
+    path = tmp_path / "flow-runtime.yaml"
+    path.write_text(flow)
+
+    findings = scan_file(str(path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "flow.runtime.downstream_db_bottleneck" in rule_ids
+    assert "flow.runtime.deployment_correlated_degradation" in rule_ids
+    assert "flow.runtime.cascading_latency" in rule_ids
+    assert "flow.runtime.component_unhealthy" in rule_ids
+
+
+def test_diagnose_flow_uses_runtime_snapshot(monkeypatch, tmp_path):
+    from beacon import cli
+
+    path = tmp_path / "flow-runtime.yaml"
+    path.write_text(
+        """
+flow_runtime:
+  name: checkout
+  signals:
+    kafka_consumer_lag_increasing: true
+    kafka_broker_unhealthy: false
+    db_latency_ms: 900
+"""
+    )
+    captured = {}
+
+    monkeypatch.setattr(cli, "load_policy", lambda: {})
+
+    def capture_report(findings, **kwargs):
+        captured["findings"] = findings
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(cli, "print_report", capture_report)
+
+    cli.diagnose_flow(str(path), html=False, open_report=False, output="json")
+
+    assert any(
+        finding["rule_id"] == "flow.runtime.downstream_db_bottleneck"
+        for finding in captured["findings"]
+    )
+    assert captured["kwargs"]["output"] == "json"
+
+
+def test_api_database_and_storage_runtime_snapshot_is_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    snapshot = """
+api_runtime:
+  services:
+    - name: checkout-api
+      latency_p95_ms: 1400
+      error_rate_percent: 6
+      timeout_rate_percent: 4
+      retry_rate_percent: 14
+      recent_deployment: true
+
+database_runtime:
+  databases:
+    - name: orders-db
+      engine: postgres
+      latency_ms: 720
+      connection_pool_utilization_percent: 92
+      lock_waits_high: true
+      replication_lag_seconds: 120
+      storage_used_percent: 88
+
+storage_runtime:
+  resources:
+    - name: orders-volume
+      type: block_volume
+      used_percent: 91
+      growth_percent_7d: 26
+      iops_saturation_percent: 89
+      backup_age_hours: 36
+"""
+    path = tmp_path / "platform-runtime.yaml"
+    path.write_text(snapshot)
+
+    findings = scan_file(str(path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "api.runtime.latency_p95.high" in rule_ids
+    assert "api.runtime.error_rate.high" in rule_ids
+    assert "api.runtime.timeout_rate.high" in rule_ids
+    assert "api.runtime.retry_amplification" in rule_ids
+    assert "api.runtime.deployment_correlated_degradation" in rule_ids
+    assert "database.runtime.latency.high" in rule_ids
+    assert "database.runtime.connection_pool.exhaustion" in rule_ids
+    assert "database.runtime.replication_lag.high" in rule_ids
+    assert "database.runtime.lock_contention.high" in rule_ids
+    assert "database.runtime.storage_saturation" in rule_ids
+    assert "storage.runtime.capacity.high" in rule_ids
+    assert "storage.runtime.growth_rate.high" in rule_ids
+    assert "storage.runtime.iops_saturation.high" in rule_ids
+    assert "storage.runtime.backup_stale" in rule_ids
+
+
+def test_diagnose_snapshot_uses_general_runtime_snapshot(monkeypatch, tmp_path):
+    from beacon import cli
+
+    path = tmp_path / "api-runtime.yaml"
+    path.write_text(
+        """
+api_runtime:
+  name: checkout-api
+  latency_p95_ms: 1500
+"""
+    )
+    captured = {}
+
+    monkeypatch.setattr(cli, "load_policy", lambda: {})
+
+    def capture_report(findings, **kwargs):
+        captured["findings"] = findings
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr(cli, "print_report", capture_report)
+
+    cli.diagnose_snapshot(str(path), html=False, open_report=False, output="json")
+
+    assert any(
+        finding["rule_id"] == "api.runtime.latency_p95.high"
+        for finding in captured["findings"]
+    )
+    assert captured["kwargs"]["output"] == "json"

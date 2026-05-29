@@ -1,0 +1,8 @@
+rule_id: api.runtime.latency_p95.high
+title: API p95 latency is high
+description: High API p95 latency can trigger client timeouts, retries, and downstream pressure.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Review recent deployments, downstream dependency latency, saturation, and timeout budgets.
+version: "1.0"

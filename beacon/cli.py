@@ -10,6 +10,9 @@ from beacon.scanner import scan_path
 from beacon.reporter import print_report
 from beacon.runtime_advisor import analyze_runtime_file
 from beacon.kafka_runtime_connector import analyze_kafka_cluster
+from beacon.kubernetes_runtime_connector import analyze_kubernetes_cluster
+from beacon.flow_runtime import analyze_flow_file
+from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon import rules_registry
 from rich.table import Table
@@ -94,6 +97,22 @@ def runtime(
     print_report(findings, html=html, open_report=open_report, output=output)
 
 
+@diagnose_app.command("snapshot")
+def diagnose_snapshot(
+    path: str = typer.Argument(..., help="Path to a runtime snapshot YAML."),
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Diagnose API, database, storage, flow, or Kubernetes runtime snapshots."""
+
+    findings = analyze_runtime_snapshot_file(path)
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    print_report(findings, html=html, open_report=open_report, output=output)
+
+
 @diagnose_app.command("kafka")
 def diagnose_kafka(
     bootstrap_server: str = typer.Option(..., help="Kafka bootstrap server."),
@@ -131,15 +150,41 @@ def diagnose_kafka(
 
 
 @diagnose_app.command("flow")
-def diagnose_flow():
-    """Future distributed flow diagnostics."""
-    typer.echo("Flow diagnostics coming soon.")
+def diagnose_flow(
+    path: str = typer.Argument(..., help="Path to a flow runtime snapshot YAML."),
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Diagnose cross-system runtime flow degradation."""
+
+    findings = analyze_flow_file(path)
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    print_report(findings, html=html, open_report=open_report, output=output)
 
 
 @diagnose_app.command("kubernetes")
-def diagnose_kubernetes():
-    """Future Kubernetes operational diagnostics."""
-    typer.echo("Kubernetes diagnostics coming soon.")
+def diagnose_kubernetes(
+    namespace: str = typer.Option(None, help="Namespace to analyze, defaults to all namespaces."),
+    context: str = typer.Option(None, help="kubectl context to use."),
+    kubeconfig: str = typer.Option(None, help="Path to kubeconfig."),
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Diagnose Kubernetes runtime operational behavior."""
+
+    findings = analyze_kubernetes_cluster(
+        namespace=namespace,
+        context=context,
+        kubeconfig=kubeconfig,
+    )
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    print_report(findings, html=html, open_report=open_report, output=output)
 
 
 @readiness_app.command("kafka")
@@ -195,6 +240,93 @@ def readiness_static(
     """Analyze infrastructure production readiness."""
 
     findings = scan_path(path)
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    readiness_summary = calculate_readiness(findings)
+
+    print_readiness_summary(readiness_summary)
+
+    print_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        readiness_summary=readiness_summary,
+    )
+
+
+@readiness_app.command("kubernetes")
+def readiness_kubernetes(
+    namespace: str = typer.Option(None),
+    context: str = typer.Option(None),
+    kubeconfig: str = typer.Option(None),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Analyze Kubernetes runtime production readiness."""
+
+    findings = analyze_kubernetes_cluster(
+        namespace=namespace,
+        context=context,
+        kubeconfig=kubeconfig,
+    )
+
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    readiness_summary = calculate_readiness(findings)
+
+    print_readiness_summary(readiness_summary)
+
+    print_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        readiness_summary=readiness_summary,
+    )
+
+
+@readiness_app.command("flow")
+def readiness_flow(
+    path: str = typer.Argument(..., help="Path to a flow runtime snapshot YAML."),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Analyze cross-system runtime flow readiness."""
+
+    findings = analyze_flow_file(path)
+
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    readiness_summary = calculate_readiness(findings)
+
+    print_readiness_summary(readiness_summary)
+
+    print_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        readiness_summary=readiness_summary,
+    )
+
+
+@readiness_app.command("snapshot")
+def readiness_snapshot(
+    path: str = typer.Argument(..., help="Path to a runtime snapshot YAML."),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Analyze API, database, storage, flow, or Kubernetes runtime readiness."""
+
+    findings = analyze_runtime_snapshot_file(path)
+
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 

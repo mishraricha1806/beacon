@@ -1,0 +1,8 @@
+rule_id: storage.runtime.capacity.high
+title: Storage capacity usage is high
+description: Storage saturation can cause write failures, retention pressure, and recovery instability.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.rules
+recommendation: Create capacity headroom and review growth drivers, retention policy, and cleanup safety.
+version: "1.0"

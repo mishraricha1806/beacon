@@ -1,0 +1,10 @@
+rule_id: cloud.database.rds.publicly_accessible
+title: RDS instance is publicly accessible
+description: |
+  Public database exposure can lead to data compromise and broad operational blast radius.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.rules
+recommendation: Disable public accessibility and place databases in private subnets with least-privilege network access.
+version: "1.0"
+

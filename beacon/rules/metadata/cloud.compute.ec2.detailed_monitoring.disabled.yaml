@@ -1,0 +1,10 @@
+rule_id: cloud.compute.ec2.detailed_monitoring.disabled
+title: EC2 detailed monitoring is disabled
+description: |
+  Weak monitoring granularity can delay capacity and degradation detection.
+severity_default: LOW
+category: operational_safety
+author: beacon.rules
+recommendation: Enable detailed monitoring for critical production instances or ensure equivalent telemetry exists.
+version: "1.0"
+

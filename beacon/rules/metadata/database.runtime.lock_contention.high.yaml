@@ -1,0 +1,8 @@
+rule_id: database.runtime.lock_contention.high
+title: Database lock contention is high
+description: Lock contention can increase latency and stall application progress.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Identify blocking sessions, long transactions, migration activity, and hot rows or tables.
+version: "1.0"

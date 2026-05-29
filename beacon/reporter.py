@@ -18,10 +18,14 @@ def print_report(
     the JSON and HTML outputs will include it for richer reports.
     """
     score = calculate_score(findings)
+    score_status = (
+        readiness_summary.get("score_status") if readiness_summary else "CALCULATED"
+    )
 
     if output == "json":
         payload = {
             "score": score,
+            "score_status": score_status,
             "readiness_summary": readiness_summary,
             "findings": findings,
         }
@@ -29,9 +33,14 @@ def print_report(
         console.print(json.dumps(payload, indent=2))
         return
 
-    console.print(
-        f"\n[bold cyan]Beacon Production Readiness Score:[/bold cyan] {score}/100\n"
-    )
+    if score_status == "BLOCKED_BY_ANALYSIS_ERROR":
+        console.print(
+            f"\n[bold cyan]Beacon Production Readiness Score:[/bold cyan] BLOCKED ({score}/100 raw signal score)\n"
+        )
+    else:
+        console.print(
+            f"\n[bold cyan]Beacon Production Readiness Score:[/bold cyan] {score}/100\n"
+        )
 
     if not findings:
         console.print("[green]No major production risks found.[/green]")

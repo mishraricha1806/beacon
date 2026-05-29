@@ -1,0 +1,10 @@
+rule_id: cicd.github.permissions.write_all
+title: GitHub Actions workflow grants write-all token permissions
+description: |
+  Broad CI token permissions increase blast radius if a workflow, action, or dependency is compromised.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Use least-privilege GitHub token permissions at workflow and job level.
+version: "1.0"
+

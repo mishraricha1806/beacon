@@ -1,0 +1,8 @@
+rule_id: storage.runtime.iops_saturation.high
+title: Storage I/O saturation is high
+description: I/O saturation can increase application latency and slow recovery operations.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.rules
+recommendation: Review disk class, hot partitions, query patterns, compaction, and workload distribution.
+version: "1.0"

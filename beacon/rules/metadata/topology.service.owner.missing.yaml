@@ -1,0 +1,10 @@
+rule_id: topology.service.owner.missing
+title: Service owner is missing
+description: |
+  Missing ownership slows incident routing and operational accountability.
+severity_default: LOW
+category: operational_safety
+author: beacon.rules
+recommendation: Assign an owner or team for each production service.
+version: "1.0"
+

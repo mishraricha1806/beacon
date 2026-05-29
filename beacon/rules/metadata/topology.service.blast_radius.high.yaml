@@ -1,0 +1,10 @@
+rule_id: topology.service.blast_radius.high
+title: Service has high blast radius
+description: |
+  A failure in this service can affect multiple downstream services or critical flows.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Review redundancy, graceful degradation, dependency timeouts, and incident runbooks.
+version: "1.0"
+

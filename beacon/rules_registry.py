@@ -284,6 +284,54 @@ RUNTIME_RULES: Dict[str, Dict[str, Any]] = {
         "author": "beacon.runtime",
         "recommendation": "Continue monitoring disk growth, producer rate, message size, consumer lag, and under-replicated partitions.",
     },
+    "helm.render.unavailable": {
+        "title": "Helm renderer unavailable",
+        "description": "Beacon found a Helm chart but could not render it because the Helm CLI is unavailable.",
+        "severity_default": "ERROR",
+        "category": "operational_safety",
+        "author": "beacon.scanner",
+        "recommendation": "Install the helm CLI or provide rendered Kubernetes manifests for scanning.",
+    },
+    "helm.render.failed": {
+        "title": "Helm chart render failed",
+        "description": "Beacon found a Helm chart but helm template failed.",
+        "severity_default": "ERROR",
+        "category": "operational_safety",
+        "author": "beacon.scanner",
+        "recommendation": "Run helm template locally, fix chart rendering errors, and retry Beacon.",
+    },
+    "k8s.runtime.read_only_mode": {
+        "title": "Kubernetes runtime connector read-only mode",
+        "description": "Beacon confirms live Kubernetes analysis is running without mutation operations.",
+        "severity_default": "INFO",
+        "category": "runtime_stability",
+        "author": "beacon.runtime",
+        "recommendation": "No action required.",
+    },
+    "k8s.runtime.kubectl.unavailable": {
+        "title": "kubectl unavailable",
+        "description": "Beacon cannot collect live Kubernetes runtime signals because kubectl is unavailable.",
+        "severity_default": "ERROR",
+        "category": "runtime_stability",
+        "author": "beacon.runtime",
+        "recommendation": "Install kubectl or provide a Kubernetes runtime snapshot YAML.",
+    },
+    "k8s.runtime.collection.failed": {
+        "title": "Kubernetes runtime collection failed",
+        "description": "Beacon could not collect Kubernetes runtime status.",
+        "severity_default": "ERROR",
+        "category": "runtime_stability",
+        "author": "beacon.runtime",
+        "recommendation": "Check kubectl access, kubeconfig, context, namespace, and cluster API availability.",
+    },
+    "k8s.runtime.collection.success": {
+        "title": "Kubernetes runtime collection successful",
+        "description": "Beacon collected Kubernetes runtime status using read-only kubectl get commands.",
+        "severity_default": "LOW",
+        "category": "runtime_stability",
+        "author": "beacon.runtime",
+        "recommendation": "No action required.",
+    },
 }
 
 
@@ -355,9 +403,17 @@ def _load_registry() -> Dict[str, Dict[str, Any]]:
 def _load_registered_rule_metadata() -> Dict[str, Dict[str, Any]]:
     try:
         import beacon.rules.iam_registered_rules  # noqa: F401
+        import beacon.rules.api_runtime_registered_rules  # noqa: F401
+        import beacon.rules.cicd_registered_rules  # noqa: F401
+        import beacon.rules.cloud_registered_rules  # noqa: F401
+        import beacon.rules.database_runtime_registered_rules  # noqa: F401
+        import beacon.rules.flow_registered_rules  # noqa: F401
         import beacon.rules.kafka_registered_rules  # noqa: F401
         import beacon.rules.kubernetes_registered_rules  # noqa: F401
+        import beacon.rules.kubernetes_runtime_registered_rules  # noqa: F401
+        import beacon.rules.storage_runtime_registered_rules  # noqa: F401
         import beacon.rules.storage_registered_rules  # noqa: F401
+        import beacon.rules.topology_registered_rules  # noqa: F401
         from beacon.engine.registry import registry as engine_registry
     except Exception:
         return {}
