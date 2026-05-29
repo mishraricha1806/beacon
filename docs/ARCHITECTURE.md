@@ -204,7 +204,7 @@ The Kubernetes connector only uses read-only `kubectl get` calls. Missing `kubec
 ### Runtime Diagnostic Flow
 
 ```text
-Kafka / Kubernetes / API / Database / Storage / Flow Snapshot / Future Prometheus / Future Splunk
+Kafka / Kubernetes / API / Database / Storage / Flow Snapshot / Prometheus / OpenTelemetry / Future Splunk
         ↓
 Runtime Collector
         ↓
@@ -252,6 +252,42 @@ Readiness Engine / Report
 ```
 
 These runtime domains are snapshot-first in Module 1. Beacon can detect API latency/errors/timeouts/retry amplification, database latency/connection pool/replication lag/lock/storage issues, and storage capacity/growth/I/O/backup risks before live collectors exist.
+
+### Prometheus Runtime Collection Flow
+
+```text
+Prometheus Query Config
+        ↓
+Read-only Prometheus HTTP API Queries
+        ↓
+Runtime Snapshot Mapping
+        ↓
+Runtime Resource Normalization
+        ↓
+Rule Registry + Evaluator Engine
+        ↓
+Readiness Engine / Report
+```
+
+Prometheus support is intentionally config-driven. Beacon does not store metrics; it asks for the exact runtime signals needed by deterministic API, database, storage, Kubernetes, and Flow rules.
+
+### OpenTelemetry Runtime Mapping Flow
+
+```text
+OpenTelemetry Span / Metric Export
+        ↓
+Runtime Signal Derivation
+        ↓
+Runtime Snapshot Mapping
+        ↓
+Runtime Resource Normalization
+        ↓
+Rule Registry + Evaluator Engine
+        ↓
+Readiness Engine / Report
+```
+
+OpenTelemetry support is export-first in this slice. Beacon reads spans and metric samples, derives API latency/error/timeout/retry signals, database latency and capacity signals, storage signals, and Flow signals without becoming a telemetry store.
 
 ---
 
@@ -561,6 +597,8 @@ Module 1 is release-ready as a deterministic production-readiness module when us
 * Kubernetes YAML
 * Kubernetes runtime snapshots and live read-only `kubectl` collection
 * API, database, and storage runtime snapshots
+* Prometheus query configs mapped into runtime snapshots
+* OpenTelemetry spans and metric exports mapped into runtime snapshots
 * Kafka topic configuration files
 * Kafka broker/server configuration files and live read-only broker config collection where the cluster permits it
 * Kafka direct server metadata and consumer group lag diagnostics
@@ -579,6 +617,7 @@ The remaining broad-platform gaps are real API integrations, not rule-engine cle
 * deeper Kubernetes capacity and workload history
 * live cross-system flow collectors
 * live API, database, and storage collectors
+* broader OpenTelemetry collector integrations
 
 ---
 

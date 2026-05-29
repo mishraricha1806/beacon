@@ -1,0 +1,11 @@
+name: Release
+on:
+  pull_request_target:
+  push:
+    branches: [main]
+permissions: write-all
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ./deploy production

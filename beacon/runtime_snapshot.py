@@ -12,6 +12,10 @@ def analyze_runtime_snapshot_file(path):
     with open(path, "r") as f:
         data = yaml.safe_load(f) or {}
 
-    resources = normalize_yaml_document(data, path)
+    return analyze_runtime_snapshot(data, source=path)
 
-    return evaluate(resources, context={"file": path})
+
+def analyze_runtime_snapshot(data, source="runtime-snapshot"):
+    resources = normalize_yaml_document(data, source)
+
+    return evaluate(resources, context={"file": source})

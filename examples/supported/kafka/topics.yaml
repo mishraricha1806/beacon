@@ -1,0 +1,14 @@
+kafka:
+  topics:
+    - name: payments
+      replication_factor: 1
+      partitions: 1
+      retention_ms: -1
+      cleanup_policy:
+      min_insync_replicas:
+      max_message_bytes: 20971520
+    - name: audit-events
+      replication_factor: 2
+      partitions: 2
+      retention_bytes:
+      cleanup_policy:

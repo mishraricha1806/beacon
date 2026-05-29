@@ -1,0 +1,27 @@
+{
+  "format_version": "1.2",
+  "resource_changes": [
+    {
+      "type": "aws_s3_bucket_public_access_block",
+      "name": "customer_exports",
+      "change": {
+        "after": {
+          "block_public_acls": false,
+          "block_public_policy": true,
+          "ignore_public_acls": true,
+          "restrict_public_buckets": false
+        }
+      }
+    },
+    {
+      "type": "aws_db_instance",
+      "name": "orders",
+      "change": {
+        "after": {
+          "publicly_accessible": true,
+          "backup_retention_period": 0
+        }
+      }
+    }
+  ]
+}

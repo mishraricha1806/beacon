@@ -1,0 +1,98 @@
+opentelemetry:
+  flow:
+    name: checkout
+    components:
+      api:
+        type: api
+        signals:
+          unhealthy: true
+      consumer:
+        type: consumer
+        depends_on: [kafka]
+        signals:
+          unhealthy: true
+      database:
+        type: database
+        signals:
+          unhealthy: true
+
+  spans:
+    - trace_id: t1
+      service: checkout-api
+      name: POST /checkout
+      duration_ms: 1500
+      status: ERROR
+      attributes:
+        http.status_code: 503
+        error.type: timeout
+        retry: true
+        deployment.recent: true
+    - trace_id: t2
+      service: checkout-api
+      name: POST /checkout
+      duration_ms: 1300
+      status: OK
+      attributes:
+        retry: true
+    - trace_id: t3
+      service: checkout-api
+      name: POST /checkout
+      duration_ms: 1100
+      status: ERROR
+      attributes:
+        http.status_code: 500
+        error.type: timeout
+    - trace_id: t1
+      service: orders-db
+      name: SELECT orders
+      duration_ms: 820
+      status: OK
+      attributes:
+        db.system: postgres
+        db.name: orders-db
+    - trace_id: t2
+      service: orders-db
+      name: SELECT orders
+      duration_ms: 760
+      status: OK
+      attributes:
+        db.system: postgres
+        db.name: orders-db
+
+  metrics:
+    - name: kafka.consumer_lag_increasing
+      value: 1
+    - name: kafka.broker_unhealthy
+      value: 0
+    - name: consumer.retry_rate_percent
+      value: 12
+    - name: deployment.recent
+      value: 1
+    - name: database.connection_pool_utilization_percent
+      database: orders-db
+      value: 94
+    - name: database.replication_lag_seconds
+      database: orders-db
+      value: 140
+    - name: database.lock_waits_high
+      database: orders-db
+      value: 1
+    - name: database.storage_used_percent
+      database: orders-db
+      value: 90
+    - name: storage.used_percent
+      resource: orders-volume
+      type: block_volume
+      value: 93
+    - name: storage.growth_percent_7d
+      resource: orders-volume
+      type: block_volume
+      value: 24
+    - name: storage.iops_saturation_percent
+      resource: orders-volume
+      type: block_volume
+      value: 88
+    - name: storage.backup_age_hours
+      resource: orders-volume
+      type: block_volume
+      value: 40

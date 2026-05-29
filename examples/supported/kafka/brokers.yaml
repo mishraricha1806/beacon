@@ -1,0 +1,7 @@
+kafka:
+  brokers:
+    - id: 1
+      default_replication_factor: 1
+      offsets_topic_replication_factor: 1
+      transaction_state_log_replication_factor: 1
+      auto_create_topics_enable: true

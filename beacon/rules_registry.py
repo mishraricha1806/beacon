@@ -332,6 +332,46 @@ RUNTIME_RULES: Dict[str, Dict[str, Any]] = {
         "author": "beacon.runtime",
         "recommendation": "No action required.",
     },
+    "prometheus.runtime.read_only_mode": {
+        "title": "Prometheus connector read-only mode",
+        "description": "Beacon confirms Prometheus analysis is running through read-only query APIs.",
+        "severity_default": "INFO",
+        "category": "runtime_stability",
+        "author": "beacon.runtime",
+        "recommendation": "No action required.",
+    },
+    "prometheus.config.url.missing": {
+        "title": "Prometheus URL missing",
+        "description": "Beacon cannot query Prometheus without a base URL.",
+        "severity_default": "ERROR",
+        "category": "runtime_stability",
+        "author": "beacon.runtime",
+        "recommendation": "Set prometheus.url in the collector config.",
+    },
+    "prometheus.query.failed": {
+        "title": "Prometheus query failed",
+        "description": "Beacon could not collect one or more Prometheus runtime signals.",
+        "severity_default": "ERROR",
+        "category": "runtime_stability",
+        "author": "beacon.runtime",
+        "recommendation": "Check the query, Prometheus URL, network access, and metric availability.",
+    },
+    "opentelemetry.runtime.read_only_mode": {
+        "title": "OpenTelemetry connector read-only mode",
+        "description": "Beacon confirms OpenTelemetry analysis is reading exported telemetry without mutation.",
+        "severity_default": "INFO",
+        "category": "runtime_stability",
+        "author": "beacon.runtime",
+        "recommendation": "No action required.",
+    },
+    "opentelemetry.runtime.signals.missing": {
+        "title": "OpenTelemetry runtime signals missing",
+        "description": "Beacon could not derive runtime resources from the provided OpenTelemetry input.",
+        "severity_default": "ERROR",
+        "category": "runtime_stability",
+        "author": "beacon.runtime",
+        "recommendation": "Provide spans or metrics with service names, durations, status, and relevant runtime signal values.",
+    },
 }
 
 

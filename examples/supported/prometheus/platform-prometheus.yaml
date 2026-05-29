@@ -1,0 +1,50 @@
+prometheus:
+  url: http://localhost:9090
+
+  api_runtime:
+    services:
+      - name: checkout-api
+        queries:
+          latency_p95_ms: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service="checkout-api"}[5m])) by (le)) * 1000
+          error_rate_percent: sum(rate(http_requests_total{service="checkout-api",status=~"5.."}[5m])) / sum(rate(http_requests_total{service="checkout-api"}[5m])) * 100
+          timeout_rate_percent: sum(rate(http_requests_total{service="checkout-api",error="timeout"}[5m])) / sum(rate(http_requests_total{service="checkout-api"}[5m])) * 100
+          retry_rate_percent: sum(rate(http_client_retries_total{service="checkout-api"}[5m])) / sum(rate(http_requests_total{service="checkout-api"}[5m])) * 100
+          recent_deployment:
+            query: changes(kube_deployment_status_observed_generation{deployment="checkout-api"}[15m])
+            type: bool
+
+  database_runtime:
+    databases:
+      - name: orders-db
+        engine: postgres
+        queries:
+          latency_ms: avg(pg_stat_activity_max_tx_duration{datname="orders"}) * 1000
+          connection_pool_utilization_percent: app_db_pool_in_use{database="orders"} / app_db_pool_max{database="orders"} * 100
+          lock_waits_high:
+            query: pg_locks_waiting{datname="orders"}
+            type: bool
+          replication_lag_seconds: pg_replication_lag_seconds{database="orders"}
+          storage_used_percent: pg_database_size_bytes{datname="orders"} / pg_database_storage_limit_bytes{datname="orders"} * 100
+
+  storage_runtime:
+    resources:
+      - name: orders-volume
+        type: block_volume
+        queries:
+          used_percent: (node_filesystem_size_bytes{mountpoint="/var/lib/orders"} - node_filesystem_avail_bytes{mountpoint="/var/lib/orders"}) / node_filesystem_size_bytes{mountpoint="/var/lib/orders"} * 100
+          growth_percent_7d: predict_linear(node_filesystem_size_bytes{mountpoint="/var/lib/orders"} - node_filesystem_avail_bytes{mountpoint="/var/lib/orders"}[7d], 7 * 24 * 3600)
+          iops_saturation_percent: rate(node_disk_io_time_seconds_total{device="nvme0n1"}[5m]) * 100
+          backup_age_hours: (time() - backup_last_success_timestamp_seconds{target="orders-volume"}) / 3600
+
+  flow_runtime:
+    name: checkout
+    signals:
+      kafka_consumer_lag_increasing:
+        query: increase(kafka_consumergroup_lag{consumergroup="checkout-consumer"}[15m])
+        type: bool
+      kafka_broker_unhealthy:
+        query: kafka_broker_under_replicated_partitions
+        type: bool
+      db_latency_ms: avg(pg_stat_activity_max_tx_duration{datname="orders"}) * 1000
+      api_timeout_rate_percent: sum(rate(http_requests_total{service="checkout-api",error="timeout"}[5m])) / sum(rate(http_requests_total{service="checkout-api"}[5m])) * 100
+      consumer_retry_rate_percent: sum(rate(consumer_retries_total{service="checkout-consumer"}[5m])) / sum(rate(consumer_messages_total{service="checkout-consumer"}[5m])) * 100

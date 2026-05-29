@@ -1,0 +1,14 @@
+topology:
+  services:
+    - name: auth
+      criticality: critical
+      instances: 1
+    - name: payments
+      owner: team-payments
+      depends_on: [auth]
+    - name: orders
+      owner: team-orders
+      depends_on: [auth]
+    - name: profile
+      owner: team-profile
+      depends_on: [auth]

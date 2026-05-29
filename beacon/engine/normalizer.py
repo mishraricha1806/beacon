@@ -297,8 +297,10 @@ def normalize_yaml_document(data, source):
     if "jobs" in data:
         return normalize_cicd_workflow(data, source)
 
-    if "kubernetes_runtime" in data:
-        return normalize_kubernetes_runtime(data.get("kubernetes_runtime", {}), source)
+    runtime_resources = normalize_runtime_sections(data, source)
+
+    if runtime_resources:
+        return runtime_resources
 
     if "cloud_inventory" in data:
         return normalize_cloud_inventory(data.get("cloud_inventory", {}), source)
@@ -306,19 +308,19 @@ def normalize_yaml_document(data, source):
     if "topology" in data:
         return normalize_topology(data.get("topology", {}), source)
 
-    if "flow_runtime" in data:
-        return normalize_flow_runtime(data.get("flow_runtime", {}), source)
-
-    runtime_resources = normalize_runtime_sections(data, source)
-
-    if runtime_resources:
-        return runtime_resources
-
     return []
 
 
 def normalize_runtime_sections(data, source):
     resources = []
+
+    if "kubernetes_runtime" in data:
+        resources.extend(
+            normalize_kubernetes_runtime(data.get("kubernetes_runtime", {}), source)
+        )
+
+    if "flow_runtime" in data:
+        resources.extend(normalize_flow_runtime(data.get("flow_runtime", {}), source))
 
     if "api_runtime" in data:
         resources.extend(normalize_api_runtime(data.get("api_runtime", {}), source))

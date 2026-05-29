@@ -1,0 +1,19 @@
+cloud_inventory:
+  resources:
+    - type: aws_security_group
+      name: public-api
+      config:
+        ingress:
+          - from_port: 0
+            to_port: 65535
+            protocol: tcp
+            cidr_blocks: ["0.0.0.0/0"]
+    - type: aws_db_instance
+      name: orders-db
+      config:
+        publicly_accessible: true
+        backup_retention_period: 0
+    - type: aws_instance
+      name: api
+      config:
+        monitoring: false

@@ -13,6 +13,8 @@ from beacon.kafka_runtime_connector import analyze_kafka_cluster
 from beacon.kubernetes_runtime_connector import analyze_kubernetes_cluster
 from beacon.flow_runtime import analyze_flow_file
 from beacon.runtime_snapshot import analyze_runtime_snapshot_file
+from beacon.prometheus_connector import analyze_prometheus_config
+from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon import rules_registry
 from rich.table import Table
@@ -89,7 +91,7 @@ def runtime(
     open_report: bool = typer.Option(True, help="Open HTML report in browser."),
     output: str = typer.Option("terminal", help="Output format: terminal or json."),
 ):
-    """Analyze runtime snapshot YAML."""
+    """Analyze legacy Kafka runtime snapshot YAML."""
     findings = analyze_runtime_file(path)
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
@@ -107,6 +109,39 @@ def diagnose_snapshot(
     """Diagnose API, database, storage, flow, or Kubernetes runtime snapshots."""
 
     findings = analyze_runtime_snapshot_file(path)
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    print_report(findings, html=html, open_report=open_report, output=output)
+
+
+@diagnose_app.command("prometheus")
+def diagnose_prometheus(
+    path: str = typer.Argument(..., help="Path to Prometheus collector config YAML."),
+    timeout: int = typer.Option(5, help="Prometheus query timeout in seconds."),
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Diagnose runtime signals from Prometheus."""
+
+    findings = analyze_prometheus_config(path, timeout=timeout)
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    print_report(findings, html=html, open_report=open_report, output=output)
+
+
+@diagnose_app.command("opentelemetry")
+def diagnose_opentelemetry(
+    path: str = typer.Argument(..., help="Path to OpenTelemetry export YAML or JSON."),
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Diagnose runtime signals from OpenTelemetry exports."""
+
+    findings = analyze_opentelemetry_file(path)
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
@@ -326,6 +361,61 @@ def readiness_snapshot(
     """Analyze API, database, storage, flow, or Kubernetes runtime readiness."""
 
     findings = analyze_runtime_snapshot_file(path)
+
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    readiness_summary = calculate_readiness(findings)
+
+    print_readiness_summary(readiness_summary)
+
+    print_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        readiness_summary=readiness_summary,
+    )
+
+
+@readiness_app.command("prometheus")
+def readiness_prometheus(
+    path: str = typer.Argument(..., help="Path to Prometheus collector config YAML."),
+    timeout: int = typer.Option(5, help="Prometheus query timeout in seconds."),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Analyze runtime readiness from Prometheus signals."""
+
+    findings = analyze_prometheus_config(path, timeout=timeout)
+
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    readiness_summary = calculate_readiness(findings)
+
+    print_readiness_summary(readiness_summary)
+
+    print_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        readiness_summary=readiness_summary,
+    )
+
+
+@readiness_app.command("opentelemetry")
+def readiness_opentelemetry(
+    path: str = typer.Argument(..., help="Path to OpenTelemetry export YAML or JSON."),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Analyze runtime readiness from OpenTelemetry exports."""
+
+    findings = analyze_opentelemetry_file(path)
 
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)

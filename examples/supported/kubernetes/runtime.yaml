@@ -1,0 +1,19 @@
+kubernetes_runtime:
+  nodes:
+    - name: node-a
+      ready: false
+      memory_pressure: true
+  pods:
+    - name: payments-api-123
+      namespace: payments
+      phase: Running
+      restart_count: 8
+      waiting_reason: CrashLoopBackOff
+    - name: worker-456
+      namespace: payments
+      phase: Pending
+  deployments:
+    - name: payments-api
+      namespace: payments
+      desired_replicas: 3
+      available_replicas: 1

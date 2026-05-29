@@ -207,6 +207,28 @@ Use this for API, database, storage, Kubernetes, and Flow runtime snapshots when
 
 ---
 
+## Example: Prometheus Runtime Diagnostics
+
+```bash
+python3 -m beacon.cli diagnose prometheus \
+  ./examples/supported/prometheus/platform-prometheus.yaml
+```
+
+Beacon queries Prometheus through read-only HTTP APIs, maps query results into runtime snapshots, and then applies the same deterministic API, database, storage, and Flow rules.
+
+---
+
+## Example: OpenTelemetry Runtime Diagnostics
+
+```bash
+python3 -m beacon.cli diagnose opentelemetry \
+  ./examples/supported/opentelemetry/checkout-otel.yaml
+```
+
+Beacon reads exported OpenTelemetry spans and metric samples, derives API/database/storage/Flow runtime signals, and evaluates them through deterministic runtime rules.
+
+---
+
 ## Diagnose Specific Topic
 
 ```bash
@@ -319,6 +341,8 @@ Beacon only uses metadata, status, snapshot, and offset inspection signals for d
 * API/service runtime snapshot diagnostics
 * database runtime snapshot diagnostics
 * storage/cloud runtime snapshot diagnostics
+* Prometheus runtime signal collection
+* OpenTelemetry span and metric export analysis
 * downstream database bottleneck detection
 * deployment-correlated degradation detection
 * cascading latency detection
@@ -338,7 +362,9 @@ diagnose/
 ├── kafka
 ├── kubernetes
 ├── flow
-└── snapshot
+├── snapshot
+├── prometheus
+└── opentelemetry
 ```
 
 ---
@@ -386,7 +412,8 @@ but helping engineers understand:
 * producer spike analysis
 * deeper deployment correlation
 * live flow collectors
-* live API, database, and cloud collectors
+* broader OpenTelemetry support
+* direct cloud provider runtime collectors
 * Prometheus metrics ingestion
 * Grafana integration
 * summarized Splunk log correlation
