@@ -212,6 +212,8 @@ Normalized Runtime Signals
         ↓
 Runtime Analyzer
         ↓
+Operational Correlation Engine
+        ↓
 Operational Findings
         ↓
 Decision Engine
@@ -288,6 +290,20 @@ Readiness Engine / Report
 ```
 
 OpenTelemetry support is export-first in this slice. Beacon reads spans and metric samples, derives API latency/error/timeout/retry signals, database latency and capacity signals, storage signals, and Flow signals without becoming a telemetry store.
+
+### Operational Correlation Flow
+
+```text
+Structured Findings
+        ↓
+Deterministic Correlation Patterns
+        ↓
+Ranked Root-Cause Hypotheses
+        ↓
+Readiness Summary / JSON / Terminal Report
+```
+
+Correlation remains deterministic. Beacon does not ask an AI model to invent root cause; it groups evidence-backed findings into explainable hypotheses such as retry cascade, downstream database bottleneck, deployment regression, storage pressure, and Kubernetes workload instability.
 
 ---
 
@@ -606,6 +622,7 @@ Module 1 is release-ready as a deterministic production-readiness module when us
 * object storage, IAM, and selected AWS cloud inventory risks
 * topology/blast-radius snapshots
 * flow runtime snapshots for API -> Kafka -> consumer -> database degradation
+* deterministic root-cause hypotheses in readiness output
 * readiness score, readiness decision, JSON output, and HTML reports
 
 The remaining broad-platform gaps are real API integrations, not rule-engine cleanup:

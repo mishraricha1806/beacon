@@ -3,6 +3,7 @@ from beacon.scoring import (
     count_severities,
     production_readiness_decision,
 )
+from beacon.correlations.root_cause import correlate_findings
 
 
 DEFAULT_CATEGORIES = {
@@ -35,6 +36,7 @@ def calculate_readiness(findings):
         "primary_risk_area": "",
         "top_reasons": [],
         "next_best_actions": [],
+        "root_cause_hypotheses": [],
     }
 
     for finding in findings:
@@ -65,6 +67,7 @@ def calculate_readiness(findings):
     summary["production_decision"] = determine_production_decision(summary)
     summary["top_reasons"] = build_top_reasons(findings)
     summary["next_best_actions"] = build_next_best_actions(summary)
+    summary["root_cause_hypotheses"] = correlate_findings(findings)
     return summary
 
 

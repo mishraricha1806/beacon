@@ -47,6 +47,14 @@ def print_readiness_summary(summary):
     for action in summary["next_best_actions"]:
         console.print(f"- {action}")
 
+    if summary.get("root_cause_hypotheses"):
+        console.print("\n[bold]Root Cause Hypotheses:[/bold]")
+        for hypothesis in summary["root_cause_hypotheses"][:3]:
+            console.print(
+                f"- {hypothesis['confidence']}: {hypothesis['title']} "
+                f"(score {hypothesis['score']})"
+            )
+
     console.print()
 
     console.print(table)

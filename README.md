@@ -96,6 +96,8 @@ Flow Intelligence can analyze runtime snapshots across:
 
 Beacon uses those signals to explain cross-system degradation, such as a likely downstream database bottleneck, deployment-triggered degradation, or cascading latency across API, Kafka, consumers, and the database.
 
+Beacon readiness reports now include deterministic root-cause hypotheses when multiple runtime findings point to the same operational failure mode. These hypotheses rank likely causes such as retry cascades, downstream database bottlenecks, deployment regressions, storage pressure, or Kubernetes workload instability.
+
 Beacon also supports standalone runtime snapshots for:
 
 * API/service latency, errors, timeouts, retry amplification, and deployment-correlated degradation
@@ -343,6 +345,7 @@ Beacon only uses metadata, status, snapshot, and offset inspection signals for d
 * storage/cloud runtime snapshot diagnostics
 * Prometheus runtime signal collection
 * OpenTelemetry span and metric export analysis
+* ranked root-cause hypotheses across runtime findings
 * downstream database bottleneck detection
 * deployment-correlated degradation detection
 * cascading latency detection
@@ -415,6 +418,7 @@ but helping engineers understand:
 * broader OpenTelemetry support
 * direct cloud provider runtime collectors
 * Prometheus metrics ingestion
+* richer correlation explanations and remediation playbooks
 * Grafana integration
 * summarized Splunk log correlation
 * GitHub PR reviews
