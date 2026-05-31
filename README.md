@@ -6,6 +6,10 @@ Beacon detects risky infrastructure configurations, operational anti-patterns, a
 
 Beacon combines infrastructure analysis with runtime operational diagnostics to help engineers understand WHY systems become unstable — not just WHAT metric changed.
 
+Module 1's release boundary is documented in [docs/MODULE_1_RELEASE.md](docs/MODULE_1_RELEASE.md).
+
+The release gate is codified in `scripts/module1_release_check.py` and `.github/workflows/module1-release.yml`.
+
 ---
 
 ## Why Beacon?
