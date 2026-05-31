@@ -861,6 +861,21 @@ def is_broad_allow_acl(acl):
 
 
 def acl_evidence(acl):
+    if isinstance(acl, dict):
+        return {
+            "principal": str(acl.get("principal", "")),
+            "host": str(acl.get("host", "")),
+            "operation": str(acl.get("operation", "")),
+            "permission_type": str(
+                acl.get("permission_type", acl.get("permission", ""))
+            ),
+            "resource_type": str(acl.get("resource_type", acl.get("restype", ""))),
+            "resource_name": str(acl.get("resource_name", acl.get("name", ""))),
+            "resource_pattern_type": str(
+                acl.get("resource_pattern_type", acl.get("pattern_type", ""))
+            ),
+        }
+
     return {
         "principal": str(getattr(acl, "principal", "")),
         "host": str(getattr(acl, "host", "")),

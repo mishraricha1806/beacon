@@ -223,6 +223,18 @@ def test_beacon_ui_combines_generic_domain_inputs(monkeypatch):
         or [finding("opentelemetry.rule", "opentelemetry")],
     )
     monkeypatch.setattr(ui, "analyze_kafka_cluster", lambda **kwargs: [])
+    monkeypatch.setattr(
+        ui,
+        "analyze_kafka_acl_file",
+        lambda path: calls.append(("acls", path))
+        or [finding("kafka.acl.rule", "kafka")],
+    )
+    monkeypatch.setattr(
+        ui,
+        "analyze_kafka_history_file",
+        lambda path: calls.append(("history", path))
+        or [finding("kafka.history.rule", "kafka")],
+    )
 
     result = ui.run_beacon_check(
         {"mode": "direct", "prometheus_timeout": "2"},
@@ -232,6 +244,8 @@ def test_beacon_ui_combines_generic_domain_inputs(monkeypatch):
             "flow_snapshot": "/tmp/flow.yaml",
             "prometheus_config": "/tmp/prometheus.yaml",
             "opentelemetry_file": "/tmp/otel.yaml",
+            "kafka_acl_export": "/tmp/acls.yaml",
+            "kafka_history": "/tmp/history.yaml",
         },
     )
 
@@ -241,8 +255,12 @@ def test_beacon_ui_combines_generic_domain_inputs(monkeypatch):
         "flow.rule",
         "prometheus.rule",
         "opentelemetry.rule",
+        "kafka.acl.rule",
+        "kafka.history.rule",
     }
     assert ("prometheus", "/tmp/prometheus.yaml", 2) in calls
+    assert ("acls", "/tmp/acls.yaml") in calls
+    assert ("history", "/tmp/history.yaml") in calls
 
 
 def test_beacon_ui_does_not_run_kafka_without_kafka_inputs(monkeypatch):

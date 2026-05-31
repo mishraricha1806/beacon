@@ -52,13 +52,15 @@ Run direct live collectors when you have access:
 ```bash
 python3 -m beacon.cli readiness kafka --bootstrap-server localhost:9092 --no-html --no-open-report
 python3 -m beacon.cli readiness kafka --access-config examples/supported/kafka/access-profiles.yaml --topic payments --no-html --no-open-report
+python3 -m beacon.cli readiness kafka-acls examples/supported/kafka/acls.yaml --no-html --no-open-report
+python3 -m beacon.cli readiness kafka-history examples/supported/kafka/history.yaml --no-html --no-open-report
 python3 -m beacon.cli readiness kubernetes --namespace payments --no-html --no-open-report
 ```
 
 Supported example groups:
 
 * `terraform/` - Terraform HCL, plan JSON, and state JSON
-* `kafka/` - Kafka topic, broker/server, producer, consumer, Schema Registry, and generic access profile config plus Kafka runtime v2 signals
+* `kafka/` - Kafka topic, broker/server, producer, consumer, Schema Registry, ACL export, runtime history, and generic access profile config plus Kafka runtime v2 signals
 * `kubernetes/` - Kubernetes manifests and runtime snapshots
 * `helm/` - Helm chart rendering input
 * `cicd/` - GitHub Actions deployment workflow risk

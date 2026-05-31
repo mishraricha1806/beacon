@@ -5,6 +5,8 @@ import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from beacon.flow_runtime import analyze_flow_file
+from beacon.kafka_acl_scanner import analyze_kafka_acl_file
+from beacon.kafka_history import analyze_kafka_history_file
 from beacon.kafka_runtime_connector import analyze_kafka_cluster
 from beacon.kubernetes_runtime_connector import analyze_kubernetes_cluster
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
@@ -269,6 +271,14 @@ HTML = """<!doctype html>
 
         <div class="domain-panel" data-domain-panel="kafka">
         <h2>Kafka Connection</h2>
+        <label for="kafka_acl_export">Kafka ACL export</label>
+        <input id="kafka_acl_export" name="kafka_acl_export" type="file">
+        <div class="hint">Optional. Use when live DescribeAcls is blocked; supports YAML or JSON ACL exports.</div>
+
+        <label for="kafka_history">Kafka runtime history</label>
+        <input id="kafka_history" name="kafka_history" type="file">
+        <div class="hint">Optional. Upload historical Kafka runtime snapshots for trend diagnostics.</div>
+
         <div class="mode">
           <label><input type="radio" name="mode" value="direct" checked> Direct</label>
           <label><input type="radio" name="mode" value="access"> Access YAML</label>
@@ -657,6 +667,12 @@ def run_beacon_check(fields, files, force_kafka=False):
 
     if force_kafka or has_kafka_input(fields, files):
         findings.extend(run_kafka_collector(fields, files))
+
+    if files.get("kafka_acl_export"):
+        findings.extend(analyze_kafka_acl_file(files["kafka_acl_export"]))
+
+    if files.get("kafka_history"):
+        findings.extend(analyze_kafka_history_file(files["kafka_history"]))
 
     if fields.get("kubernetes_live") == "true":
         findings.extend(

@@ -142,6 +142,18 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
     )
     monkeypatch.setattr(
         cli,
+        "analyze_kafka_acl_file",
+        lambda path: calls.append(("kafka-acls", path))
+        or [finding("kafka.acl.rule", "kafka")],
+    )
+    monkeypatch.setattr(
+        cli,
+        "analyze_kafka_history_file",
+        lambda path: calls.append(("kafka-history", path))
+        or [finding("kafka.history.rule", "kafka")],
+    )
+    monkeypatch.setattr(
+        cli,
         "analyze_kafka_cluster",
         lambda **kwargs: calls.append(("kafka", kwargs))
         or [finding("kafka.rule", "kafka")],
@@ -160,6 +172,8 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
         prometheus_path="prom.yaml",
         opentelemetry_path="otel.yaml",
         schema_registry_path="schema-registry.yaml",
+        kafka_acl_path="acls.yaml",
+        kafka_history_path="history.yaml",
         prometheus_timeout=2,
         schema_registry_timeout=3,
         kafka_bootstrap_server="localhost:9092",
@@ -178,11 +192,15 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
         "prometheus.rule",
         "opentelemetry.rule",
         "schema_registry.rule",
+        "kafka.acl.rule",
+        "kafka.history.rule",
         "kafka.rule",
         "kubernetes.rule",
     }
     assert ("prometheus", "prom.yaml", 2) in calls
     assert ("schema-registry", "schema-registry.yaml", 3) in calls
+    assert ("kafka-acls", "acls.yaml") in calls
+    assert ("kafka-history", "history.yaml") in calls
     kafka_call = next(call for call in calls if call[0] == "kafka")
     assert kafka_call[1]["churn_samples"] == 3
     assert kafka_call[1]["churn_interval_seconds"] == 0.25

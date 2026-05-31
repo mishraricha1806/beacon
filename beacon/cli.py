@@ -9,6 +9,8 @@ import typer
 from beacon.scanner import scan_path
 from beacon.reporter import print_report
 from beacon.runtime_advisor import analyze_runtime_file
+from beacon.kafka_acl_scanner import analyze_kafka_acl_file
+from beacon.kafka_history import analyze_kafka_history_file
 from beacon.kafka_runtime_connector import analyze_kafka_cluster
 from beacon.kubernetes_runtime_connector import analyze_kubernetes_cluster
 from beacon.flow_runtime import analyze_flow_file
@@ -70,6 +72,8 @@ def collect_all_domain_findings(
     prometheus_path=None,
     opentelemetry_path=None,
     schema_registry_path=None,
+    kafka_acl_path=None,
+    kafka_history_path=None,
     prometheus_timeout=5,
     schema_registry_timeout=5,
     kafka_bootstrap_server=None,
@@ -120,6 +124,12 @@ def collect_all_domain_findings(
                 schema_registry_path, timeout=schema_registry_timeout
             )
         )
+
+    if kafka_acl_path:
+        findings.extend(analyze_kafka_acl_file(kafka_acl_path))
+
+    if kafka_history_path:
+        findings.extend(analyze_kafka_history_file(kafka_history_path))
 
     if kafka_bootstrap_server:
         findings.extend(
@@ -327,6 +337,32 @@ def diagnose_kafka(
     print_report(findings, html=html, open_report=open_report, output=output)
 
 
+@diagnose_app.command("kafka-acls")
+def diagnose_kafka_acls(
+    path: str = typer.Argument(..., help="Path to Kafka ACL export YAML or JSON."),
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Diagnose Kafka authorization posture from an offline ACL export."""
+
+    findings = analyze_kafka_acl_file(path)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
+
+
+@diagnose_app.command("kafka-history")
+def diagnose_kafka_history(
+    path: str = typer.Argument(..., help="Path to Kafka runtime history YAML or JSON."),
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Diagnose Kafka trends from historical runtime snapshots."""
+
+    findings = analyze_kafka_history_file(path)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
+
+
 @diagnose_app.command("flow")
 def diagnose_flow(
     path: str = typer.Argument(..., help="Path to a flow runtime snapshot YAML."),
@@ -389,6 +425,12 @@ def diagnose_all(
     schema_registry_path: str = typer.Option(
         None, "--schema-registry", help="Schema Registry collector config path."
     ),
+    kafka_acl_path: str = typer.Option(
+        None, "--kafka-acls", help="Kafka ACL export YAML or JSON path."
+    ),
+    kafka_history_path: str = typer.Option(
+        None, "--kafka-history", help="Kafka runtime history YAML or JSON path."
+    ),
     prometheus_timeout: int = typer.Option(
         5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
     ),
@@ -427,6 +469,8 @@ def diagnose_all(
         prometheus_path=prometheus_path,
         opentelemetry_path=opentelemetry_path,
         schema_registry_path=schema_registry_path,
+        kafka_acl_path=kafka_acl_path,
+        kafka_history_path=kafka_history_path,
         prometheus_timeout=prometheus_timeout,
         schema_registry_timeout=schema_registry_timeout,
         kafka_bootstrap_server=kafka_bootstrap_server,
@@ -498,6 +542,40 @@ def readiness_kafka(
     )
 
 
+@readiness_app.command("kafka-acls")
+def readiness_kafka_acls(
+    path: str = typer.Argument(..., help="Path to Kafka ACL export YAML or JSON."),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Analyze Kafka authorization readiness from an offline ACL export."""
+
+    emit_readiness(
+        analyze_kafka_acl_file(path),
+        html=html,
+        open_report=open_report,
+        output=output,
+    )
+
+
+@readiness_app.command("kafka-history")
+def readiness_kafka_history(
+    path: str = typer.Argument(..., help="Path to Kafka runtime history YAML or JSON."),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Analyze Kafka readiness trends from historical runtime snapshots."""
+
+    emit_readiness(
+        analyze_kafka_history_file(path),
+        html=html,
+        open_report=open_report,
+        output=output,
+    )
+
+
 @readiness_app.command("all")
 def readiness_all(
     static_path: str = typer.Option(
@@ -519,6 +597,12 @@ def readiness_all(
     ),
     schema_registry_path: str = typer.Option(
         None, "--schema-registry", help="Schema Registry collector config path."
+    ),
+    kafka_acl_path: str = typer.Option(
+        None, "--kafka-acls", help="Kafka ACL export YAML or JSON path."
+    ),
+    kafka_history_path: str = typer.Option(
+        None, "--kafka-history", help="Kafka runtime history YAML or JSON path."
     ),
     prometheus_timeout: int = typer.Option(
         5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
@@ -558,6 +642,8 @@ def readiness_all(
         prometheus_path=prometheus_path,
         opentelemetry_path=opentelemetry_path,
         schema_registry_path=schema_registry_path,
+        kafka_acl_path=kafka_acl_path,
+        kafka_history_path=kafka_history_path,
         prometheus_timeout=prometheus_timeout,
         schema_registry_timeout=schema_registry_timeout,
         kafka_bootstrap_server=kafka_bootstrap_server,
