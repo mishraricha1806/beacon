@@ -189,6 +189,16 @@ python3 -m beacon.cli diagnose kafka \
   --topic payments
 ```
 
+Run the local Kafka readiness UI:
+
+```bash
+python3 -m beacon.ui
+```
+
+Then open `http://127.0.0.1:8765` and enter the bootstrap server, certificates,
+or access profile YAML. The UI uses the same read-only Kafka diagnostics engine
+as the CLI.
+
 ---
 
 ## Example: Live Kubernetes Diagnostics
