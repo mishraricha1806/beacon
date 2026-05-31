@@ -1,0 +1,8 @@
+rule_id: kafka.history.insufficient_snapshots
+version: '1.0'
+title: Kafka history insufficient snapshots
+description: Kafka history input did not contain enough snapshots for trend diagnostics.
+severity_default: LOW
+category: runtime_stability
+author: beacon.runtime
+recommendation: Collect multiple snapshots over time or upload a history export.

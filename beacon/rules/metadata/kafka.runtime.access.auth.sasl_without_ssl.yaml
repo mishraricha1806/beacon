@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.auth.sasl_without_ssl
+version: '1.0'
+title: Kafka SASL access profile without SSL
+description: A Kafka access profile uses SASL without SSL.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.runtime
+recommendation: Use SASL_SSL for production Kafka access profiles.

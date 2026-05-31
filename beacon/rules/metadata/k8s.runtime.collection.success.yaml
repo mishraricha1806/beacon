@@ -1,0 +1,9 @@
+rule_id: k8s.runtime.collection.success
+version: '1.0'
+title: Kubernetes runtime collection successful
+description: Beacon collected Kubernetes runtime status using read-only kubectl get
+  commands.
+severity_default: LOW
+category: runtime_stability
+author: beacon.runtime
+recommendation: No action required.

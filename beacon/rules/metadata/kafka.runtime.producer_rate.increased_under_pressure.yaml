@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.producer_rate.increased_under_pressure
+version: '1.0'
+title: Kafka producer rate increased under disk pressure
+description: Producer rate increased while broker disk usage is high.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Validate whether producer traffic growth is expected.

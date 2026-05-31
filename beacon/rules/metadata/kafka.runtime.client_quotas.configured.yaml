@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.client_quotas.configured
+version: '1.0'
+title: Kafka client quotas configured
+description: Beacon detected producer and consumer byte-rate quota settings.
+severity_default: LOW
+category: operational_safety
+author: beacon.runtime
+recommendation: Validate quota values against tenant isolation and peak traffic requirements.

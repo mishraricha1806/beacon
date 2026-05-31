@@ -1,0 +1,9 @@
+rule_id: kafka.cluster.topic_count.high
+version: '1.0'
+title: Kafka cluster topic count high
+description: Large topic count can increase controller metadata load and operational
+  complexity.
+severity_default: MEDIUM
+category: scalability
+author: beacon.runtime
+recommendation: Review topic lifecycle, ownership, retention, and retirement opportunities.

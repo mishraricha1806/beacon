@@ -1,0 +1,9 @@
+rule_id: kafka.topic.storage_multiplier.high
+title: Kafka storage multiplier high
+description: Detects Kafka topics with high partition x replication storage multiplier.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.rules
+recommendation: Review partitions, replication factor, retention, and topic ownership before expanding storage blindly.
+version: "1.0"
+tags: [kafka, storage, capacity]

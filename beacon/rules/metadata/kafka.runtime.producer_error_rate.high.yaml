@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.producer_error_rate.high
+version: '1.0'
+title: Kafka producer error rate high
+description: Producer error rate is elevated.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Inspect producer error classes, broker request errors, throttling,
+  auth, and recent producer deployments.

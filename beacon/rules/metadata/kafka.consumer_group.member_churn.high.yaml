@@ -1,0 +1,9 @@
+rule_id: kafka.consumer_group.member_churn.high
+version: '1.0'
+title: Kafka consumer group member churn high
+description: Consumer group membership changed repeatedly during a sampling window.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Inspect rolling deployments, session timeout, heartbeat interval,
+  max.poll.interval.ms, and consumer crashes.

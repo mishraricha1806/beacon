@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.request_latency.high
+version: '1.0'
+title: Kafka request latency high
+description: Kafka request p95 latency is high.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Inspect broker CPU, disk I/O, network, request queues, throttling,
+  and hot partitions.

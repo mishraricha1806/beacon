@@ -1,0 +1,8 @@
+rule_id: prometheus.query.failed
+version: '1.0'
+title: Prometheus query failed
+description: Beacon could not collect one or more Prometheus runtime signals.
+severity_default: ERROR
+category: runtime_stability
+author: beacon.runtime
+recommendation: Check the query, Prometheus URL, network access, and metric availability.

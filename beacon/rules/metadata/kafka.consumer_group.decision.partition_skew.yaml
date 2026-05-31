@@ -1,0 +1,8 @@
+rule_id: kafka.consumer_group.decision.partition_skew
+version: '1.0'
+title: 'Kafka consumer lag decision: partition skew'
+description: Beacon recommends investigating partition skew before scaling consumers.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Investigate hot keys, message distribution, and producer key changes.

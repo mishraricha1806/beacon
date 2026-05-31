@@ -1,0 +1,9 @@
+rule_id: iam.permissions.wildcard
+title: Wildcard IAM permissions
+description: Detects wildcard IAM permissions.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Replace wildcard permissions with explicit actions required by the workload.
+version: "1.0"
+tags: [iam, security, least-privilege]

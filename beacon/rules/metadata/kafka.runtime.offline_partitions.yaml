@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.offline_partitions
+version: '1.0'
+title: Kafka offline partitions
+description: Runtime signals indicate offline partitions.
+severity_default: CRITICAL
+category: resiliency
+author: beacon.runtime
+recommendation: Identify affected brokers and partitions, restore broker health, and
+  validate replica recovery.

@@ -19,7 +19,7 @@ from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.schema_registry_connector import analyze_schema_registry_config
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
-from beacon import rules_registry
+from beacon.engine import metadata_registry as rules_registry
 from rich.table import Table
 from beacon.policy import load_policy, apply_policy_to_findings
 

@@ -68,9 +68,9 @@ Start with YAML metadata under `beacon/rules/metadata/*.yaml` plus the registry 
 Loading rules:
 - At module import or startup, load YAML metadata and registered-rule metadata into an in-memory registry.
 - Provide a small API:
-  - `rules_registry.get(rule_id)` → metadata
-  - `rules_registry.list()`
-  - `rules_registry.override(rule_id, **overrides)` (for runtime policy)
+  - `metadata_registry.get(rule_id)` -> metadata
+  - `metadata_registry.list_rules()`
+  - environment metadata overrides via `BEACON_RULES_METADATA_DIR`
 
 ## Runtime representation & findings
 

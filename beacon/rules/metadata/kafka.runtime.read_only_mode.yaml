@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.read_only_mode
+version: '1.0'
+title: Kafka runtime connector read-only mode
+description: Beacon confirms live Kafka analysis is running without mutation operations.
+severity_default: INFO
+category: runtime_stability
+author: beacon.runtime
+recommendation: No action required.

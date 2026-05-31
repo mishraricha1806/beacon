@@ -1,0 +1,9 @@
+rule_id: kafka.history.disk_usage.growing
+version: '1.0'
+title: Kafka disk usage growing
+description: Kafka broker disk usage is increasing across history snapshots.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Review retention, producer volume, topic growth, broker skew, and
+  capacity runway.

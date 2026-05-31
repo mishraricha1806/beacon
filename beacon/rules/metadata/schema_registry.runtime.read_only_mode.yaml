@@ -1,0 +1,9 @@
+rule_id: schema_registry.runtime.read_only_mode
+version: '1.0'
+title: Schema Registry connector read-only mode
+description: Beacon confirms Schema Registry analysis is using read-only metadata
+  APIs.
+severity_default: INFO
+category: operational_safety
+author: beacon.runtime
+recommendation: No action required.

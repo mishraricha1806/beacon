@@ -1,0 +1,9 @@
+rule_id: kafka.cluster.broker_count.low
+version: '1.0'
+title: Kafka cluster broker count low
+description: Low broker count can reduce resiliency and limit safe replication.
+severity_default: HIGH
+category: resiliency
+author: beacon.runtime
+recommendation: Use at least 3 brokers for production Kafka clusters where high availability
+  is required.

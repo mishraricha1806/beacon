@@ -1,0 +1,9 @@
+rule_id: k8s.image.latest_tag
+title: Kubernetes latest image tag
+description: Detects mutable or missing image tags.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Pin images to immutable versions or digests so deployments are reproducible and rollback-safe.
+version: "1.0"
+tags: [kubernetes, deployment]

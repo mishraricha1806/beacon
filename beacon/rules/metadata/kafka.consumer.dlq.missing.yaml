@@ -1,0 +1,9 @@
+rule_id: kafka.consumer.dlq.missing
+title: Kafka consumer DLQ missing
+description: Detects retry-heavy consumers without a dead-letter topic.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Add a dead-letter topic and poison-message handling path before enabling aggressive retries.
+version: "1.0"
+tags: [kafka, consumer, dlq]

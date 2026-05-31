@@ -1,0 +1,9 @@
+rule_id: object_storage.labels_or_tags.missing
+title: Object storage ownership metadata missing
+description: Detects object storage resources without labels or tags.
+severity_default: LOW
+category: operational_safety
+author: beacon.rules
+recommendation: Add ownership, environment, service, and cost tags so operational responsibility is clear.
+version: "1.0"
+tags: [storage, governance, ownership]

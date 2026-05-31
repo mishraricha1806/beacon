@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.access.auth.sasl_plain
+version: '1.0'
+title: Kafka access profile uses SASL/PLAIN
+description: A Kafka access profile uses SASL/PLAIN.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.runtime
+recommendation: Prefer SCRAM, OAUTHBEARER, or mTLS where available; ensure SASL/PLAIN
+  only runs over SSL.

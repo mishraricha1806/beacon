@@ -1,0 +1,10 @@
+rule_id: helm.render.unavailable
+version: '1.0'
+title: Helm renderer unavailable
+description: Beacon found a Helm chart but could not render it because the Helm CLI
+  is unavailable.
+severity_default: ERROR
+category: operational_safety
+author: beacon.scanner
+recommendation: Install the helm CLI or provide rendered Kubernetes manifests for
+  scanning.

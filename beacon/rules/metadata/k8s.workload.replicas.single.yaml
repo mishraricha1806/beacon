@@ -1,0 +1,9 @@
+rule_id: k8s.workload.replicas.single
+title: Kubernetes single replica workload
+description: Detects production workloads with one replica.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Run multiple replicas and validate pod disruption, rollout, and dependency behavior under failure.
+version: "1.0"
+tags: [kubernetes, availability]

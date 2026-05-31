@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.cleanup_policy.missing_under_pressure
+version: '1.0'
+title: Kafka cleanup policy missing under pressure
+description: Cleanup policy is not explicit while broker disk usage is high.
+severity_default: MEDIUM
+category: storage_sustainability
+author: beacon.runtime
+recommendation: Explicitly configure cleanup policy for production topics.

@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.schema_incompatible_changes
+version: '1.0'
+title: Kafka incompatible schema changes
+description: Kafka runtime signals show incompatible schema changes.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Review schema compatibility mode, producer deployment diff, and affected
+  consumers before rollout.

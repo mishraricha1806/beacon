@@ -1,0 +1,9 @@
+rule_id: gcp.storage.uniform_bucket_access.disabled
+title: GCP uniform bucket access disabled
+description: Detects GCP buckets without uniform bucket-level access.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Enable uniform bucket-level access unless object-level ACLs are explicitly required and governed.
+version: "1.0"
+tags: [gcp, storage, access-control]

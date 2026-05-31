@@ -1,0 +1,8 @@
+rule_id: kafka.consumer_group.decision.partition_parallelism
+version: '1.0'
+title: 'Kafka consumer lag decision: partition parallelism'
+description: Beacon recommends reviewing partition parallelism as a lag limiter.
+severity_default: HIGH
+category: scalability
+author: beacon.runtime
+recommendation: Review topic partition count and consumer concurrency.

@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.disk_usage.high
+version: '1.0'
+title: Kafka runtime disk usage high
+description: Broker disk usage is above warning threshold.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.runtime
+recommendation: Analyze capacity, retention, producer volume, and consumer lag.

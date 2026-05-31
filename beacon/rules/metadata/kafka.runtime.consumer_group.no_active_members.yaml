@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.consumer_group.no_active_members
+version: '1.0'
+title: Kafka consumer group no active members
+description: Consumer group has no active members while lag is increasing.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Restore consumer deployment health, check scaling targets, and verify
+  group membership.

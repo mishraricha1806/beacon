@@ -1,0 +1,9 @@
+rule_id: kafka.consumer_group.lag.analysis_failed
+version: '1.0'
+title: Kafka consumer group lag analysis failed
+description: Beacon could not analyze lag for a selected consumer group.
+severity_default: ERROR
+category: runtime_stability
+author: beacon.runtime
+recommendation: Check Kafka permissions for describing consumer groups and listing
+  offsets.

@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.replication_fetcher_lag.high
+version: '1.0'
+title: Kafka replication fetcher lag high
+description: Kafka replica fetcher lag is elevated.
+severity_default: HIGH
+category: resiliency
+author: beacon.runtime
+recommendation: Inspect follower broker disk, network, inter-broker throttles, and
+  replication fetcher health.

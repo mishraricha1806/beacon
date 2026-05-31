@@ -1,0 +1,9 @@
+rule_id: kafka.consumer_group.lag.high
+version: '1.0'
+title: Kafka consumer group lag high
+description: Consumer group lag is high enough to indicate processing delay risk.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Check consumer processing latency, downstream dependencies, retries,
+  and recent deployments.

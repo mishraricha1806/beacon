@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.access.scope.broad
+version: '1.0'
+title: Kafka access profile scope broad
+description: A Kafka access profile has broad all-cluster scope.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.runtime
+recommendation: Prefer cluster, topic, or consumer_group scoped profiles with explicit
+  capabilities.

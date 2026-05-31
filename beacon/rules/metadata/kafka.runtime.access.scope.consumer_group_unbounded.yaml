@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.access.scope.consumer_group_unbounded
+version: '1.0'
+title: Kafka consumer group access profile unbounded
+description: A consumer-group-scoped Kafka access profile has no group patterns.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.runtime
+recommendation: Set explicit consumer group names or patterns for consumer-group-scoped
+  profiles.

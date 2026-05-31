@@ -1,0 +1,8 @@
+rule_id: kafka.consumer_group.offsets.missing
+version: '1.0'
+title: Kafka consumer group offsets missing
+description: Beacon could not calculate lag because no committed offsets were found.
+severity_default: LOW
+category: runtime_stability
+author: beacon.runtime
+recommendation: Verify whether the consumer group is active and committing offsets.

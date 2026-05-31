@@ -1,0 +1,9 @@
+rule_id: kafka.broker.client_quotas.missing
+title: Kafka client quotas missing
+description: Detects brokers without producer and consumer quota configuration.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Configure client quotas for shared clusters to protect brokers from noisy producers and consumers.
+version: "1.0"
+tags: [kafka, quotas, multi-tenant]

@@ -803,7 +803,7 @@ def test_runtime_snapshot_uses_stable_rule_ids():
 
 
 def test_runtime_rules_are_listed_in_registry():
-    from beacon import rules_registry
+    from beacon.engine import metadata_registry as rules_registry
 
     rules_registry.reload()
     rules = rules_registry.list_rules()

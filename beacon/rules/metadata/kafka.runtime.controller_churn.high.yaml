@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.controller_churn.high
+version: '1.0'
+title: Kafka controller churn high
+description: Kafka controller changed repeatedly over a short window.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Inspect broker churn, controller logs, quorum health, GC pauses, and
+  network instability.

@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.client_quotas.missing
+version: '1.0'
+title: Kafka client quotas missing
+description: Kafka broker client quotas are not fully configured.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.runtime
+recommendation: Configure producer and consumer byte-rate quotas or document equivalent
+  platform-level traffic controls.

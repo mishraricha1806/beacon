@@ -1,7 +1,7 @@
 from jinja2 import Template
 import os
 import webbrowser
-from beacon import rules_registry
+from beacon.engine import metadata_registry as rules_registry
 
 HTML_TEMPLATE = """
 <!DOCTYPE html>

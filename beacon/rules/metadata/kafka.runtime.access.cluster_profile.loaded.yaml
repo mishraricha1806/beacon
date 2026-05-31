@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.cluster_profile.loaded
+version: '1.0'
+title: Kafka cluster access profile loaded
+description: Beacon selected a read-only profile for Kafka cluster discovery.
+severity_default: INFO
+category: operational_safety
+author: beacon.runtime
+recommendation: No action required.

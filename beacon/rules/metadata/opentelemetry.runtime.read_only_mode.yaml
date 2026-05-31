@@ -1,0 +1,9 @@
+rule_id: opentelemetry.runtime.read_only_mode
+version: '1.0'
+title: OpenTelemetry connector read-only mode
+description: Beacon confirms OpenTelemetry analysis is reading exported telemetry
+  without mutation.
+severity_default: INFO
+category: runtime_stability
+author: beacon.runtime
+recommendation: No action required.

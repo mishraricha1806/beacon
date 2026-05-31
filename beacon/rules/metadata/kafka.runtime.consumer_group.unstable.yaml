@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.consumer_group.unstable
+version: '1.0'
+title: Kafka consumer group unstable
+description: Consumer group state indicates instability.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Review member churn, consumer logs, polling behavior, session timeout,
+  and recent deploys.

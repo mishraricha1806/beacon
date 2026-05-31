@@ -1,0 +1,9 @@
+rule_id: object_storage.encryption.missing
+title: Object storage encryption missing
+description: Detects object storage resources without encryption.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Enable default encryption with a managed or customer-managed key based on data sensitivity.
+version: "1.0"
+tags: [storage, security, encryption]

@@ -10,6 +10,26 @@ Module 1's release boundary is documented in [docs/MODULE_1_RELEASE.md](docs/MOD
 
 The release gate is codified in `scripts/module1_release_check.py` and `.github/workflows/module1-release.yml`.
 
+## Module 1 Release Scope
+
+Stable:
+
+* static production readiness
+* Kafka configuration readiness
+* Kubernetes manifest readiness
+* Terraform, plan, and state readiness
+* Helm-rendered Kubernetes manifest scanning
+* object storage, IAM, cloud inventory, CI/CD, and topology risk detection
+* JSON and HTML readiness reports
+
+Experimental:
+
+* live Kafka diagnostics
+* live Kubernetes diagnostics
+* Flow Intelligence and runtime root-cause hypotheses
+* Prometheus and OpenTelemetry signal mapping
+* Schema Registry diagnostics
+
 ---
 
 ## Why Beacon?
@@ -32,7 +52,7 @@ Most tools expose telemetry.
 
 Beacon focuses on:
 
-# operational reasoning.
+**operational reasoning.**
 
 ---
 
@@ -65,7 +85,7 @@ Beacon runtime intelligence is multi-domain. Kafka remains the first deep wedge,
 
 Beacon can connect directly to Kafka and Kubernetes in:
 
-# read-only diagnostic mode
+**read-only diagnostic mode**
 
 and analyze:
 
@@ -245,7 +265,7 @@ API -> Kafka -> Consumer -> Database
 ## Example: Platform Runtime Snapshot
 
 ```bash
-python3 -m beacon.cli diagnose snapshot ./examples/runtime/platform-runtime.yaml
+python3 -m beacon.cli diagnose snapshot ./examples/supported/runtime/platform-runtime.yaml
 ```
 
 Use this for API, database, storage, Kubernetes, and Flow runtime snapshots when there is not yet a live collector attached.
@@ -383,7 +403,7 @@ reports/report.html
 
 Beacon runtime diagnostics are:
 
-# read-only by design
+**read-only by design**
 
 Beacon does NOT:
 
@@ -559,4 +579,4 @@ Observability tools show signals.
 
 Beacon focuses on:
 
-# operational causality and runtime reasoning.
+**operational causality and runtime reasoning.**

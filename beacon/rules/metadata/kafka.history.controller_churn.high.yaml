@@ -1,0 +1,9 @@
+rule_id: kafka.history.controller_churn.high
+version: '1.0'
+title: Kafka controller churn high
+description: Kafka controller churn is high in recent history.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Inspect controller logs, broker churn, quorum health, GC pauses, and
+  network instability.

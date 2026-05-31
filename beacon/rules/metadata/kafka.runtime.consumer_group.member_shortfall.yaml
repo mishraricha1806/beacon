@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.consumer_group.member_shortfall
+version: '1.0'
+title: Kafka consumer group member shortfall
+description: Consumer group has fewer active members than expected.
+severity_default: MEDIUM
+category: runtime_stability
+author: beacon.runtime
+recommendation: Check consumer pod/process health, autoscaling, deployment rollout,
+  and assignment balance.

@@ -1,0 +1,9 @@
+rule_id: k8s.runtime.collection.failed
+version: '1.0'
+title: Kubernetes runtime collection failed
+description: Beacon could not collect Kubernetes runtime status.
+severity_default: ERROR
+category: runtime_stability
+author: beacon.runtime
+recommendation: Check kubectl access, kubeconfig, context, namespace, and cluster
+  API availability.

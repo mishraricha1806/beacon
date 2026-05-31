@@ -1,0 +1,9 @@
+rule_id: kafka.consumer_group.rebalancing
+version: '1.0'
+title: Kafka consumer group rebalancing
+description: Consumer group state indicates active rebalance instability.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Inspect member churn, deployment rollouts, heartbeat/session timeouts,
+  max.poll settings, and consumer crashes.

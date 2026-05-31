@@ -1,0 +1,9 @@
+rule_id: kafka.cluster.leader_imbalance.high
+version: '1.0'
+title: Kafka cluster leader imbalance high
+description: Partition leadership is concentrated on too few brokers.
+severity_default: HIGH
+category: scalability
+author: beacon.runtime
+recommendation: Review preferred leader election safety, broker load, and partition
+  distribution.

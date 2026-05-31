@@ -1,0 +1,8 @@
+rule_id: schema_registry.subject.schema_type.missing
+version: '1.0'
+title: Schema Registry schema type missing
+description: A schema subject does not expose an explicit schema type.
+severity_default: LOW
+category: operational_safety
+author: beacon.runtime
+recommendation: Set or verify schema type where the platform supports it.

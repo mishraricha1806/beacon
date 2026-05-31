@@ -1,0 +1,10 @@
+rule_id: kafka.runtime.under_replicated_partitions
+version: '1.0'
+title: Kafka under-replicated partitions
+description: Under-replicated partitions indicate broker, disk, network, or replication
+  health issues.
+severity_default: CRITICAL
+category: resiliency
+author: beacon.runtime
+recommendation: Investigate broker health, disk I/O, network latency, ISR shrink,
+  and leadership distribution.

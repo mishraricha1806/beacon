@@ -1,0 +1,8 @@
+rule_id: kafka.history.trend.inspected
+version: '1.0'
+title: Kafka history trend inspected
+description: Beacon inspected Kafka runtime history and did not detect worsening trends.
+severity_default: LOW
+category: runtime_stability
+author: beacon.runtime
+recommendation: Continue collecting snapshots before and during high-traffic events.

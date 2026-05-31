@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.request_queue_saturation.high
+version: '1.0'
+title: Kafka request queue saturation high
+description: Kafka request queue utilization is high.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Inspect broker CPU, network processors, disk I/O, request handlers,
+  and hot clients.

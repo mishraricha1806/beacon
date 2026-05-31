@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.message_size.increased_under_pressure
+version: '1.0'
+title: Kafka message size increased under disk pressure
+description: Average message size increased while broker disk usage is high.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.runtime
+recommendation: Review producer payload changes and move large payloads outside Kafka.

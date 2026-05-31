@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.cert.expiring_soon
+version: '1.0'
+title: Kafka access profile certificate expiring soon
+description: A Kafka access profile certificate expires soon.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Rotate the Kafka certificate before the expiry window closes.

@@ -1,0 +1,9 @@
+rule_id: schema_registry.query.failed
+version: '1.0'
+title: Schema Registry query failed
+description: Beacon could not collect one or more Schema Registry signals.
+severity_default: ERROR
+category: operational_safety
+author: beacon.runtime
+recommendation: Check the Schema Registry URL, credentials, network access, and API
+  permissions.

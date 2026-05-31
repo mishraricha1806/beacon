@@ -1,0 +1,9 @@
+rule_id: k8s.container.privileged
+title: Kubernetes privileged container
+description: Detects privileged containers.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.rules
+recommendation: Disable privileged mode and grant only the specific Linux capabilities required by the workload.
+version: "1.0"
+tags: [kubernetes, security]

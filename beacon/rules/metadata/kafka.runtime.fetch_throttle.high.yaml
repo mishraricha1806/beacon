@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.fetch_throttle.high
+version: '1.0'
+title: Kafka fetch throttle high
+description: Kafka consumer fetch throttle time is elevated.
+severity_default: MEDIUM
+category: runtime_stability
+author: beacon.runtime
+recommendation: Review consumer quotas, broker load, client traffic spikes, and whether
+  throttling is expected.

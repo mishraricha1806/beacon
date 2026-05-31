@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.broker_disk_skew.high
+version: '1.0'
+title: Kafka broker disk usage skew high
+description: Kafka broker disk usage is uneven across brokers.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.runtime
+recommendation: Review partition placement, topic retention, leader distribution,
+  and reassignment needs.

@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.connection.failed
+version: '1.0'
+title: Kafka runtime connection failed
+description: Beacon could not connect to Kafka for live readiness analysis.
+severity_default: ERROR
+category: runtime_stability
+author: beacon.runtime
+recommendation: Check bootstrap server, network access, security protocol, certificates,
+  and firewall rules.

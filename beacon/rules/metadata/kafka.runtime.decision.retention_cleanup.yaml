@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.decision.retention_cleanup
+version: '1.0'
+title: 'Kafka runtime decision: retention and cleanup'
+description: Beacon recommends optimizing storage guardrails before expanding disk.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.runtime
+recommendation: Configure retention_bytes, cleanup_policy, and topic-level storage
+  limits.

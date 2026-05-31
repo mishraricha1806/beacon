@@ -1,0 +1,9 @@
+rule_id: kafka.topic.compaction.key_cardinality.high
+title: Kafka compacted topic key cardinality high
+description: Detects compacted topics with high key cardinality and missing storage guardrails.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.rules
+recommendation: Add storage guardrails and validate key cardinality before relying on compaction for bounded storage.
+version: "1.0"
+tags: [kafka, compaction, key-cardinality]

@@ -1,0 +1,8 @@
+rule_id: schema_registry.topic.subject.missing
+version: '1.0'
+title: Kafka topic missing expected schema subject
+description: A Kafka topic is missing one or more expected Schema Registry subjects.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Register and enforce expected key/value subjects for production topics.

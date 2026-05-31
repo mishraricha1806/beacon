@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.leader_imbalance.high
+version: '1.0'
+title: Kafka runtime leader imbalance high
+description: Runtime signals indicate imbalanced partition leadership.
+severity_default: HIGH
+category: scalability
+author: beacon.runtime
+recommendation: Review partition leadership, preferred leader election safety, and
+  broker load distribution.

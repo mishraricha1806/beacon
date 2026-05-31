@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.under_min_isr_partitions
+version: '1.0'
+title: Kafka partitions below min ISR
+description: Runtime signals indicate partitions below min ISR.
+severity_default: CRITICAL
+category: resiliency
+author: beacon.runtime
+recommendation: Restore ISR health, inspect slow replicas, disk I/O, network latency,
+  and broker placement.

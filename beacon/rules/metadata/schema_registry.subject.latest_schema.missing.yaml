@@ -1,0 +1,8 @@
+rule_id: schema_registry.subject.latest_schema.missing
+version: '1.0'
+title: Schema Registry latest schema body missing
+description: A schema subject latest version has no schema body available.
+severity_default: ERROR
+category: operational_safety
+author: beacon.runtime
+recommendation: Check Schema Registry subject health and permissions.

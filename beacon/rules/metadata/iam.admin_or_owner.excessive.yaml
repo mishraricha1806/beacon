@@ -1,0 +1,9 @@
+rule_id: iam.admin_or_owner.excessive
+title: Excessive admin or owner permissions
+description: Detects excessive admin or owner permissions.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Replace broad admin or owner grants with least-privilege roles scoped to the required resources.
+version: "1.0"
+tags: [iam, security, admin-access]

@@ -1,0 +1,8 @@
+rule_id: schema_registry.subject.compatibility.unsafe
+version: '1.0'
+title: Schema Registry subject compatibility unsafe
+description: A schema subject allows unsafe schema evolution.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Use BACKWARD, FULL, or an approved subject-level compatibility mode.

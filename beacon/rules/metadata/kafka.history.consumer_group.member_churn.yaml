@@ -1,0 +1,9 @@
+rule_id: kafka.history.consumer_group.member_churn
+version: '1.0'
+title: Kafka historical consumer group member churn
+description: Consumer group membership changed repeatedly across history snapshots.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Inspect rolling deployments, pod restarts, session timeout, heartbeat
+  interval, max.poll.interval.ms, and consumer crashes.

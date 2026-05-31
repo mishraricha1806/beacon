@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.topic_profile.missing
+version: '1.0'
+title: Kafka topic access profile missing
+description: Beacon discovered a topic without a matching scoped topic access profile.
+severity_default: LOW
+category: operational_safety
+author: beacon.runtime
+recommendation: Add a topic or all-scope profile if this topic requires separate credentials.

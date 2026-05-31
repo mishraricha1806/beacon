@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.invalid
+version: '1.0'
+title: Kafka access config invalid
+description: Kafka access profile configuration is invalid.
+severity_default: ERROR
+category: operational_safety
+author: beacon.runtime
+recommendation: Fix Kafka access profile validation errors and retry.

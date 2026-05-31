@@ -1,0 +1,9 @@
+rule_id: kafka.topic.owner.missing
+title: Kafka topic owner missing
+description: Detects Kafka topics without ownership metadata.
+severity_default: LOW
+category: operational_safety
+author: beacon.rules
+recommendation: Add owner, service, or team metadata so incidents and capacity decisions have clear accountability.
+version: "1.0"
+tags: [kafka, governance, ownership]

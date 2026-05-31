@@ -1,0 +1,10 @@
+rule_id: opentelemetry.runtime.signals.missing
+version: '1.0'
+title: OpenTelemetry runtime signals missing
+description: Beacon could not derive runtime resources from the provided OpenTelemetry
+  input.
+severity_default: ERROR
+category: runtime_stability
+author: beacon.runtime
+recommendation: Provide spans or metrics with service names, durations, status, and
+  relevant runtime signal values.

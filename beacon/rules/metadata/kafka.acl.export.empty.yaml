@@ -1,0 +1,9 @@
+rule_id: kafka.acl.export.empty
+version: '1.0'
+title: Kafka ACL export empty
+description: An offline Kafka ACL export contained no ACL bindings.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Verify authorizer configuration and export all production ACLs for
+  review.

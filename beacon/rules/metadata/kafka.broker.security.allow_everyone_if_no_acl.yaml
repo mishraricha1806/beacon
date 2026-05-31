@@ -1,0 +1,9 @@
+rule_id: kafka.broker.security.allow_everyone_if_no_acl
+title: Kafka allow everyone if no ACL
+description: Detects allow.everyone.if.no.acl.found=true.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.rules
+recommendation: Disable allow.everyone.if.no.acl.found and explicitly define required ACLs.
+version: "1.0"
+tags: [kafka, security, acl]

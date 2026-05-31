@@ -1,0 +1,10 @@
+rule_id: kafka.cluster.under_replicated_partitions
+version: '1.0'
+title: Kafka cluster under-replicated partitions
+description: One or more Kafka partitions have fewer in-sync replicas than assigned
+  replicas.
+severity_default: CRITICAL
+category: resiliency
+author: beacon.runtime
+recommendation: Investigate slow replicas, broker health, disk I/O, network latency,
+  and ISR shrink.

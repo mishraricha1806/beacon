@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.disk_usage.critical
+version: '1.0'
+title: Kafka runtime disk usage critical
+description: Broker disk usage is in a critical range.
+severity_default: CRITICAL
+category: storage_sustainability
+author: beacon.runtime
+recommendation: Create immediate headroom and investigate growth drivers.

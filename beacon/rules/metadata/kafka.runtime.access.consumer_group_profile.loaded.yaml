@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.consumer_group_profile.loaded
+version: '1.0'
+title: Kafka consumer group access profile loaded
+description: Beacon selected a read-only profile for Kafka consumer group diagnostics.
+severity_default: INFO
+category: operational_safety
+author: beacon.runtime
+recommendation: No action required.

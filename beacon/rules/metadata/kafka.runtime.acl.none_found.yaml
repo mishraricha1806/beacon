@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.acl.none_found
+version: '1.0'
+title: Kafka ACL list empty
+description: Kafka returned no ACL bindings for read-only inspection.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Verify authorizer configuration and document equivalent platform authorization
+  controls.

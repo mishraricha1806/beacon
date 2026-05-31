@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.topic_profile.loaded
+version: '1.0'
+title: Kafka topic access profile loaded
+description: Beacon selected a read-only profile for Kafka topic diagnostics.
+severity_default: INFO
+category: operational_safety
+author: beacon.runtime
+recommendation: No action required.

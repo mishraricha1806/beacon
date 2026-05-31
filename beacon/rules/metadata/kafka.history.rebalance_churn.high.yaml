@@ -1,0 +1,9 @@
+rule_id: kafka.history.rebalance_churn.high
+version: '1.0'
+title: Kafka rebalance churn high
+description: Kafka rebalance churn is high in recent history.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Inspect deployments, heartbeat/session timeout, max.poll.interval.ms,
+  and consumer crashes.

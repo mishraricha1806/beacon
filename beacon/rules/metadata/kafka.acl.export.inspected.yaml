@@ -1,0 +1,9 @@
+rule_id: kafka.acl.export.inspected
+version: '1.0'
+title: Kafka ACL export inspected
+description: Beacon inspected the offline ACL export and did not detect broad allow
+  patterns.
+severity_default: LOW
+category: operational_safety
+author: beacon.runtime
+recommendation: Continue reviewing ACL exports during production readiness checks.

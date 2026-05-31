@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.analysis_limited
+version: '1.0'
+title: Kafka runtime analysis limited
+description: Beacon analyzed a subset of topics to keep live diagnostics lightweight.
+severity_default: LOW
+category: runtime_stability
+author: beacon.runtime
+recommendation: Increase max topic limit if full cluster coverage is required.

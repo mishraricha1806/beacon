@@ -1,0 +1,9 @@
+rule_id: k8s.workload.resources.missing
+title: Kubernetes resources missing
+description: Detects containers missing requests or limits.
+severity_default: HIGH
+category: scalability
+author: beacon.rules
+recommendation: Set CPU and memory requests and limits based on workload profiling and production SLOs.
+version: "1.0"
+tags: [kubernetes, resources]

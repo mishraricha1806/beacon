@@ -1,0 +1,9 @@
+rule_id: kafka.topic.compaction.dirty_ratio.high
+title: Kafka compacted topic dirty ratio high
+description: Detects compacted topics with high min.cleanable.dirty.ratio.
+severity_default: MEDIUM
+category: storage_sustainability
+author: beacon.rules
+recommendation: Lower min.cleanable.dirty.ratio for compacted topics when cleanup lag increases storage or replay risk.
+version: "1.0"
+tags: [kafka, compaction, storage]

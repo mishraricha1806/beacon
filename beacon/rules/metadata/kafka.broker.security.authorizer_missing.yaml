@@ -1,0 +1,9 @@
+rule_id: kafka.broker.security.authorizer_missing
+title: Kafka authorizer missing
+description: Detects brokers without Kafka authorization configured.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Enable an authorizer and enforce least-privilege ACLs for producers, consumers, and operators.
+version: "1.0"
+tags: [kafka, security, acl]

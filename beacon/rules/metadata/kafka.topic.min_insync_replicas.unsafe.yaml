@@ -1,0 +1,9 @@
+rule_id: kafka.topic.min_insync_replicas.unsafe
+title: Kafka min.insync.replicas unsafe
+description: Detects Kafka topics with unsafe min.insync.replicas.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Set min.insync.replicas to preserve durability with the configured replication factor and producer acks.
+version: "1.0"
+tags: [kafka, durability, isr]

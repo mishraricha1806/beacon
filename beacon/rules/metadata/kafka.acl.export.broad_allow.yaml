@@ -1,0 +1,10 @@
+rule_id: kafka.acl.export.broad_allow
+version: '1.0'
+title: Kafka ACL export broad allow
+description: An offline Kafka ACL export includes broad wildcard or all-operation
+  allow permissions.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Replace wildcard or all-operation ACLs with scoped topic, group, and
+  transactional-id permissions.

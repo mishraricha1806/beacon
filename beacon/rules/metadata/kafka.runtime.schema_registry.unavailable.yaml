@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.schema_registry.unavailable
+version: '1.0'
+title: Kafka Schema Registry unavailable
+description: Kafka Schema Registry is unavailable.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Restore Schema Registry health and verify producer and consumer fallback
+  behavior.

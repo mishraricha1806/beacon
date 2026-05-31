@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.auth.plaintext
+version: '1.0'
+title: Kafka access profile uses plaintext
+description: A Kafka access profile uses plaintext transport.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Use SSL, mTLS, or SASL over SSL for production Kafka access profiles.

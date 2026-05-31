@@ -1,0 +1,9 @@
+rule_id: kafka.consumer.auto_commit.enabled
+title: Kafka consumer auto commit enabled
+description: Detects consumers that auto-commit offsets.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Use explicit offset commits after successful processing for critical consumers.
+version: "1.0"
+tags: [kafka, consumer, offsets]

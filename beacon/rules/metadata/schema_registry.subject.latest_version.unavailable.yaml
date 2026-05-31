@@ -1,0 +1,8 @@
+rule_id: schema_registry.subject.latest_version.unavailable
+version: '1.0'
+title: Schema Registry latest version unavailable
+description: Beacon could not inspect the latest schema version for a subject.
+severity_default: ERROR
+category: operational_safety
+author: beacon.runtime
+recommendation: Check Schema Registry permissions, subject existence, and API health.

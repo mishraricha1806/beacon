@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.partition_reassignment.active
+version: '1.0'
+title: Kafka partition reassignment active
+description: Kafka has active partition reassignments.
+severity_default: MEDIUM
+category: runtime_stability
+author: beacon.runtime
+recommendation: Validate reassignment throttle, broker headroom, and incident safety
+  before continuing.

@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.server_config.invalid
+version: '1.0'
+title: Kafka direct server configuration invalid
+description: Beacon could not safely start live Kafka analysis because direct server
+  configuration was invalid.
+severity_default: ERROR
+category: operational_safety
+author: beacon.runtime
+recommendation: Fix the reported direct server configuration values and retry.

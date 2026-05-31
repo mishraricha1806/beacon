@@ -1,0 +1,9 @@
+rule_id: kafka.producer.acks.unsafe
+title: Kafka producer acknowledgements unsafe
+description: Detects producers that do not require all in-sync replicas to acknowledge writes.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Use acks=all with safe min.insync.replicas for production event producers.
+version: "1.0"
+tags: [kafka, producer, durability]

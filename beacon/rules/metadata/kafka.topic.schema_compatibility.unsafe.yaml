@@ -1,0 +1,9 @@
+rule_id: kafka.topic.schema_compatibility.unsafe
+title: Kafka topic schema compatibility unsafe
+description: Detects Kafka topics with disabled schema compatibility.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Use BACKWARD, FULL, or an approved compatibility mode before producer schema changes reach production.
+version: "1.0"
+tags: [kafka, schema, deployment-safety]

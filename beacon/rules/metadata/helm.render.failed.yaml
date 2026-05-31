@@ -1,0 +1,8 @@
+rule_id: helm.render.failed
+version: '1.0'
+title: Helm chart render failed
+description: Beacon found a Helm chart but helm template failed.
+severity_default: ERROR
+category: operational_safety
+author: beacon.scanner
+recommendation: Run helm template locally, fix chart rendering errors, and retry Beacon.

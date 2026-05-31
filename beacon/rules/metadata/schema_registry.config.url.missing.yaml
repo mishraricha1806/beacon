@@ -1,0 +1,8 @@
+rule_id: schema_registry.config.url.missing
+version: '1.0'
+title: Schema Registry URL missing
+description: Beacon cannot query Schema Registry without a base URL.
+severity_default: ERROR
+category: operational_safety
+author: beacon.runtime
+recommendation: Set schema_registry.url in the collector config.

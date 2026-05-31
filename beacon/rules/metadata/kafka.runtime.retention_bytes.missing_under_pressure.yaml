@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.retention_bytes.missing_under_pressure
+version: '1.0'
+title: Kafka retention_bytes missing under pressure
+description: retention_bytes is missing while broker disk usage is high.
+severity_default: HIGH
+category: storage_sustainability
+author: beacon.runtime
+recommendation: Set retention_bytes per topic based on disk capacity and throughput.

@@ -1,0 +1,9 @@
+rule_id: object_storage.lifecycle_policy.missing
+title: Object storage lifecycle policy missing
+description: Detects object storage resources without lifecycle policy.
+severity_default: MEDIUM
+category: storage_sustainability
+author: beacon.rules
+recommendation: Add lifecycle policies for retention, archival, and deletion based on compliance and recovery needs.
+version: "1.0"
+tags: [storage, lifecycle, cost]

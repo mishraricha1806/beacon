@@ -1,0 +1,9 @@
+rule_id: kafka.consumer_groups.none_selected
+version: '1.0'
+title: No Kafka consumer groups selected
+description: Beacon did not find consumer groups to analyze, or no matching group
+  was provided.
+severity_default: LOW
+category: runtime_stability
+author: beacon.runtime
+recommendation: Provide a consumer group for targeted lag diagnostics when needed.

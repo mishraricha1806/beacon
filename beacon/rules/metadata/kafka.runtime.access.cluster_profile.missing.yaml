@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.cluster_profile.missing
+version: '1.0'
+title: Kafka cluster access profile missing
+description: No access profile can perform Kafka cluster discovery.
+severity_default: ERROR
+category: operational_safety
+author: beacon.runtime
+recommendation: Add a cluster or all-scope profile with list_topics capability.

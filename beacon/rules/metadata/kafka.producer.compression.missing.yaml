@@ -1,0 +1,9 @@
+rule_id: kafka.producer.compression.missing
+title: Kafka producer compression missing
+description: Detects high-volume producer configs without compression.
+severity_default: LOW
+category: scalability
+author: beacon.rules
+recommendation: Enable compression for high-volume topics after validating CPU and latency tradeoffs.
+version: "1.0"
+tags: [kafka, producer, capacity]

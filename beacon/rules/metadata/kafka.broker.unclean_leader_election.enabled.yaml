@@ -1,0 +1,9 @@
+rule_id: kafka.broker.unclean_leader_election.enabled
+title: Kafka unclean leader election enabled
+description: Detects brokers that allow unclean leader election and potential data loss.
+severity_default: CRITICAL
+category: resiliency
+author: beacon.rules
+recommendation: Disable unclean leader election for production topics unless data loss is explicitly acceptable.
+version: "1.0"
+tags: [kafka, broker, data-loss]

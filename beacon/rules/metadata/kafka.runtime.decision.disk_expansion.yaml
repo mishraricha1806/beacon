@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.decision.disk_expansion
+version: '1.0'
+title: 'Kafka runtime decision: disk expansion'
+description: Beacon recommends disk or broker capacity expansion.
+severity_default: MEDIUM
+category: storage_sustainability
+author: beacon.runtime
+recommendation: Plan disk expansion or broker capacity increase.

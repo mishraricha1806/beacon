@@ -1,0 +1,9 @@
+rule_id: kafka.cluster.offline_partitions
+version: '1.0'
+title: Kafka cluster offline partitions
+description: One or more Kafka partitions have no valid leader and are unavailable.
+severity_default: CRITICAL
+category: resiliency
+author: beacon.runtime
+recommendation: Restore affected brokers, inspect leadership, and validate replica
+  recovery.

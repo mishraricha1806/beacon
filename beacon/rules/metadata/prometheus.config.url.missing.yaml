@@ -1,0 +1,8 @@
+rule_id: prometheus.config.url.missing
+version: '1.0'
+title: Prometheus URL missing
+description: Beacon cannot query Prometheus without a base URL.
+severity_default: ERROR
+category: runtime_stability
+author: beacon.runtime
+recommendation: Set prometheus.url in the collector config.

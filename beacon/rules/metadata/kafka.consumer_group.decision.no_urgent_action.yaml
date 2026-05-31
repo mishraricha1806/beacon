@@ -1,0 +1,8 @@
+rule_id: kafka.consumer_group.decision.no_urgent_action
+version: '1.0'
+title: 'Kafka consumer lag decision: no urgent action'
+description: Beacon does not see urgent consumer delay from the current offset snapshot.
+severity_default: LOW
+category: runtime_stability
+author: beacon.runtime
+recommendation: Continue monitoring lag trend.

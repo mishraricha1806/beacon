@@ -1,0 +1,9 @@
+rule_id: kafka.broker.controlled_shutdown.disabled
+title: Kafka controlled shutdown disabled
+description: Detects brokers with controlled shutdown disabled.
+severity_default: MEDIUM
+category: recovery_readiness
+author: beacon.rules
+recommendation: Enable controlled shutdown so planned broker restarts can transfer leadership cleanly.
+version: "1.0"
+tags: [kafka, broker, maintenance]

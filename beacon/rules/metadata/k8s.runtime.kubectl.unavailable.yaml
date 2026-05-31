@@ -1,0 +1,9 @@
+rule_id: k8s.runtime.kubectl.unavailable
+version: '1.0'
+title: kubectl unavailable
+description: Beacon cannot collect live Kubernetes runtime signals because kubectl
+  is unavailable.
+severity_default: ERROR
+category: runtime_stability
+author: beacon.runtime
+recommendation: Install kubectl or provide a Kubernetes runtime snapshot YAML.

@@ -1,0 +1,10 @@
+rule_id: kafka.runtime.replica_load.high
+version: '1.0'
+title: Kafka broker replica load high
+description: Replica load per broker is high enough to increase recovery and controller
+  pressure.
+severity_default: HIGH
+category: scalability
+author: beacon.runtime
+recommendation: Review partition strategy, topic count, broker count, and broker expansion
+  needs.

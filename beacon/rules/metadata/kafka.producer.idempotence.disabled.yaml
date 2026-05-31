@@ -1,0 +1,9 @@
+rule_id: kafka.producer.idempotence.disabled
+title: Kafka producer idempotence disabled
+description: Detects producers without idempotence enabled.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Enable idempotence for production producers to reduce duplicates during retries and transient failures.
+version: "1.0"
+tags: [kafka, producer, duplicates]

@@ -1,0 +1,8 @@
+rule_id: kafka.consumer_group.hot_partition
+version: '1.0'
+title: Kafka consumer group hot partition
+description: Lag is concentrated on one or more partitions, indicating potential skew.
+severity_default: HIGH
+category: scalability
+author: beacon.runtime
+recommendation: Review partition key distribution and producer key changes.

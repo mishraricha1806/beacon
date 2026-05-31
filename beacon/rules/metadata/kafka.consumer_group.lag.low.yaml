@@ -1,0 +1,8 @@
+rule_id: kafka.consumer_group.lag.low
+version: '1.0'
+title: Kafka consumer group lag low
+description: Current offset snapshot does not show severe consumer lag.
+severity_default: LOW
+category: runtime_stability
+author: beacon.runtime
+recommendation: Continue monitoring lag trend.

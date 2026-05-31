@@ -1,0 +1,10 @@
+rule_id: kafka.runtime.broker_disk_skew.critical
+version: '1.0'
+title: Kafka broker disk skew critical
+description: One Kafka broker is critically full even if aggregate cluster disk may
+  look acceptable.
+severity_default: CRITICAL
+category: storage_sustainability
+author: beacon.runtime
+recommendation: Create broker-specific headroom, inspect partition placement, and
+  move or reassign hot partitions.

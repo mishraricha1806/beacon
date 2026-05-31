@@ -1,0 +1,10 @@
+rule_id: kafka.runtime.decision.workload_investigation
+version: '1.0'
+title: 'Kafka runtime decision: workload investigation'
+description: Beacon recommends investigating workload behavior before only expanding
+  disk.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Check producer payload changes, consumer latency, retries, and lag
+  by partition.

@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.auth.scram_sha256
+version: '1.0'
+title: Kafka access profile uses SCRAM-SHA-256
+description: A Kafka access profile uses SCRAM-SHA-256.
+severity_default: LOW
+category: operational_safety
+author: beacon.runtime
+recommendation: Prefer SCRAM-SHA-512 when supported by the Kafka platform.

@@ -1,0 +1,9 @@
+rule_id: kafka.producer.max_in_flight.unsafe
+title: Kafka producer max in-flight unsafe
+description: Detects idempotent producers with unsafe max.in.flight settings.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Keep max.in.flight.requests.per.connection within safe limits for idempotent and ordering-sensitive producers.
+version: "1.0"
+tags: [kafka, producer, ordering]

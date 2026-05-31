@@ -1,0 +1,8 @@
+rule_id: kafka.consumer_group.empty
+version: '1.0'
+title: Kafka consumer group empty
+description: Consumer group has no active members.
+severity_default: MEDIUM
+category: runtime_stability
+author: beacon.runtime
+recommendation: Check consumer deployment health, scaling, and recent rollouts.

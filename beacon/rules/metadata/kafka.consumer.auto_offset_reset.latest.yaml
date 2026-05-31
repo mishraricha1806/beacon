@@ -1,0 +1,9 @@
+rule_id: kafka.consumer.auto_offset_reset.latest
+title: Kafka consumer starts new groups at latest
+description: Detects consumers that can skip historical messages when groups are recreated.
+severity_default: MEDIUM
+category: recovery_readiness
+author: beacon.rules
+recommendation: Use earliest or an intentional reset policy for consumers that must support replay and recovery.
+version: "1.0"
+tags: [kafka, consumer, replay]

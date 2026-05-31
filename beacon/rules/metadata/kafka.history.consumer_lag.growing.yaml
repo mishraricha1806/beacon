@@ -1,0 +1,9 @@
+rule_id: kafka.history.consumer_lag.growing
+version: '1.0'
+title: Kafka consumer lag growing
+description: Kafka consumer lag is increasing across history snapshots.
+severity_default: HIGH
+category: runtime_stability
+author: beacon.runtime
+recommendation: Investigate consumer processing latency, downstream dependencies,
+  retry loops, hot partitions, and recent deployments.

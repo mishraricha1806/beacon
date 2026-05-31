@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.consumer_lag.increasing_under_pressure
+version: '1.0'
+title: Kafka consumer lag increasing under disk pressure
+description: Consumer lag is increasing while broker disk usage is high.
+severity_default: MEDIUM
+category: runtime_stability
+author: beacon.runtime
+recommendation: Check consumer processing latency, downstream calls, retries, and
+  poison messages.

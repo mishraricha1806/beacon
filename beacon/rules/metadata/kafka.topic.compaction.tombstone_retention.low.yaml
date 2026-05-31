@@ -1,0 +1,9 @@
+rule_id: kafka.topic.compaction.tombstone_retention.low
+title: Kafka compacted topic tombstone retention low
+description: Detects compacted topics where delete.retention.ms may be too short for recovery.
+severity_default: MEDIUM
+category: recovery_readiness
+author: beacon.rules
+recommendation: Set delete.retention.ms long enough for consumers and restore jobs to observe tombstones.
+version: "1.0"
+tags: [kafka, compaction, tombstone]

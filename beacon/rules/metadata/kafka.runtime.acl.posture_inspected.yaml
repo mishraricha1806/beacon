@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.acl.posture_inspected
+version: '1.0'
+title: Kafka ACL posture inspected
+description: Beacon inspected Kafka ACL metadata and did not detect broad allow patterns.
+severity_default: LOW
+category: operational_safety
+author: beacon.runtime
+recommendation: Continue enforcing least privilege and review ACL changes during production
+  readiness checks.

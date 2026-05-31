@@ -1,0 +1,9 @@
+rule_id: kafka.consumer.heartbeat_session.mismatch
+title: Kafka consumer heartbeat/session mismatch
+description: Detects heartbeat intervals too close to session timeout.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Tune heartbeat.interval.ms and session.timeout.ms to reduce false member eviction and rebalance churn.
+version: "1.0"
+tags: [kafka, consumer, rebalance]

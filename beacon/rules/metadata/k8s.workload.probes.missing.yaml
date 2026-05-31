@@ -1,0 +1,9 @@
+rule_id: k8s.workload.probes.missing
+title: Kubernetes probes missing
+description: Detects containers missing readiness or liveness probes.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Add readiness and liveness probes that reflect real dependency and process health.
+version: "1.0"
+tags: [kubernetes, probes]

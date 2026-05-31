@@ -1,0 +1,9 @@
+rule_id: kafka.consumer.poll_interval.too_low
+title: Kafka consumer poll interval too low
+description: Detects consumers with low max.poll.interval.ms settings.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Set max.poll.interval.ms high enough for worst-case processing latency or reduce per-record processing time.
+version: "1.0"
+tags: [kafka, consumer, rebalance]

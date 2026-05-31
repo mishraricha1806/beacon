@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.scope.topic_unbounded
+version: '1.0'
+title: Kafka topic access profile unbounded
+description: A topic-scoped Kafka access profile has no topic patterns.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Set explicit topic names or patterns for topic-scoped profiles.

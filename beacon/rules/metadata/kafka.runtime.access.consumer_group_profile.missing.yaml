@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.access.consumer_group_profile.missing
+version: '1.0'
+title: Kafka consumer group access profile missing
+description: Beacon did not find a matching consumer group access profile.
+severity_default: LOW
+category: operational_safety
+author: beacon.runtime
+recommendation: Add a consumer_group or all-scope profile if this group requires separate
+  credentials.

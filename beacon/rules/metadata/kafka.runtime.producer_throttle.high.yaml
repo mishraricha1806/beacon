@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.producer_throttle.high
+version: '1.0'
+title: Kafka producer throttle high
+description: Kafka producer throttle time is elevated.
+severity_default: MEDIUM
+category: runtime_stability
+author: beacon.runtime
+recommendation: Review producer quotas, broker load, client traffic spikes, and whether
+  throttling is expected.

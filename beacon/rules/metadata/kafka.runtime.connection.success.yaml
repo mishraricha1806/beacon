@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.connection.success
+version: '1.0'
+title: Kafka runtime connection successful
+description: Beacon connected to Kafka using read-only metadata APIs.
+severity_default: INFO
+category: runtime_stability
+author: beacon.runtime
+recommendation: No action required.

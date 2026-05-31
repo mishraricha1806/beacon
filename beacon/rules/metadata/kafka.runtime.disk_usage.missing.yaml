@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.disk_usage.missing
+version: '1.0'
+title: Kafka runtime disk usage missing
+description: Runtime snapshot does not include broker disk usage.
+severity_default: ERROR
+category: runtime_stability
+author: beacon.runtime
+recommendation: Provide broker_disk_usage_percent in runtime input.

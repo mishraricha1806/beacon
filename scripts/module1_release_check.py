@@ -25,7 +25,7 @@ import beacon.schema_registry_connector as schema_registry_connector
 from beacon.engine.registry import registry
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
-from beacon.rules_registry import list_rules
+from beacon.engine.metadata_registry import list_rules
 from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.scanner import scan_path
 
@@ -50,6 +50,16 @@ def require(condition, message):
 def check_metadata():
     metadata = list_rules()
     registered = {rule.rule_id for rule in registry.get_all()}
+    curated = set()
+    for path in (ROOT / "beacon" / "rules" / "metadata").glob("*.yaml"):
+        try:
+            import yaml
+
+            data = yaml.safe_load(path.read_text()) or {}
+        except Exception:
+            data = {}
+        if isinstance(data, dict) and data.get("rule_id"):
+            curated.add(data["rule_id"])
     required = {
         "severity_default",
         "category",
@@ -59,6 +69,7 @@ def check_metadata():
     }
 
     missing_metadata = sorted(registered - set(metadata))
+    missing_curated = sorted(registered - curated)
     missing_required = {
         rule_id: sorted(required - set(data))
         for rule_id, data in metadata.items()
@@ -67,6 +78,10 @@ def check_metadata():
 
     require(
         not missing_metadata, f"registered rules missing metadata: {missing_metadata}"
+    )
+    require(
+        not missing_curated,
+        f"registered rules missing curated YAML metadata: {missing_curated}",
     )
     require(
         not missing_required,

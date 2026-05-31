@@ -1,0 +1,8 @@
+rule_id: kafka.consumer_group.lag.moderate
+version: '1.0'
+title: Kafka consumer group lag moderate
+description: Consumer group lag is elevated and should be monitored.
+severity_default: MEDIUM
+category: runtime_stability
+author: beacon.runtime
+recommendation: Compare producer and consumer throughput and monitor trend.

@@ -1,0 +1,9 @@
+rule_id: kafka.broker.rack_awareness.missing
+title: Kafka broker rack awareness missing
+description: Detects brokers without broker.rack configured.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Configure broker.rack and verify replica placement spans failure domains.
+version: "1.0"
+tags: [kafka, broker, rack-awareness]

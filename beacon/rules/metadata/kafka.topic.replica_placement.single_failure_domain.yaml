@@ -1,0 +1,9 @@
+rule_id: kafka.topic.replica_placement.single_failure_domain
+title: Kafka topic replicas in one failure domain
+description: Detects partitions whose replicas are all placed in the same rack or availability zone.
+severity_default: CRITICAL
+category: resiliency
+author: beacon.rules
+recommendation: Rebalance replicas across racks or availability zones and verify broker.rack is configured.
+version: "1.0"
+tags: [kafka, rack-awareness, replica-placement]

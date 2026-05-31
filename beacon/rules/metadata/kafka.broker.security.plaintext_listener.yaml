@@ -1,0 +1,9 @@
+rule_id: kafka.broker.security.plaintext_listener
+title: Kafka plaintext listener configured
+description: Detects Kafka broker listener configuration that includes PLAINTEXT.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Use SSL or SASL_SSL listeners for production client and inter-broker traffic.
+version: "1.0"
+tags: [kafka, security, tls]

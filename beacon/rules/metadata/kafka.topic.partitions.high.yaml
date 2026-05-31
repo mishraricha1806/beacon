@@ -1,0 +1,9 @@
+rule_id: kafka.topic.partitions.high
+title: Kafka partition count very high
+description: Detects Kafka topics with very high partition count.
+severity_default: MEDIUM
+category: scalability
+author: beacon.rules
+recommendation: Review partition count against throughput needs, broker count, controller pressure, and recovery time.
+version: "1.0"
+tags: [kafka, partitioning, scalability]

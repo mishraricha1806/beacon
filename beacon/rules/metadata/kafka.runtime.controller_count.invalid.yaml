@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.controller_count.invalid
+version: '1.0'
+title: Kafka active controller count invalid
+description: Kafka runtime signals show zero or multiple active controllers.
+severity_default: CRITICAL
+category: resiliency
+author: beacon.runtime
+recommendation: Investigate controller election, broker quorum health, ZooKeeper/KRaft
+  health, and recent broker restarts.

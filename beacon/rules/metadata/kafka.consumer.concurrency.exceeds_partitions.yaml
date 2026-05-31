@@ -1,0 +1,9 @@
+rule_id: kafka.consumer.concurrency.exceeds_partitions
+title: Kafka consumer concurrency exceeds partitions
+description: Detects consumer concurrency above topic partition count.
+severity_default: MEDIUM
+category: scalability
+author: beacon.rules
+recommendation: Align consumer concurrency with partition count or increase partitions when ordering and replay tradeoffs are acceptable.
+version: "1.0"
+tags: [kafka, consumer, parallelism]

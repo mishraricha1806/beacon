@@ -1,0 +1,9 @@
+rule_id: schema_registry.compatibility.global_unsafe
+version: '1.0'
+title: Schema Registry global compatibility unsafe
+description: Global Schema Registry compatibility allows unsafe schema evolution.
+severity_default: HIGH
+category: operational_safety
+author: beacon.runtime
+recommendation: Use BACKWARD, FULL, or an approved compatibility mode for production
+  event schemas.

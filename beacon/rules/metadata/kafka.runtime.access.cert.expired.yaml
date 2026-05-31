@@ -1,0 +1,8 @@
+rule_id: kafka.runtime.access.cert.expired
+version: '1.0'
+title: Kafka access profile certificate expired
+description: A Kafka access profile certificate is expired.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.runtime
+recommendation: Rotate the expired Kafka certificate immediately.

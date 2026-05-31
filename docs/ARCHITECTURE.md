@@ -97,7 +97,6 @@ beacon/
 │
 ├── engine/
 │   ├── evaluator.py
-│   ├── graph.py
 │   ├── metadata_registry.py
 │   ├── models.py
 │   ├── normalizer.py
