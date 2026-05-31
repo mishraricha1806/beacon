@@ -57,6 +57,15 @@ python3 -m beacon.cli readiness kafka-history examples/supported/kafka/history.y
 python3 -m beacon.cli readiness kubernetes --namespace payments --no-html --no-open-report
 ```
 
+Run Kafka scenario pack:
+
+```bash
+python3 -m beacon.cli readiness static examples/supported/kafka/scenarios/unsafe-security.yaml --no-html --no-open-report
+python3 -m beacon.cli readiness kafka-acls examples/supported/kafka/scenarios/unsafe-acls.yaml --no-html --no-open-report
+python3 -m beacon.cli readiness kafka-history examples/supported/kafka/scenarios/lag-rebalance-history.yaml --no-html --no-open-report
+python3 -m beacon.cli readiness static examples/supported/kafka/scenarios/schema-poison-risk.yaml --no-html --no-open-report
+```
+
 Supported example groups:
 
 * `terraform/` - Terraform HCL, plan JSON, and state JSON
@@ -69,3 +78,5 @@ Supported example groups:
 * `runtime/` - API, database, storage, and flow runtime snapshots
 * `prometheus/` - Prometheus query mapping into runtime snapshots, including Kafka JMX exporter signals
 * `opentelemetry/` - OpenTelemetry span and metric export mapping into runtime snapshots
+
+Kafka release details are documented in `docs/KAFKA_RELEASE.md`.

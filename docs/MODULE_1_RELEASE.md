@@ -13,6 +13,7 @@ Module 1 is ready to release when these surfaces are supported by examples, dete
 - Generic Kafka access profiles for cluster, topic, and consumer group scoped credentials
 - Kafka producer and consumer client configuration risk checks
 - Kafka Schema Registry read-only diagnostics for compatibility posture, expected subjects, latest schema availability, and schema type visibility
+- Kafka offline ACL export scanning and Kafka runtime history trend diagnostics
 - Kafka deterministic checks for broker security defaults, rack/AZ safety, replica placement, schema compatibility, ownership, compaction safety, replay survivability, controller health, reassignment pressure, replication lag, throttling, and request queue saturation
 - CI/CD deployment workflow manifests
 - Cloud inventory snapshots
@@ -105,6 +106,13 @@ Run the Schema Registry sample. In local development this may intentionally prod
 python3 -m beacon.cli readiness schema-registry examples/supported/kafka/schema-registry.yaml --timeout 1 --no-html --no-open-report --output json
 ```
 
+Run Kafka offline ACL and history samples:
+
+```bash
+python3 -m beacon.cli readiness kafka-acls examples/supported/kafka/acls.yaml --no-html --no-open-report --output json
+python3 -m beacon.cli readiness kafka-history examples/supported/kafka/history.yaml --no-html --no-open-report --output json
+```
+
 Optional live read-only checks:
 
 ```bash
@@ -156,5 +164,7 @@ Root-cause hypotheses should include:
 ## Release Decision
 
 Module 1 is releasable when the verification commands pass, registered rule metadata is complete, and the release surface above is documented as the supported boundary.
+
+Kafka-specific release support is documented in `docs/KAFKA_RELEASE.md`.
 
 The next product move after Module 1 is deeper Module 2 runtime intelligence: stronger live collectors, deployment correlation, and ranked cross-system root-cause narratives across Kafka, Kubernetes, Prometheus, OpenTelemetry, APIs, databases, and storage.

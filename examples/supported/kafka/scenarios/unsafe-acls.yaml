@@ -1,0 +1,15 @@
+kafka_acls:
+  - principal: User:*
+    host: "*"
+    operation: ALL
+    permission_type: ALLOW
+    resource_type: CLUSTER
+    resource_name: kafka-cluster
+    resource_pattern_type: LITERAL
+  - principal: User:analytics-service
+    host: "*"
+    operation: READ
+    permission_type: ALLOW
+    resource_type: TOPIC
+    resource_name: payments
+    resource_pattern_type: LITERAL

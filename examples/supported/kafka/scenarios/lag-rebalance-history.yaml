@@ -1,0 +1,25 @@
+kafka_history:
+  - timestamp: "2026-05-31T10:00:00Z"
+    broker_disk_usage_percent: 73
+    total_consumer_lag: 15000
+    controller_change_count_15m: 0
+    rebalance_count_15m: 0
+    consumer_groups:
+      - group_id: payments-worker
+        members: [worker-a]
+  - timestamp: "2026-05-31T10:10:00Z"
+    broker_disk_usage_percent: 79
+    total_consumer_lag: 85000
+    controller_change_count_15m: 1
+    rebalance_count_15m: 2
+    consumer_groups:
+      - group_id: payments-worker
+        members: [worker-b]
+  - timestamp: "2026-05-31T10:20:00Z"
+    broker_disk_usage_percent: 84
+    total_consumer_lag: 180000
+    controller_change_count_15m: 3
+    rebalance_count_15m: 5
+    consumer_groups:
+      - group_id: payments-worker
+        members: [worker-c, worker-d]
