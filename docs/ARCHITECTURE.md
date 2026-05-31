@@ -81,8 +81,6 @@ beacon/
 ├── html_report.py
 │
 ├── rules/
-│   ├── models.py
-│   ├── static_engine.py
 │   ├── kafka_registered_rules.py
 │   ├── storage_registered_rules.py
 │   ├── iam_registered_rules.py
@@ -98,12 +96,13 @@ beacon/
 │       └── readiness_engine.py
 │
 ├── engine/
-│   ├── rule_model.py
-│   ├── registry.py
 │   ├── evaluator.py
-│   ├── resource_normalizer.py
-│   ├── policy_engine.py
-│   └── graph.py
+│   ├── graph.py
+│   ├── metadata_registry.py
+│   ├── models.py
+│   ├── normalizer.py
+│   ├── registry.py
+│   └── static_evaluator.py
 │
 ├── runtime_advisor.py
 ├── kafka_runtime_connector.py
@@ -363,7 +362,7 @@ Rules should not know raw YAML, Terraform, or Kubernetes structure.
 
 Rules should evaluate normalized resources.
 
-The static scanner now follows this path for Module 1 release. `beacon.rules.kafka_rules`, `beacon.rules.terraform_rules`, and `beacon.rules.kubernetes_rules` are compatibility shims that delegate into the normalized static engine.
+The static scanner now follows this path for Module 1 release. Domain rules live in `beacon.rules.*_registered_rules`, static evaluation lives in `beacon.engine.static_evaluator`, and `beacon.rules` remains the package-level compatibility import for `evaluate_*` helpers.
 
 ---
 
