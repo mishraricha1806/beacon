@@ -1,0 +1,9 @@
+rule_id: engine.rule.execution_failed
+version: "1.0"
+title: Rule execution failed
+description: The deterministic rule engine caught an exception while evaluating a registered rule.
+severity_default: ERROR
+category: operational_safety
+author: beacon.engine
+recommendation: Review the failing rule implementation, normalized resource input, and evidence payload.
+tags: [engine, rule-execution]

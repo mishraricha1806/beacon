@@ -1,0 +1,9 @@
+rule_id: scanner.file.parse_failed
+version: "1.0"
+title: Scanner file parse failed
+description: Beacon could not parse an input file during static readiness scanning.
+severity_default: ERROR
+category: operational_safety
+author: beacon.scanner
+recommendation: Fix the file syntax or remove unsupported content from the scan path.
+tags: [scanner, parsing]

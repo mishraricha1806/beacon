@@ -1,0 +1,9 @@
+rule_id: beacon.ui.request_failed
+version: "1.0"
+title: Beacon UI request failed
+description: The Beacon web UI could not complete a requested readiness or diagnostic action.
+severity_default: ERROR
+category: operational_safety
+author: beacon.ui
+recommendation: Review the request inputs, server logs, and uploaded files, then retry the operation.
+tags: [beacon, ui, request]

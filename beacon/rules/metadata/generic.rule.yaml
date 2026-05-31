@@ -1,0 +1,9 @@
+rule_id: generic.rule
+version: "1.0"
+title: Generic finding
+description: Generic fallback finding identifier used by compatibility helpers.
+severity_default: INFO
+category: operational_safety
+author: beacon.rules
+recommendation: Prefer a specific rule_id with curated metadata for production findings.
+tags: [generic, compatibility]

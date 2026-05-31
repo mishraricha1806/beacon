@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.replay.retention_window_insufficient
+version: "1.0"
+title: Kafka replay exceeds retention window
+description: Estimated backlog replay time exceeds the remaining retention window.
+severity_default: CRITICAL
+category: recovery_readiness
+author: beacon.runtime
+recommendation: Extend retention, create capacity headroom, accelerate consumers, or reduce producer intake before data ages out.
+tags: [kafka, runtime, replay, retention]

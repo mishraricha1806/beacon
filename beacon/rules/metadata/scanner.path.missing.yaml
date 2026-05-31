@@ -1,0 +1,9 @@
+rule_id: scanner.path.missing
+version: "1.0"
+title: Scanner path missing
+description: Beacon could not scan the requested path because it does not exist.
+severity_default: ERROR
+category: operational_safety
+author: beacon.scanner
+recommendation: Provide an existing file or directory path for the scan.
+tags: [scanner, path]

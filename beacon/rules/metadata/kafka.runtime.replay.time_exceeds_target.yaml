@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.replay.time_exceeds_target
+version: "1.0"
+title: Kafka replay time exceeds target
+description: Estimated backlog replay time is longer than the operational recovery target.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.runtime
+recommendation: Increase consumer capacity, remove downstream bottlenecks, reduce producer rate, or revisit replay SLOs.
+tags: [kafka, runtime, replay, recovery]

@@ -120,7 +120,6 @@ beacon/
 ├── readiness/
 ├── engine/
 ├── rules/
-├── collectors/
 ├── normalizers/
 ├── policies/
 ├── topology/

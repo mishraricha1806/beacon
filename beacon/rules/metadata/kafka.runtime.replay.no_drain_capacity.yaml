@@ -1,0 +1,9 @@
+rule_id: kafka.runtime.replay.no_drain_capacity
+version: "1.0"
+title: Kafka backlog has no drain capacity
+description: Consumer throughput is not exceeding producer intake, so backlog cannot drain at the current rate.
+severity_default: CRITICAL
+category: recovery_readiness
+author: beacon.runtime
+recommendation: Increase safe consumer throughput, reduce producer intake, fix downstream bottlenecks, or pause non-critical producers.
+tags: [kafka, runtime, replay, recovery]

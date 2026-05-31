@@ -1,0 +1,9 @@
+rule_id: scanner.file.too_large
+version: "1.0"
+title: Scanner file too large
+description: Beacon skipped an input file because it exceeded the configured scanner size limit.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.scanner
+recommendation: Split very large manifests or scan a smaller generated artifact for production readiness review.
+tags: [scanner, input-size]
