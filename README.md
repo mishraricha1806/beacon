@@ -189,15 +189,17 @@ python3 -m beacon.cli diagnose kafka \
   --topic payments
 ```
 
-Run the local Kafka readiness UI:
+Run the local Beacon readiness UI:
 
 ```bash
 python3 -m beacon.ui
 ```
 
-Then open `http://127.0.0.1:8765` and enter the bootstrap server, certificates,
-access profile YAML, and optional Schema Registry URL or collector YAML. The UI
-uses the same read-only Kafka and Schema Registry diagnostics engines as the CLI.
+Then open `http://127.0.0.1:8765` and provide any supported readiness input:
+static config files, runtime snapshots, Flow snapshots, Prometheus configs,
+OpenTelemetry exports, Kafka bootstrap/cert/access YAML, and optional Schema
+Registry URL or collector YAML. The UI uses the same read-only diagnostics
+engines as the CLI.
 Schema Registry supports bearer token, basic auth, custom CA certificates, and
 mTLS client certificate/key uploads, so teams can reuse topic-level PEM/cert
 access where their platform requires it.

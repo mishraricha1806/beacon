@@ -4,9 +4,14 @@ import json
 import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from beacon.flow_runtime import analyze_flow_file
 from beacon.kafka_runtime_connector import analyze_kafka_cluster
+from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.policy import apply_policy_to_findings, load_policy
+from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
+from beacon.runtime_snapshot import analyze_runtime_snapshot_file
+from beacon.scanner import scan_path
 from beacon.schema_registry_connector import analyze_schema_registry_config
 
 
@@ -15,7 +20,7 @@ HTML = """<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Beacon Kafka Readiness</title>
+  <title>Beacon Readiness Console</title>
   <style>
     :root {
       color-scheme: light;
@@ -213,16 +218,34 @@ HTML = """<!doctype html>
 </head>
 <body>
   <header>
-    <h1>Beacon Kafka Readiness</h1>
-    <p class="sub">Connect to Kafka, run read-only diagnostics, and get a production-readiness report without writing YAML by hand.</p>
+    <h1>Beacon Readiness Console</h1>
+    <p class="sub">Run deterministic production-readiness checks across Kafka, Schema Registry, runtime snapshots, Flow, Prometheus, OpenTelemetry, and static infrastructure inputs.</p>
   </header>
   <main>
     <section>
-      <h2>Kafka Connection</h2>
+      <h2>Beacon Inputs</h2>
       <div class="readonly">
-        Beacon only lists metadata, describes configs, and reads offsets. It never produces, consumes, alters topics, resets offsets, or changes ACLs.
+        Beacon collectors are read-only. Runtime checks query metadata, metrics, spans, configs, and offsets without producing, consuming, altering topics, resetting offsets, or changing infrastructure.
       </div>
       <form id="kafka-form">
+        <h2>Static & Runtime Files</h2>
+        <label for="static_config">Static config file</label>
+        <input id="static_config" name="static_config" type="file">
+        <div class="hint">Optional. Upload Terraform, Kubernetes YAML, Kafka config, CI/CD, cloud inventory, or topology YAML.</div>
+
+        <label for="runtime_snapshot">Runtime snapshot</label>
+        <input id="runtime_snapshot" name="runtime_snapshot" type="file">
+
+        <label for="flow_snapshot">Flow snapshot</label>
+        <input id="flow_snapshot" name="flow_snapshot" type="file">
+
+        <label for="prometheus_config">Prometheus collector config</label>
+        <input id="prometheus_config" name="prometheus_config" type="file">
+
+        <label for="opentelemetry_file">OpenTelemetry export</label>
+        <input id="opentelemetry_file" name="opentelemetry_file" type="file">
+
+        <h2>Kafka Connection</h2>
         <div class="mode">
           <label><input type="radio" name="mode" value="direct" checked> Direct</label>
           <label><input type="radio" name="mode" value="access"> Access YAML</label>
@@ -334,13 +357,13 @@ HTML = """<!doctype html>
         <textarea id="schema_registry_expected_topics" name="schema_registry_expected_topics" placeholder="payments: payments-key, payments-value&#10;audit-events: audit-events-value"></textarea>
         <div class="hint">Optional. One topic per line. Use "topic: subject-a, subject-b" or just "topic" for default key/value subjects.</div>
 
-        <button id="run-button" type="submit">Run Readiness</button>
+        <button id="run-button" type="submit">Run Beacon Readiness</button>
       </form>
     </section>
 
     <section>
       <h2>Report</h2>
-      <div id="report" class="empty">Run a Kafka readiness check to see findings here.</div>
+      <div id="report" class="empty">Run a Beacon readiness check to see findings here.</div>
     </section>
   </main>
   <script>
@@ -374,7 +397,7 @@ HTML = """<!doctype html>
       report.textContent = 'Connecting in read-only mode and building report...';
 
       try {
-        const response = await fetch('/api/kafka', {
+        const response = await fetch('/api/beacon', {
           method: 'POST',
           body: new FormData(form)
         });
@@ -385,7 +408,7 @@ HTML = """<!doctype html>
         report.innerHTML = '<div class="finding-title">Request failed</div><pre>' + escapeHtml(String(error)) + '</pre>';
       } finally {
         button.disabled = false;
-        button.textContent = 'Run Readiness';
+        button.textContent = 'Run Beacon Readiness';
       }
     });
 
@@ -446,13 +469,17 @@ class BeaconUIHandler(BaseHTTPRequestHandler):
         self.respond_html(HTML)
 
     def do_POST(self):
-        if self.path != "/api/kafka":
+        if self.path not in {"/api/beacon", "/api/kafka"}:
             self.send_error(404)
             return
 
         try:
             fields, files = parse_multipart(self)
-            result = run_kafka_check(fields, files)
+            result = run_beacon_check(
+                fields,
+                files,
+                force_kafka=self.path == "/api/kafka",
+            )
             self.respond_json(result)
         except Exception as error:
             self.respond_json(
@@ -462,16 +489,16 @@ class BeaconUIHandler(BaseHTTPRequestHandler):
                     "readiness_summary": None,
                     "findings": [
                         {
-                            "rule_id": "beacon.ui.kafka.request_failed",
-                            "domain": "kafka",
+                            "rule_id": "beacon.ui.request_failed",
+                            "domain": "beacon",
                             "category": "operational_safety",
                             "severity": "ERROR",
-                            "title": "Kafka readiness request failed",
+                            "title": "Beacon readiness request failed",
                             "impact": str(error),
                             "recommendation": "Review the connection inputs and retry.",
                             "file": "beacon-ui",
                             "evidence": {},
-                            "tags": ["ui", "kafka"],
+                            "tags": ["ui", "beacon"],
                         }
                     ],
                 },
@@ -543,9 +570,73 @@ def save_temp_json_config(prefix, config):
 
 
 def run_kafka_check(fields, files):
+    return run_beacon_check(fields, files, force_kafka=True)
+
+
+def run_beacon_check(fields, files, force_kafka=False):
+    findings = []
+
+    if files.get("static_config"):
+        findings.extend(scan_path(files["static_config"]))
+
+    if files.get("runtime_snapshot"):
+        findings.extend(analyze_runtime_snapshot_file(files["runtime_snapshot"]))
+
+    if files.get("flow_snapshot"):
+        findings.extend(analyze_flow_file(files["flow_snapshot"]))
+
+    if files.get("prometheus_config"):
+        findings.extend(
+            analyze_prometheus_config(
+                files["prometheus_config"],
+                timeout=int(fields.get("prometheus_timeout") or 5),
+            )
+        )
+
+    if files.get("opentelemetry_file"):
+        findings.extend(analyze_opentelemetry_file(files["opentelemetry_file"]))
+
+    if force_kafka or has_kafka_input(fields, files):
+        findings.extend(run_kafka_collector(fields, files))
+
+    schema_registry_config = resolve_schema_registry_config(fields, files)
+    if schema_registry_config:
+        findings.extend(
+            analyze_schema_registry_config(
+                schema_registry_config,
+                timeout=int(fields.get("schema_registry_timeout") or 5),
+            )
+        )
+
+    findings = apply_policy_to_findings(findings, load_policy())
+    readiness_summary = calculate_readiness(findings)
+
+    return {
+        "score": readiness_summary["score"],
+        "score_status": readiness_summary["score_status"],
+        "readiness_summary": readiness_summary,
+        "findings": findings,
+    }
+
+
+def has_kafka_input(fields, files):
+    return any(
+        [
+            value_or_none(fields.get("bootstrap_server")),
+            files.get("access_config"),
+            files.get("ca_cert"),
+            files.get("client_cert"),
+            files.get("client_key"),
+            value_or_none(fields.get("topic")),
+            value_or_none(fields.get("consumer_group")),
+        ]
+    )
+
+
+def run_kafka_collector(fields, files):
     mode = fields.get("mode", "direct")
     access_config = files.get("access_config") if mode == "access" else None
-    findings = analyze_kafka_cluster(
+    return analyze_kafka_cluster(
         bootstrap_server=value_or_none(fields.get("bootstrap_server")),
         security_protocol=fields.get("security_protocol", "PLAINTEXT"),
         ca_cert=files.get("ca_cert"),
@@ -557,23 +648,6 @@ def run_kafka_check(fields, files):
         max_topics=int(fields.get("max_topics") or 50),
         max_groups=int(fields.get("max_groups") or 20),
     )
-    schema_registry_config = resolve_schema_registry_config(fields, files)
-    if schema_registry_config:
-        findings.extend(
-            analyze_schema_registry_config(
-                schema_registry_config,
-                timeout=int(fields.get("schema_registry_timeout") or 5),
-            )
-        )
-    findings = apply_policy_to_findings(findings, load_policy())
-    readiness_summary = calculate_readiness(findings)
-
-    return {
-        "score": readiness_summary["score"],
-        "score_status": readiness_summary["score_status"],
-        "readiness_summary": readiness_summary,
-        "findings": findings,
-    }
 
 
 def resolve_schema_registry_config(fields, files):

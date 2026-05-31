@@ -170,3 +170,88 @@ def test_kafka_ui_parses_expected_topic_subjects():
         {"name": "payments", "subjects": ["payments-key", "payments-value"]},
         {"name": "orders"},
     ]
+
+
+def test_beacon_ui_combines_generic_domain_inputs(monkeypatch):
+    from beacon import ui
+
+    calls = []
+
+    def finding(rule_id, domain):
+        return {
+            "rule_id": rule_id,
+            "domain": domain,
+            "category": "runtime_stability",
+            "severity": "INFO",
+            "title": rule_id,
+            "impact": "impact",
+            "recommendation": "recommendation",
+            "file": domain,
+            "evidence": {},
+            "tags": [],
+        }
+
+    monkeypatch.setattr(
+        ui,
+        "scan_path",
+        lambda path: calls.append(("static", path))
+        or [finding("static.rule", "infra")],
+    )
+    monkeypatch.setattr(
+        ui,
+        "analyze_runtime_snapshot_file",
+        lambda path: calls.append(("snapshot", path))
+        or [finding("snapshot.rule", "runtime")],
+    )
+    monkeypatch.setattr(
+        ui,
+        "analyze_flow_file",
+        lambda path: calls.append(("flow", path)) or [finding("flow.rule", "flow")],
+    )
+    monkeypatch.setattr(
+        ui,
+        "analyze_prometheus_config",
+        lambda path, timeout=5: calls.append(("prometheus", path, timeout))
+        or [finding("prometheus.rule", "prometheus")],
+    )
+    monkeypatch.setattr(
+        ui,
+        "analyze_opentelemetry_file",
+        lambda path: calls.append(("opentelemetry", path))
+        or [finding("opentelemetry.rule", "opentelemetry")],
+    )
+    monkeypatch.setattr(ui, "analyze_kafka_cluster", lambda **kwargs: [])
+
+    result = ui.run_beacon_check(
+        {"mode": "direct", "prometheus_timeout": "2"},
+        {
+            "static_config": "/tmp/static.yaml",
+            "runtime_snapshot": "/tmp/runtime.yaml",
+            "flow_snapshot": "/tmp/flow.yaml",
+            "prometheus_config": "/tmp/prometheus.yaml",
+            "opentelemetry_file": "/tmp/otel.yaml",
+        },
+    )
+
+    assert {finding["rule_id"] for finding in result["findings"]} == {
+        "static.rule",
+        "snapshot.rule",
+        "flow.rule",
+        "prometheus.rule",
+        "opentelemetry.rule",
+    }
+    assert ("prometheus", "/tmp/prometheus.yaml", 2) in calls
+
+
+def test_beacon_ui_does_not_run_kafka_without_kafka_inputs(monkeypatch):
+    from beacon import ui
+
+    calls = []
+    monkeypatch.setattr(
+        ui, "analyze_kafka_cluster", lambda **kwargs: calls.append(kwargs) or []
+    )
+
+    result = ui.run_beacon_check({"mode": "direct"}, {})
+
+    assert calls == []
+    assert result["score"] == 100
