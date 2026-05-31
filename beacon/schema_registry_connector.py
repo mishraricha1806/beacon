@@ -1,5 +1,6 @@
 import base64
 import json
+import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -193,8 +194,37 @@ def query_schema_registry(base_url, path, registry, timeout=5):
     for key, value in auth_headers(registry).items():
         request.add_header(key, value)
 
-    with urllib.request.urlopen(request, timeout=timeout) as response:
+    context = build_ssl_context(registry)
+    if context:
+        response_handle = urllib.request.urlopen(
+            request, timeout=timeout, context=context
+        )
+    else:
+        response_handle = urllib.request.urlopen(request, timeout=timeout)
+
+    with response_handle as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def build_ssl_context(registry):
+    tls = registry.get("tls", {}) or {}
+    auth = registry.get("auth", {}) or {}
+
+    if auth.get("type") in {"mtls", "ssl"}:
+        tls = {**auth, **tls}
+
+    ca_cert = tls.get("ca_cert")
+    client_cert = tls.get("client_cert")
+    client_key = tls.get("client_key")
+
+    if not any([ca_cert, client_cert, client_key]):
+        return None
+
+    context = ssl.create_default_context(cafile=ca_cert)
+    if client_cert:
+        context.load_cert_chain(certfile=client_cert, keyfile=client_key)
+
+    return context
 
 
 def auth_headers(registry):

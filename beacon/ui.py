@@ -7,6 +7,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from beacon.kafka_runtime_connector import analyze_kafka_cluster
 from beacon.policy import apply_policy_to_findings, load_policy
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
+from beacon.schema_registry_connector import analyze_schema_registry_config
 
 
 HTML = """<!doctype html>
@@ -74,13 +75,17 @@ HTML = """<!doctype html>
       font-size: 13px;
       font-weight: 650;
     }
-    input, select {
+    input, select, textarea {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 6px;
       padding: 9px 10px;
       font: inherit;
       background: white;
+    }
+    textarea {
+      min-height: 80px;
+      resize: vertical;
     }
     input[type="file"] { padding: 7px; }
     .grid2 {
@@ -273,6 +278,62 @@ HTML = """<!doctype html>
           </div>
         </div>
 
+        <h2>Schema Registry</h2>
+        <label for="schema_registry_config">Schema Registry YAML</label>
+        <input id="schema_registry_config" name="schema_registry_config" type="file">
+        <div class="hint">Optional. Upload an existing Schema Registry collector config, or fill in the fields below.</div>
+
+        <label for="schema_registry_url">Schema Registry URL</label>
+        <input id="schema_registry_url" name="schema_registry_url" placeholder="http://schema-registry.local:8081">
+
+        <div class="grid2">
+          <div>
+            <label for="schema_registry_auth_type">Auth type</label>
+            <select id="schema_registry_auth_type" name="schema_registry_auth_type">
+              <option value="">None</option>
+              <option value="bearer_token">Bearer token</option>
+              <option value="basic">Basic</option>
+            </select>
+          </div>
+          <div>
+            <label for="schema_registry_max_subjects">Max subjects</label>
+            <input id="schema_registry_max_subjects" name="schema_registry_max_subjects" type="number" value="25" min="0">
+          </div>
+        </div>
+
+        <div id="schema-token-fields" class="hidden">
+          <label for="schema_registry_token">Bearer token</label>
+          <input id="schema_registry_token" name="schema_registry_token" type="password" autocomplete="off">
+        </div>
+
+        <div id="schema-basic-fields" class="hidden">
+          <div class="grid2">
+            <div>
+              <label for="schema_registry_username">Username</label>
+              <input id="schema_registry_username" name="schema_registry_username" autocomplete="off">
+            </div>
+            <div>
+              <label for="schema_registry_password">Password</label>
+              <input id="schema_registry_password" name="schema_registry_password" type="password" autocomplete="off">
+            </div>
+          </div>
+        </div>
+
+        <label for="schema_registry_ca_cert">Schema Registry CA certificate</label>
+        <input id="schema_registry_ca_cert" name="schema_registry_ca_cert" type="file">
+        <div class="hint">Optional. Use this for private CAs or HTTPS trust chains.</div>
+
+        <label for="schema_registry_client_cert">Schema Registry client certificate</label>
+        <input id="schema_registry_client_cert" name="schema_registry_client_cert" type="file">
+
+        <label for="schema_registry_client_key">Schema Registry client key</label>
+        <input id="schema_registry_client_key" name="schema_registry_client_key" type="file">
+        <div class="hint">Optional. Use these for mTLS, including organizations that reuse topic-level PEM/cert files.</div>
+
+        <label for="schema_registry_expected_topics">Expected topic subjects</label>
+        <textarea id="schema_registry_expected_topics" name="schema_registry_expected_topics" placeholder="payments: payments-key, payments-value&#10;audit-events: audit-events-value"></textarea>
+        <div class="hint">Optional. One topic per line. Use "topic: subject-a, subject-b" or just "topic" for default key/value subjects.</div>
+
         <button id="run-button" type="submit">Run Readiness</button>
       </form>
     </section>
@@ -288,6 +349,9 @@ HTML = """<!doctype html>
     const button = document.getElementById('run-button');
     const direct = document.getElementById('direct-fields');
     const access = document.getElementById('access-fields');
+    const schemaAuth = document.getElementById('schema_registry_auth_type');
+    const schemaTokenFields = document.getElementById('schema-token-fields');
+    const schemaBasicFields = document.getElementById('schema-basic-fields');
 
     document.querySelectorAll('input[name="mode"]').forEach((input) => {
       input.addEventListener('change', () => {
@@ -295,6 +359,11 @@ HTML = """<!doctype html>
         direct.classList.toggle('hidden', useAccess);
         access.classList.toggle('hidden', !useAccess);
       });
+    });
+
+    schemaAuth.addEventListener('change', () => {
+      schemaTokenFields.classList.toggle('hidden', schemaAuth.value !== 'bearer_token');
+      schemaBasicFields.classList.toggle('hidden', schemaAuth.value !== 'basic');
     });
 
     form.addEventListener('submit', async (event) => {
@@ -466,6 +535,13 @@ def save_temp_upload(filename, content):
     return temp.name
 
 
+def save_temp_json_config(prefix, config):
+    temp = tempfile.NamedTemporaryFile(prefix=prefix, suffix=".json", delete=False)
+    with temp:
+        temp.write(json.dumps(config).encode("utf-8"))
+    return temp.name
+
+
 def run_kafka_check(fields, files):
     mode = fields.get("mode", "direct")
     access_config = files.get("access_config") if mode == "access" else None
@@ -481,6 +557,14 @@ def run_kafka_check(fields, files):
         max_topics=int(fields.get("max_topics") or 50),
         max_groups=int(fields.get("max_groups") or 20),
     )
+    schema_registry_config = resolve_schema_registry_config(fields, files)
+    if schema_registry_config:
+        findings.extend(
+            analyze_schema_registry_config(
+                schema_registry_config,
+                timeout=int(fields.get("schema_registry_timeout") or 5),
+            )
+        )
     findings = apply_policy_to_findings(findings, load_policy())
     readiness_summary = calculate_readiness(findings)
 
@@ -490,6 +574,92 @@ def run_kafka_check(fields, files):
         "readiness_summary": readiness_summary,
         "findings": findings,
     }
+
+
+def resolve_schema_registry_config(fields, files):
+    if files.get("schema_registry_config"):
+        return files["schema_registry_config"]
+
+    url = value_or_none(fields.get("schema_registry_url"))
+    if not url:
+        return None
+
+    registry = {
+        "url": url,
+        "max_subjects": int(fields.get("schema_registry_max_subjects") or 25),
+    }
+    auth = build_schema_registry_auth(fields)
+    if auth:
+        registry["auth"] = auth
+
+    tls = build_schema_registry_tls(files)
+    if tls:
+        registry["tls"] = tls
+
+    expected_topics = parse_expected_topic_subjects(
+        fields.get("schema_registry_expected_topics")
+    )
+    if expected_topics:
+        registry["expected_topics"] = expected_topics
+
+    return save_temp_json_config(
+        "beacon-schema-registry-ui-", {"schema_registry": registry}
+    )
+
+
+def build_schema_registry_auth(fields):
+    auth_type = value_or_none(fields.get("schema_registry_auth_type"))
+
+    if auth_type == "bearer_token":
+        token = value_or_none(fields.get("schema_registry_token"))
+        if token:
+            return {"type": "bearer_token", "token": token}
+
+    if auth_type == "basic":
+        username = value_or_none(fields.get("schema_registry_username")) or ""
+        password = value_or_none(fields.get("schema_registry_password")) or ""
+        if username or password:
+            return {"type": "basic", "username": username, "password": password}
+
+    return None
+
+
+def build_schema_registry_tls(files):
+    tls = {}
+
+    mapping = {
+        "schema_registry_ca_cert": "ca_cert",
+        "schema_registry_client_cert": "client_cert",
+        "schema_registry_client_key": "client_key",
+    }
+    for upload_name, config_name in mapping.items():
+        if files.get(upload_name):
+            tls[config_name] = files[upload_name]
+
+    return tls or None
+
+
+def parse_expected_topic_subjects(raw):
+    topics = []
+
+    for line in (raw or "").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+
+        if ":" in line:
+            name, subjects = line.split(":", 1)
+            topic = {"name": name.strip()}
+            subject_list = [
+                subject.strip() for subject in subjects.split(",") if subject.strip()
+            ]
+            if subject_list:
+                topic["subjects"] = subject_list
+            topics.append(topic)
+        else:
+            topics.append({"name": line})
+
+    return topics
 
 
 def value_or_none(value):

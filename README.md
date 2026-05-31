@@ -196,8 +196,11 @@ python3 -m beacon.ui
 ```
 
 Then open `http://127.0.0.1:8765` and enter the bootstrap server, certificates,
-or access profile YAML. The UI uses the same read-only Kafka diagnostics engine
-as the CLI.
+access profile YAML, and optional Schema Registry URL or collector YAML. The UI
+uses the same read-only Kafka and Schema Registry diagnostics engines as the CLI.
+Schema Registry supports bearer token, basic auth, custom CA certificates, and
+mTLS client certificate/key uploads, so teams can reuse topic-level PEM/cert
+access where their platform requires it.
 
 ---
 

@@ -99,3 +99,53 @@ def test_schema_registry_query_failure_blocks_collection(monkeypatch, tmp_path):
 
     assert "schema_registry.runtime.read_only_mode" in rule_ids
     assert "schema_registry.query.failed" in rule_ids
+
+
+def test_schema_registry_uses_mtls_context(monkeypatch, tmp_path):
+    from beacon import schema_registry_connector
+
+    path = tmp_path / "schema-registry.yaml"
+    path.write_text(
+        """
+schema_registry:
+  url: https://schema-registry.local:8081
+  tls:
+    ca_cert: /tmp/ca.pem
+    client_cert: /tmp/client.pem
+    client_key: /tmp/client.key
+"""
+    )
+
+    calls = []
+
+    class FakeContext:
+        def load_cert_chain(self, certfile, keyfile=None):
+            calls.append(("load_cert_chain", certfile, keyfile))
+
+    def fake_create_default_context(cafile=None):
+        calls.append(("create_default_context", cafile))
+        return FakeContext()
+
+    def fake_urlopen(request, timeout=None, context=None):
+        calls.append(("urlopen", request.full_url, context is not None))
+        if request.full_url.endswith("/subjects"):
+            return FakeSchemaRegistryResponse([])
+        if request.full_url.endswith("/config"):
+            return FakeSchemaRegistryResponse({"compatibilityLevel": "BACKWARD"})
+        raise AssertionError(request.full_url)
+
+    monkeypatch.setattr(
+        schema_registry_connector.ssl,
+        "create_default_context",
+        fake_create_default_context,
+    )
+    monkeypatch.setattr(
+        schema_registry_connector.urllib.request, "urlopen", fake_urlopen
+    )
+
+    findings = schema_registry_connector.analyze_schema_registry_config(str(path))
+
+    assert findings[0]["rule_id"] == "schema_registry.runtime.read_only_mode"
+    assert ("create_default_context", "/tmp/ca.pem") in calls
+    assert ("load_cert_chain", "/tmp/client.pem", "/tmp/client.key") in calls
+    assert any(call[0] == "urlopen" and call[2] for call in calls)

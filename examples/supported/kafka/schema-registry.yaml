@@ -4,6 +4,10 @@ schema_registry:
   auth:
     type: bearer_token
     token: example-read-only-token
+  tls:
+    ca_cert: examples/supported/kafka/certs/ca.pem
+    client_cert: examples/supported/kafka/certs/payments-client.pem
+    client_key: examples/supported/kafka/certs/payments-client.key
   expected_topics:
     - name: payments
       subjects:
