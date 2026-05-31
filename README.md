@@ -74,9 +74,9 @@ and analyze:
 * broker security and ACL safety defaults
 * producer durability, idempotence, ordering, and compression settings
 * consumer offset commit, replay, rebalance, concurrency, and DLQ settings
-* rack/AZ awareness and unclean leader election risk
+* rack/AZ awareness, replica placement, and unclean leader election risk
 * replication factor
-* retention settings
+* retention, compaction, tombstone, and key-cardinality settings
 * partition topology
 * offline partitions and ISR shrink
 * leader imbalance
@@ -88,6 +88,7 @@ and analyze:
 * broker disk skew
 * producer error rate, throttling, and request latency pressure
 * Schema Registry availability and incompatible schema-change risk
+* backlog replay time and retention-window survivability
 * storage growth pressure
 * operational bottlenecks
 

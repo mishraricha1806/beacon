@@ -24,6 +24,7 @@ def normalize_kafka_config(data, source):
                     "delete_retention_ms": topic.get("delete_retention_ms"),
                     "min_cleanable_dirty_ratio": topic.get("min_cleanable_dirty_ratio"),
                     "key_cardinality_estimate": topic.get("key_cardinality_estimate"),
+                    "replica_placements": topic.get("replica_placements", []),
                     "schema_compatibility": topic.get("schema_compatibility"),
                     "owner": topic.get("owner"),
                 },

@@ -560,8 +560,10 @@ def build_partition_health_findings(metadata, topic_names, broker_count):
     offline_partitions = []
     under_replicated_partitions = []
     under_min_isr_partitions = []
+    single_failure_domain_partitions = []
     leader_counts = {}
     total_partitions = 0
+    broker_racks = build_broker_rack_map(metadata)
 
     for topic_name in topic_names:
         topic_metadata = metadata.topics.get(topic_name)
@@ -576,6 +578,11 @@ def build_partition_health_findings(metadata, topic_names, broker_count):
             leader = getattr(partition_metadata, "leader", None)
             replicas = list(getattr(partition_metadata, "replicas", []) or [])
             isrs = list(getattr(partition_metadata, "isrs", []) or [])
+            replica_racks = [
+                broker_racks.get(str(replica))
+                for replica in replicas
+                if broker_racks.get(str(replica))
+            ]
 
             if leader is None or leader < 0:
                 offline_partitions.append(
@@ -605,6 +612,20 @@ def build_partition_health_findings(metadata, topic_names, broker_count):
                         "partition": partition_id,
                         "replicas": replicas,
                         "isr": isrs,
+                    }
+                )
+
+            if (
+                len(replicas) > 1
+                and len(replica_racks) == len(replicas)
+                and len(set(replica_racks)) < 2
+            ):
+                single_failure_domain_partitions.append(
+                    {
+                        "topic": topic_name,
+                        "partition": partition_id,
+                        "replicas": replicas,
+                        "racks": replica_racks,
                     }
                 )
 
@@ -663,6 +684,23 @@ def build_partition_health_findings(metadata, topic_names, broker_count):
             )
         )
 
+    if single_failure_domain_partitions:
+        findings.append(
+            finding(
+                "CRITICAL",
+                f"Kafka has {len(single_failure_domain_partitions)} partition(s) with replicas in one rack/AZ",
+                "A single rack or availability-zone failure can remove multiple replicas for the same partition.",
+                "Reassign replicas so each partition spans at least two failure domains, preferably all available AZs for RF=3.",
+                rule_id="kafka.cluster.replica_placement.single_failure_domain",
+                category="resiliency",
+                evidence={
+                    "risky_partitions": single_failure_domain_partitions[:10],
+                    "risky_partition_count": len(single_failure_domain_partitions),
+                },
+                confidence="HIGH",
+            )
+        )
+
     if total_partitions and broker_count and leader_counts:
         average_leaders = total_partitions / broker_count
         max_leader_count = max(leader_counts.values())
@@ -692,6 +730,23 @@ def build_partition_health_findings(metadata, topic_names, broker_count):
             )
 
     return findings
+
+
+def build_broker_rack_map(metadata):
+    broker_racks = {}
+
+    for broker_id, broker in (getattr(metadata, "brokers", {}) or {}).items():
+        rack = (
+            getattr(broker, "rack", None)
+            or getattr(broker, "broker_rack", None)
+            or getattr(broker, "az", None)
+            or getattr(broker, "zone", None)
+        )
+
+        if rack:
+            broker_racks[str(broker_id)] = str(rack)
+
+    return broker_racks
 
 
 def fetch_committed_offsets(admin_client, group_id):

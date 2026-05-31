@@ -11,7 +11,7 @@ Module 1 is ready to release when these surfaces are supported by examples, dete
 - Kubernetes YAML, runtime snapshots, and read-only live cluster collection
 - Kafka topic, broker/server configuration, and read-only live metadata/lag collection
 - Kafka producer and consumer client configuration risk checks
-- Kafka deterministic checks for broker security defaults, rack/AZ safety, schema compatibility, ownership, controller health, reassignment pressure, replication lag, throttling, and request queue saturation
+- Kafka deterministic checks for broker security defaults, rack/AZ safety, replica placement, schema compatibility, ownership, compaction safety, replay survivability, controller health, reassignment pressure, replication lag, throttling, and request queue saturation
 - CI/CD deployment workflow manifests
 - Cloud inventory snapshots
 - Service topology and blast-radius snapshots

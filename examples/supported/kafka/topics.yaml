@@ -7,6 +7,10 @@ kafka:
       cleanup_policy:
       min_insync_replicas:
       max_message_bytes: 20971520
+      replica_placements:
+        - partition: 0
+          replicas: [1, 2, 3]
+          replica_racks: [az-a, az-a, az-a]
       schema_compatibility: NONE
       owner:
     - name: audit-events

@@ -38,6 +38,37 @@ def has_cleanup_policy(resource, policy):
     return policy in policies
 
 
+def replica_racks_from_placement(placement):
+    replicas = placement.get("replicas", []) or []
+    racks_by_broker = placement.get("racks_by_broker", {}) or {}
+
+    if placement.get("replica_racks"):
+        return [str(rack) for rack in placement.get("replica_racks", []) if rack]
+
+    if placement.get("racks"):
+        return [str(rack) for rack in placement.get("racks", []) if rack]
+
+    racks = []
+
+    for replica in replicas:
+        if isinstance(replica, dict):
+            rack = (
+                replica.get("rack")
+                or replica.get("broker_rack")
+                or replica.get("az")
+                or replica.get("zone")
+            )
+            if rack:
+                racks.append(str(rack))
+            continue
+
+        rack = racks_by_broker.get(str(replica), racks_by_broker.get(replica))
+        if rack:
+            racks.append(str(rack))
+
+    return racks
+
+
 def broker_default_replication_factor_low(resource, context):
     value = resource.attributes.get("default_replication_factor")
 
@@ -760,6 +791,46 @@ def compacted_key_cardinality_high(resource, context):
     )
 
 
+def replica_placement_single_failure_domain(resource, context):
+    placements = resource.attributes.get("replica_placements") or []
+    risky_partitions = []
+
+    for placement in placements:
+        replicas = placement.get("replicas", []) or []
+        racks = replica_racks_from_placement(placement)
+
+        if len(replicas) <= 1 or len(racks) != len(replicas):
+            continue
+
+        if len(set(racks)) < 2:
+            risky_partitions.append(
+                {
+                    "partition": placement.get("partition"),
+                    "replicas": replicas,
+                    "racks": racks,
+                }
+            )
+
+    if not risky_partitions:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.replica_placement.single_failure_domain",
+        category="resiliency",
+        severity="CRITICAL",
+        title=f"Kafka topic '{resource.name}' has replicas in one rack/AZ",
+        impact="A single rack or availability-zone failure can remove multiple replicas for the same partition.",
+        recommendation="Reassign replicas so each partition spans at least two failure domains, preferably all available AZs for RF=3.",
+        evidence={
+            "topic": resource.name,
+            "risky_partitions": risky_partitions[:10],
+            "risky_partition_count": len(risky_partitions),
+        },
+        tags=["kafka", "rack-awareness", "replica-placement"],
+    )
+
+
 def schema_compatibility_unsafe(resource, context):
     compatibility = resource.attributes.get("schema_compatibility")
 
@@ -1367,6 +1438,16 @@ register(
     "Detects compacted topics with high key cardinality and missing storage guardrails.",
     compacted_key_cardinality_high,
     ["kafka", "compaction", "key-cardinality"],
+)
+
+register(
+    "kafka.topic.replica_placement.single_failure_domain",
+    "resiliency",
+    "CRITICAL",
+    "Kafka topic replicas in one failure domain",
+    "Detects partitions whose replicas are all placed in the same rack or availability zone.",
+    replica_placement_single_failure_domain,
+    ["kafka", "rack-awareness", "replica-placement"],
 )
 
 register(

@@ -31,3 +31,6 @@ prometheus:
         query: min(up{job="schema-registry"})
         type: bool
       schema_incompatible_changes_24h: increase(schema_registry_incompatible_schema_total[24h])
+      backlog_messages: sum(kafka_consumergroup_lag{consumergroup="checkout-consumer"})
+      consumer_throughput_messages_per_sec: sum(rate(kafka_consumer_records_consumed_total{consumergroup="checkout-consumer"}[5m]))
+      producer_rate_messages_per_sec: sum(rate(kafka_server_brokertopicmetrics_messagesin_total{topic="payments"}[5m]))

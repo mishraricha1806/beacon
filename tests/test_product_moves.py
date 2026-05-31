@@ -324,6 +324,11 @@ def test_live_kafka_partition_health_detects_replication_and_leader_risk():
     from beacon.kafka_runtime_connector import build_partition_health_findings
 
     metadata = SimpleNamespace(
+        brokers={
+            1: SimpleNamespace(rack="az-a"),
+            2: SimpleNamespace(rack="az-a"),
+            3: SimpleNamespace(rack="az-a"),
+        },
         topics={
             "payments": SimpleNamespace(
                 partitions={
@@ -333,7 +338,7 @@ def test_live_kafka_partition_health_detects_replication_and_leader_risk():
                     3: SimpleNamespace(leader=1, replicas=[1, 2, 3], isrs=[1, 2, 3]),
                 }
             )
-        }
+        },
     )
 
     findings = build_partition_health_findings(
@@ -347,6 +352,7 @@ def test_live_kafka_partition_health_detects_replication_and_leader_risk():
     assert "kafka.cluster.under_replicated_partitions" in rule_ids
     assert "kafka.cluster.under_min_isr_partitions" in rule_ids
     assert "kafka.cluster.leader_imbalance.high" in rule_ids
+    assert "kafka.cluster.replica_placement.single_failure_domain" in rule_ids
 
 
 def test_live_kafka_consumer_group_stability_detects_rebalancing_and_empty():
@@ -939,6 +945,13 @@ def test_kafka_topic_schema_and_ownership_risks_are_scanned():
                     "retention_bytes": 1073741824,
                     "cleanup_policy": "delete",
                     "min_insync_replicas": 2,
+                    "replica_placements": [
+                        {
+                            "partition": 0,
+                            "replicas": [1, 2, 3],
+                            "replica_racks": ["az-a", "az-a", "az-a"],
+                        }
+                    ],
                     "schema_compatibility": "NONE",
                 }
             ]
@@ -949,6 +962,7 @@ def test_kafka_topic_schema_and_ownership_risks_are_scanned():
 
     assert "kafka.topic.schema_compatibility.unsafe" in rule_ids
     assert "kafka.topic.owner.missing" in rule_ids
+    assert "kafka.topic.replica_placement.single_failure_domain" in rule_ids
 
 
 def test_kafka_compacted_topic_operational_risks_are_scanned():
