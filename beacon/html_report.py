@@ -278,6 +278,31 @@ HTML_TEMPLATE = """
             {% endfor %}
         </table>
     </div>
+
+    {% if readiness_summary.kafka_report %}
+    <div class="card section">
+        <h2>{{ readiness_summary.kafka_report.title }}</h2>
+        <p class="text-block">Kafka findings are grouped by operational ownership so teams can route remediation faster.</p>
+
+        {% for section in readiness_summary.kafka_report.sections %}
+        <div class="finding">
+            <div class="finding-title">{{ section.title }}</div>
+            <p class="muted">
+                Findings: {{ section.finding_count }}
+                · Critical: {{ section.severity_counts.CRITICAL }}
+                · High: {{ section.severity_counts.HIGH }}
+                · Medium: {{ section.severity_counts.MEDIUM }}
+            </p>
+            <p class="text-block"><strong>Recommended Action:</strong> {{ section.recommended_action }}</p>
+            <ul>
+                {% for finding in section.top_findings %}
+                <li><strong>{{ finding.severity }}</strong>: {{ finding.title }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% else %}
     <div class="grid">
         <div class="card">

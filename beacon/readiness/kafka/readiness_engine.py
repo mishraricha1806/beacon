@@ -4,6 +4,7 @@ from beacon.scoring import (
     production_readiness_decision,
 )
 from beacon.correlations.root_cause import correlate_findings
+from beacon.kafka_report import build_kafka_report
 
 
 DEFAULT_CATEGORIES = {
@@ -37,6 +38,7 @@ def calculate_readiness(findings):
         "top_reasons": [],
         "next_best_actions": [],
         "root_cause_hypotheses": [],
+        "kafka_report": None,
     }
 
     for finding in findings:
@@ -68,6 +70,7 @@ def calculate_readiness(findings):
     summary["top_reasons"] = build_top_reasons(findings)
     summary["next_best_actions"] = build_next_best_actions(summary)
     summary["root_cause_hypotheses"] = correlate_findings(findings)
+    summary["kafka_report"] = build_kafka_report(findings)
     return summary
 
 

@@ -57,6 +57,16 @@ def print_readiness_summary(summary):
                 f"(score {hypothesis['score']})"
             )
 
+    if summary.get("kafka_report"):
+        console.print("\n[bold]Kafka Readiness Sections:[/bold]")
+        for section in summary["kafka_report"]["sections"]:
+            counts = section["severity_counts"]
+            console.print(
+                f"- {section['title']}: {section['finding_count']} finding(s) "
+                f"(Critical {counts.get('CRITICAL', 0)}, High {counts.get('HIGH', 0)}, "
+                f"Medium {counts.get('MEDIUM', 0)})"
+            )
+
     console.print()
 
     console.print(table)

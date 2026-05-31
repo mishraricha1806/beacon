@@ -20,6 +20,7 @@ SUMMARY_KEYS = {
     "top_reasons",
     "next_best_actions",
     "root_cause_hypotheses",
+    "kafka_report",
 }
 
 FINDING_KEYS = {
