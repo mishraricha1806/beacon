@@ -115,6 +115,150 @@ def broker_auto_create_topics_enabled(resource, context):
     )
 
 
+def broker_unclean_leader_election_enabled(resource, context):
+    value = resource.attributes.get("unclean_leader_election_enable")
+
+    if value is not True:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.unclean_leader_election.enabled",
+        "resiliency",
+        "CRITICAL",
+        f"Kafka broker '{resource.name}' allows unclean leader election",
+        "Unclean leader election can restore availability by sacrificing acknowledged data during replica failure.",
+        "Disable unclean.leader.election.enable for production clusters unless an explicit data-loss exception exists.",
+        {"broker": resource.name, "unclean_leader_election_enable": value},
+        ["kafka", "broker", "data-loss"],
+    )
+
+
+def broker_rack_missing(resource, context):
+    rack = resource.attributes.get("broker_rack")
+
+    if rack:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.rack_awareness.missing",
+        "resiliency",
+        "HIGH",
+        f"Kafka broker '{resource.name}' has no broker.rack configured",
+        "Missing rack awareness can place replicas in the same failure domain and weaken AZ survivability.",
+        "Set broker.rack and validate replica placement across failure domains.",
+        {"broker": resource.name, "broker_rack": rack},
+        ["kafka", "broker", "rack-awareness"],
+    )
+
+
+def broker_plaintext_listener_enabled(resource, context):
+    protocol = resource.attributes.get("security_protocol")
+    listener_map = resource.attributes.get("listener_security_protocol_map")
+    text = f"{protocol or ''} {listener_map or ''}".upper()
+
+    if "PLAINTEXT" not in text:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.security.plaintext_listener",
+        "operational_safety",
+        "HIGH",
+        f"Kafka broker '{resource.name}' exposes PLAINTEXT listener configuration",
+        "Plaintext Kafka traffic can expose credentials and event payloads on production networks.",
+        "Use SSL or SASL_SSL listeners for production traffic and restrict plaintext listeners to approved internal exceptions.",
+        {
+            "broker": resource.name,
+            "security_protocol": protocol,
+            "listener_security_protocol_map": listener_map,
+        },
+        ["kafka", "security", "tls"],
+    )
+
+
+def broker_authorizer_missing(resource, context):
+    authorizer = resource.attributes.get("authorizer_class_name")
+
+    if authorizer:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.security.authorizer_missing",
+        "operational_safety",
+        "HIGH",
+        f"Kafka broker '{resource.name}' has no authorizer configured",
+        "Missing Kafka authorization can allow broad topic, group, or cluster access if network controls fail.",
+        "Enable Kafka authorization and define least-privilege ACLs or equivalent platform controls.",
+        {"broker": resource.name, "authorizer_class_name": authorizer},
+        ["kafka", "security", "acl"],
+    )
+
+
+def broker_allow_everyone_if_no_acl(resource, context):
+    value = resource.attributes.get("allow_everyone_if_no_acl_found")
+
+    if value is not True:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.security.allow_everyone_if_no_acl",
+        "operational_safety",
+        "CRITICAL",
+        f"Kafka broker '{resource.name}' allows access when no ACL is found",
+        "allow.everyone.if.no.acl.found can turn missing ACLs into broad access.",
+        "Set allow.everyone.if.no.acl.found=false and explicitly grant required ACLs.",
+        {"broker": resource.name, "allow_everyone_if_no_acl_found": value},
+        ["kafka", "security", "acl"],
+    )
+
+
+def broker_controlled_shutdown_disabled(resource, context):
+    value = resource.attributes.get("controlled_shutdown_enable")
+
+    if value is not False:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.controlled_shutdown.disabled",
+        "recovery_readiness",
+        "MEDIUM",
+        f"Kafka broker '{resource.name}' has controlled shutdown disabled",
+        "Disabled controlled shutdown can increase partition leadership disruption during broker maintenance.",
+        "Enable controlled shutdown where supported and validate rolling restart procedures.",
+        {"broker": resource.name, "controlled_shutdown_enable": value},
+        ["kafka", "broker", "maintenance"],
+    )
+
+
+def broker_client_quotas_missing(resource, context):
+    producer_quota = resource.attributes.get("producer_quota_bytes_per_second")
+    consumer_quota = resource.attributes.get("consumer_quota_bytes_per_second")
+
+    if producer_quota is not None and consumer_quota is not None:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.broker.client_quotas.missing",
+        "operational_safety",
+        "MEDIUM",
+        f"Kafka broker '{resource.name}' does not define both producer and consumer quotas",
+        "Missing client quotas can allow one workload to saturate brokers during spikes or incidents.",
+        "Define producer and consumer quotas for production clients or document approved no-quota exceptions.",
+        {
+            "broker": resource.name,
+            "producer_quota_bytes_per_second": producer_quota,
+            "consumer_quota_bytes_per_second": consumer_quota,
+        },
+        ["kafka", "quotas", "multi-tenant"],
+    )
+
+
 def replication_factor_low(resource, context):
     rf = resource.attributes.get("replication_factor")
 
@@ -520,6 +664,55 @@ def compacted_without_retention_bytes(resource, context):
     )
 
 
+def schema_compatibility_unsafe(resource, context):
+    compatibility = resource.attributes.get("schema_compatibility")
+
+    if compatibility is None:
+        return None
+
+    normalized = str(compatibility).upper()
+
+    if normalized not in {"NONE", "DISABLED"}:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.schema_compatibility.unsafe",
+        category="operational_safety",
+        severity="HIGH",
+        title=f"Kafka topic '{resource.name}' has unsafe schema compatibility",
+        impact="Disabled schema compatibility can break consumers during producer deployments and increase incident risk.",
+        recommendation="Use BACKWARD, FULL, or an approved compatibility mode for production event schemas.",
+        evidence={
+            "topic": resource.name,
+            "schema_compatibility": compatibility,
+        },
+        tags=["kafka", "schema", "deployment-safety"],
+    )
+
+
+def topic_owner_missing(resource, context):
+    owner = resource.attributes.get("owner")
+
+    if owner:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.owner.missing",
+        category="operational_safety",
+        severity="LOW",
+        title=f"Kafka topic '{resource.name}' has no owner metadata",
+        impact="Missing topic ownership slows incident routing, retention review, and cleanup decisions.",
+        recommendation="Add owner/team metadata for production Kafka topics.",
+        evidence={
+            "topic": resource.name,
+            "owner": owner,
+        },
+        tags=["kafka", "governance", "ownership"],
+    )
+
+
 def register(
     rule_id,
     category,
@@ -586,6 +779,83 @@ register(
     "Detects production Kafka brokers with automatic topic creation enabled.",
     broker_auto_create_topics_enabled,
     ["kafka", "broker", "governance"],
+    ["kafka_broker_config"],
+)
+
+register(
+    "kafka.broker.unclean_leader_election.enabled",
+    "resiliency",
+    "CRITICAL",
+    "Kafka unclean leader election enabled",
+    "Detects brokers that allow unclean leader election and potential data loss.",
+    broker_unclean_leader_election_enabled,
+    ["kafka", "broker", "data-loss"],
+    ["kafka_broker_config"],
+)
+
+register(
+    "kafka.broker.rack_awareness.missing",
+    "resiliency",
+    "HIGH",
+    "Kafka broker rack awareness missing",
+    "Detects brokers without broker.rack configured.",
+    broker_rack_missing,
+    ["kafka", "broker", "rack-awareness"],
+    ["kafka_broker_config"],
+)
+
+register(
+    "kafka.broker.security.plaintext_listener",
+    "operational_safety",
+    "HIGH",
+    "Kafka plaintext listener configured",
+    "Detects Kafka broker listener configuration that includes PLAINTEXT.",
+    broker_plaintext_listener_enabled,
+    ["kafka", "security", "tls"],
+    ["kafka_broker_config"],
+)
+
+register(
+    "kafka.broker.security.authorizer_missing",
+    "operational_safety",
+    "HIGH",
+    "Kafka authorizer missing",
+    "Detects brokers without Kafka authorization configured.",
+    broker_authorizer_missing,
+    ["kafka", "security", "acl"],
+    ["kafka_broker_config"],
+)
+
+register(
+    "kafka.broker.security.allow_everyone_if_no_acl",
+    "operational_safety",
+    "CRITICAL",
+    "Kafka allow everyone if no ACL",
+    "Detects allow.everyone.if.no.acl.found=true.",
+    broker_allow_everyone_if_no_acl,
+    ["kafka", "security", "acl"],
+    ["kafka_broker_config"],
+)
+
+register(
+    "kafka.broker.controlled_shutdown.disabled",
+    "recovery_readiness",
+    "MEDIUM",
+    "Kafka controlled shutdown disabled",
+    "Detects brokers with controlled shutdown disabled.",
+    broker_controlled_shutdown_disabled,
+    ["kafka", "broker", "maintenance"],
+    ["kafka_broker_config"],
+)
+
+register(
+    "kafka.broker.client_quotas.missing",
+    "operational_safety",
+    "MEDIUM",
+    "Kafka client quotas missing",
+    "Detects brokers without producer and consumer quota configuration.",
+    broker_client_quotas_missing,
+    ["kafka", "quotas", "multi-tenant"],
     ["kafka_broker_config"],
 )
 
@@ -747,4 +1017,24 @@ register(
     "Detects Kafka topics with low retention period.",
     retention_ms_low,
     ["kafka", "retention", "recovery"],
+)
+
+register(
+    "kafka.topic.schema_compatibility.unsafe",
+    "operational_safety",
+    "HIGH",
+    "Kafka topic schema compatibility unsafe",
+    "Detects Kafka topics with disabled schema compatibility.",
+    schema_compatibility_unsafe,
+    ["kafka", "schema", "deployment-safety"],
+)
+
+register(
+    "kafka.topic.owner.missing",
+    "operational_safety",
+    "LOW",
+    "Kafka topic owner missing",
+    "Detects Kafka topics without ownership metadata.",
+    topic_owner_missing,
+    ["kafka", "governance", "ownership"],
 )

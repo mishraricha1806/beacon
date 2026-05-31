@@ -389,8 +389,17 @@ def test_kafka_runtime_snapshot_v2_covers_production_instability_signals():
             "under_min_isr_partitions": 1,
             "offline_partitions": 1,
             "leader_imbalance_percent": 65,
+            "active_controller_count": 2,
+            "controller_change_count_15m": 3,
+            "partition_reassignment_count": 4,
+            "replication_fetcher_lag": 15000,
             "request_latency_p95_ms": 750,
+            "request_queue_utilization_percent": 86,
             "network_io_utilization_percent": 91,
+            "produce_throttle_time_ms": 140,
+            "fetch_throttle_time_ms": 160,
+            "schema_registry_available": False,
+            "schema_incompatible_changes_24h": 2,
             "broker_count": 3,
             "partition_count": 200,
             "replication_factor": 3,
@@ -410,7 +419,16 @@ def test_kafka_runtime_snapshot_v2_covers_production_instability_signals():
     assert "kafka.runtime.consumer_group.member_shortfall" in rule_ids
     assert "kafka.runtime.producer_error_rate.high" in rule_ids
     assert "kafka.runtime.request_latency.high" in rule_ids
+    assert "kafka.runtime.controller_count.invalid" in rule_ids
+    assert "kafka.runtime.controller_churn.high" in rule_ids
+    assert "kafka.runtime.partition_reassignment.active" in rule_ids
+    assert "kafka.runtime.replication_fetcher_lag.high" in rule_ids
+    assert "kafka.runtime.request_queue_saturation.high" in rule_ids
     assert "kafka.runtime.network_saturation.high" in rule_ids
+    assert "kafka.runtime.producer_throttle.high" in rule_ids
+    assert "kafka.runtime.fetch_throttle.high" in rule_ids
+    assert "kafka.runtime.schema_registry.unavailable" in rule_ids
+    assert "kafka.runtime.schema_incompatible_changes" in rule_ids
 
 
 def test_scanner_uses_normalized_terraform_resources():
@@ -854,6 +872,13 @@ def test_kafka_broker_config_is_scanned():
                     "offsets_topic_replication_factor": 1,
                     "transaction_state_log_replication_factor": 1,
                     "auto_create_topics_enable": True,
+                    "broker_rack": None,
+                    "security_protocol": "PLAINTEXT",
+                    "listener_security_protocol_map": "PLAINTEXT:PLAINTEXT",
+                    "authorizer_class_name": None,
+                    "allow_everyone_if_no_acl_found": True,
+                    "unclean_leader_election_enable": True,
+                    "controlled_shutdown_enable": False,
                 }
             ]
         },
@@ -865,6 +890,39 @@ def test_kafka_broker_config_is_scanned():
     assert "kafka.broker.offsets_replication_factor.low" in rule_ids
     assert "kafka.broker.transaction_log_replication_factor.low" in rule_ids
     assert "kafka.broker.auto_create_topics.enabled" in rule_ids
+    assert "kafka.broker.unclean_leader_election.enabled" in rule_ids
+    assert "kafka.broker.rack_awareness.missing" in rule_ids
+    assert "kafka.broker.security.plaintext_listener" in rule_ids
+    assert "kafka.broker.security.authorizer_missing" in rule_ids
+    assert "kafka.broker.security.allow_everyone_if_no_acl" in rule_ids
+    assert "kafka.broker.controlled_shutdown.disabled" in rule_ids
+    assert "kafka.broker.client_quotas.missing" in rule_ids
+
+
+def test_kafka_topic_schema_and_ownership_risks_are_scanned():
+    from beacon.rules import evaluate_kafka_config
+
+    findings = evaluate_kafka_config(
+        {
+            "topics": [
+                {
+                    "name": "payments",
+                    "replication_factor": 3,
+                    "partitions": 12,
+                    "retention_ms": 86400000,
+                    "retention_bytes": 1073741824,
+                    "cleanup_policy": "delete",
+                    "min_insync_replicas": 2,
+                    "schema_compatibility": "NONE",
+                }
+            ]
+        },
+        "kafka.yaml",
+    )
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "kafka.topic.schema_compatibility.unsafe" in rule_ids
+    assert "kafka.topic.owner.missing" in rule_ids
 
 
 def test_cloud_inventory_snapshot_is_scanned(tmp_path):

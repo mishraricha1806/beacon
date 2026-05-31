@@ -71,16 +71,21 @@ and analyze:
 
 * broker metadata
 * topic configuration
+* broker security and ACL safety defaults
+* rack/AZ awareness and unclean leader election risk
 * replication factor
 * retention settings
 * partition topology
 * offline partitions and ISR shrink
 * leader imbalance
+* controller instability and partition reassignment pressure
+* replication fetcher lag and broker request queue saturation
 * consumer group lag
 * consumer group rebalancing or empty membership
 * hot partition symptoms
 * broker disk skew
-* producer error rate and request latency pressure
+* producer error rate, throttling, and request latency pressure
+* Schema Registry availability and incompatible schema-change risk
 * storage growth pressure
 * operational bottlenecks
 

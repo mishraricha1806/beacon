@@ -375,6 +375,29 @@ def build_live_broker_models(admin_client, metadata):
                 "auto_create_topics_enable": get_config_bool(
                     configs, "auto.create.topics.enable"
                 ),
+                "broker_rack": get_config_value(configs, "broker.rack"),
+                "security_protocol": get_config_value(configs, "security.protocol"),
+                "listener_security_protocol_map": get_config_value(
+                    configs, "listener.security.protocol.map"
+                ),
+                "authorizer_class_name": get_config_value(
+                    configs, "authorizer.class.name"
+                ),
+                "allow_everyone_if_no_acl_found": get_config_bool(
+                    configs, "allow.everyone.if.no.acl.found"
+                ),
+                "unclean_leader_election_enable": get_config_bool(
+                    configs, "unclean.leader.election.enable"
+                ),
+                "controlled_shutdown_enable": get_config_bool(
+                    configs, "controlled.shutdown.enable"
+                ),
+                "producer_quota_bytes_per_second": get_config_int(
+                    configs, "producer_byte_rate"
+                ),
+                "consumer_quota_bytes_per_second": get_config_int(
+                    configs, "consumer_byte_rate"
+                ),
             }
         )
 

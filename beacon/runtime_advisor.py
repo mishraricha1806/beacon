@@ -10,7 +10,7 @@ def finding(
     recommendation,
     file,
     rule_id="runtime.snapshot.diagnostic",
-    domain="runtime",
+    domain="kafka",
     category="runtime_stability",
     evidence=None,
     tags=None,
@@ -65,8 +65,17 @@ def evaluate_kafka_runtime(runtime, file):
     under_min_isr_partitions = signal.under_min_isr_partitions
     offline_partitions = signal.offline_partitions
     leader_imbalance_percent = signal.leader_imbalance_percent
+    active_controller_count = signal.active_controller_count
+    controller_change_count_15m = signal.controller_change_count_15m
+    partition_reassignment_count = signal.partition_reassignment_count
+    replication_fetcher_lag = signal.replication_fetcher_lag
     request_latency_p95_ms = signal.request_latency_p95_ms
+    request_queue_utilization_percent = signal.request_queue_utilization_percent
     network_io_utilization_percent = signal.network_io_utilization_percent
+    produce_throttle_time_ms = signal.produce_throttle_time_ms
+    fetch_throttle_time_ms = signal.fetch_throttle_time_ms
+    schema_registry_available = signal.schema_registry_available
+    schema_incompatible_changes_24h = signal.schema_incompatible_changes_24h
     broker_count = signal.broker_count
     partition_count = signal.partition_count
     replication_factor = signal.replication_factor
@@ -301,6 +310,62 @@ def evaluate_kafka_runtime(runtime, file):
             )
         )
 
+    if active_controller_count is not None and active_controller_count != 1:
+        findings.append(
+            finding(
+                "CRITICAL",
+                f"Kafka active controller count is invalid: {active_controller_count}",
+                "Kafka should have exactly one active controller. Zero or multiple active controllers indicate cluster control-plane instability.",
+                "Investigate controller election, broker quorum health, ZooKeeper/KRaft health, and recent broker restarts.",
+                file,
+                rule_id="kafka.runtime.controller_count.invalid",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if controller_change_count_15m is not None and controller_change_count_15m >= 2:
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka controller changed {controller_change_count_15m} times in 15 minutes",
+                "Frequent controller changes can destabilize metadata operations, partition leadership, and broker recovery.",
+                "Inspect broker churn, controller logs, quorum health, GC pauses, and network instability.",
+                file,
+                rule_id="kafka.runtime.controller_churn.high",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if partition_reassignment_count is not None and partition_reassignment_count > 0:
+        findings.append(
+            finding(
+                "MEDIUM",
+                f"Kafka has {partition_reassignment_count} partition reassignment(s) in progress",
+                "Reassignments consume broker, network, and disk capacity and can amplify incidents if run during saturation.",
+                "Validate reassignment throttle, broker headroom, and incident safety before continuing.",
+                file,
+                rule_id="kafka.runtime.partition_reassignment.active",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if replication_fetcher_lag is not None and replication_fetcher_lag >= 10000:
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka replication fetcher lag is high: {replication_fetcher_lag}",
+                "Replica fetcher lag can delay ISR recovery and increase failover or data-loss exposure.",
+                "Inspect follower broker disk, network, inter-broker throttles, and replication fetcher health.",
+                file,
+                rule_id="kafka.runtime.replication_fetcher_lag.high",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
     if rebalance_count_15m is not None and rebalance_count_15m >= 3:
         findings.append(
             finding(
@@ -394,6 +459,23 @@ def evaluate_kafka_runtime(runtime, file):
         )
 
     if (
+        request_queue_utilization_percent is not None
+        and request_queue_utilization_percent >= 80
+    ):
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka request queue utilization is high: {request_queue_utilization_percent}%",
+                "Request queue saturation can increase producer, consumer, and replication latency.",
+                "Inspect broker CPU, network processors, disk I/O, request handlers, and hot clients.",
+                file,
+                rule_id="kafka.runtime.request_queue_saturation.high",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if (
         network_io_utilization_percent is not None
         and network_io_utilization_percent >= 85
     ):
@@ -405,6 +487,65 @@ def evaluate_kafka_runtime(runtime, file):
                 "Review broker network throughput, cross-AZ replication, client traffic, and compression settings.",
                 file,
                 rule_id="kafka.runtime.network_saturation.high",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if produce_throttle_time_ms is not None and produce_throttle_time_ms >= 100:
+        findings.append(
+            finding(
+                "MEDIUM",
+                f"Kafka producer throttle time is elevated: {produce_throttle_time_ms}ms",
+                "Producer throttling can indicate quota pressure or overloaded brokers.",
+                "Review producer quotas, broker load, client traffic spikes, and whether throttling is expected.",
+                file,
+                rule_id="kafka.runtime.producer_throttle.high",
+                evidence=signal_evidence,
+                confidence="MEDIUM",
+            )
+        )
+
+    if fetch_throttle_time_ms is not None and fetch_throttle_time_ms >= 100:
+        findings.append(
+            finding(
+                "MEDIUM",
+                f"Kafka fetch throttle time is elevated: {fetch_throttle_time_ms}ms",
+                "Consumer fetch throttling can slow processing and contribute to lag growth.",
+                "Review consumer quotas, broker load, client traffic spikes, and whether throttling is expected.",
+                file,
+                rule_id="kafka.runtime.fetch_throttle.high",
+                evidence=signal_evidence,
+                confidence="MEDIUM",
+            )
+        )
+
+    if schema_registry_available is False:
+        findings.append(
+            finding(
+                "HIGH",
+                "Kafka Schema Registry is unavailable",
+                "Schema Registry unavailability can block producers or consumers that validate schemas at runtime.",
+                "Restore Schema Registry health and verify producer and consumer fallback behavior.",
+                file,
+                rule_id="kafka.runtime.schema_registry.unavailable",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if (
+        schema_incompatible_changes_24h is not None
+        and schema_incompatible_changes_24h > 0
+    ):
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka saw {schema_incompatible_changes_24h} incompatible schema change(s) in 24h",
+                "Incompatible schema changes can break consumers and cause poison-message style incidents.",
+                "Review schema compatibility mode, producer deployment diff, and affected consumers before rollout.",
+                file,
+                rule_id="kafka.runtime.schema_incompatible_changes",
                 evidence=signal_evidence,
                 confidence="HIGH",
             )

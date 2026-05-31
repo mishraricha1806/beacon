@@ -5,3 +5,10 @@ kafka:
       offsets_topic_replication_factor: 1
       transaction_state_log_replication_factor: 1
       auto_create_topics_enable: true
+      broker_rack:
+      security_protocol: PLAINTEXT
+      listener_security_protocol_map: PLAINTEXT:PLAINTEXT
+      authorizer_class_name:
+      allow_everyone_if_no_acl_found: true
+      unclean_leader_election_enable: true
+      controlled_shutdown_enable: false

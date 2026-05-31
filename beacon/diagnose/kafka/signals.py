@@ -21,8 +21,17 @@ class KafkaRuntimeSignal:
     under_min_isr_partitions: Optional[int] = None
     offline_partitions: Optional[int] = None
     leader_imbalance_percent: Optional[float] = None
+    active_controller_count: Optional[int] = None
+    controller_change_count_15m: Optional[int] = None
+    partition_reassignment_count: Optional[int] = None
+    replication_fetcher_lag: Optional[int] = None
     request_latency_p95_ms: Optional[float] = None
+    request_queue_utilization_percent: Optional[float] = None
     network_io_utilization_percent: Optional[float] = None
+    produce_throttle_time_ms: Optional[float] = None
+    fetch_throttle_time_ms: Optional[float] = None
+    schema_registry_available: Optional[bool] = None
+    schema_incompatible_changes_24h: Optional[int] = None
     broker_count: Optional[int] = None
     partition_count: Optional[int] = None
     replication_factor: Optional[int] = None
@@ -47,9 +56,22 @@ class KafkaRuntimeSignal:
             under_min_isr_partitions=runtime.get("under_min_isr_partitions"),
             offline_partitions=runtime.get("offline_partitions"),
             leader_imbalance_percent=runtime.get("leader_imbalance_percent"),
+            active_controller_count=runtime.get("active_controller_count"),
+            controller_change_count_15m=runtime.get("controller_change_count_15m"),
+            partition_reassignment_count=runtime.get("partition_reassignment_count"),
+            replication_fetcher_lag=runtime.get("replication_fetcher_lag"),
             request_latency_p95_ms=runtime.get("request_latency_p95_ms"),
+            request_queue_utilization_percent=runtime.get(
+                "request_queue_utilization_percent"
+            ),
             network_io_utilization_percent=runtime.get(
                 "network_io_utilization_percent"
+            ),
+            produce_throttle_time_ms=runtime.get("produce_throttle_time_ms"),
+            fetch_throttle_time_ms=runtime.get("fetch_throttle_time_ms"),
+            schema_registry_available=runtime.get("schema_registry_available"),
+            schema_incompatible_changes_24h=runtime.get(
+                "schema_incompatible_changes_24h"
             ),
             broker_count=runtime.get("broker_count"),
             partition_count=runtime.get("partition_count"),
@@ -77,8 +99,17 @@ class KafkaRuntimeSignal:
                 "under_min_isr_partitions": self.under_min_isr_partitions,
                 "offline_partitions": self.offline_partitions,
                 "leader_imbalance_percent": self.leader_imbalance_percent,
+                "active_controller_count": self.active_controller_count,
+                "controller_change_count_15m": self.controller_change_count_15m,
+                "partition_reassignment_count": self.partition_reassignment_count,
+                "replication_fetcher_lag": self.replication_fetcher_lag,
                 "request_latency_p95_ms": self.request_latency_p95_ms,
+                "request_queue_utilization_percent": self.request_queue_utilization_percent,
                 "network_io_utilization_percent": self.network_io_utilization_percent,
+                "produce_throttle_time_ms": self.produce_throttle_time_ms,
+                "fetch_throttle_time_ms": self.fetch_throttle_time_ms,
+                "schema_registry_available": self.schema_registry_available,
+                "schema_incompatible_changes_24h": self.schema_incompatible_changes_24h,
                 "broker_count": self.broker_count,
                 "partition_count": self.partition_count,
                 "replication_factor": self.replication_factor,
