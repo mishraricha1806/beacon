@@ -1,3 +1,88 @@
+from io import BytesIO
+from email.message import Message
+import mimetypes
+from pathlib import Path
+from types import SimpleNamespace
+from uuid import uuid4
+
+from beacon import ui
+
+
+def build_multipart(fields=None, files=None):
+    boundary = f"----beacon-test-{uuid4().hex}"
+    body = bytearray()
+
+    for name, value in (fields or {}).items():
+        body.extend(f"--{boundary}\r\n".encode())
+        body.extend(f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode())
+        body.extend(str(value).encode())
+        body.extend(b"\r\n")
+
+    for name, file_path in (files or {}).items():
+        file_path = Path(file_path)
+        content_type = (
+            mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+        )
+        body.extend(f"--{boundary}\r\n".encode())
+        body.extend(
+            (
+                f'Content-Disposition: form-data; name="{name}"; '
+                f'filename="{file_path.name}"\r\n'
+            ).encode()
+        )
+        body.extend(f"Content-Type: {content_type}\r\n\r\n".encode())
+        body.extend(file_path.read_bytes())
+        body.extend(b"\r\n")
+
+    body.extend(f"--{boundary}--\r\n".encode())
+
+    return (
+        {"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        bytes(body),
+    )
+
+
+def run_multipart_ui_check(fields=None, files=None):
+    headers, body = build_multipart(fields=fields, files=files)
+    message = Message()
+    message["Content-Type"] = headers["Content-Type"]
+    message["Content-Length"] = str(len(body))
+    handler = SimpleNamespace(headers=message, rfile=BytesIO(body))
+    parsed_fields, parsed_files = ui.parse_multipart(handler)
+    return ui.run_beacon_check(parsed_fields, parsed_files)
+
+
+def test_ui_e2e_homepage_template_contains_run_surface():
+    assert "Beacon Readiness Console" in ui.HTML
+    assert "Run Beacon Readiness" in ui.HTML
+    assert "/api/beacon" in ui.HTML
+
+
+def test_ui_e2e_static_config_upload_returns_backend_findings():
+    payload = run_multipart_ui_check(
+        fields={"mode": "direct"},
+        files={"static_config": "examples/bad-infra/kafka-topics.yaml"},
+    )
+
+    rule_ids = {finding["rule_id"] for finding in payload["findings"]}
+
+    assert "kafka.topic.replication_factor.low" in rule_ids
+    assert payload["readiness_summary"]["production_decision"] == "NOT READY"
+
+
+def test_ui_e2e_runtime_snapshot_upload_returns_root_cause_findings():
+    payload = run_multipart_ui_check(
+        fields={"mode": "direct"},
+        files={"runtime_snapshot": "examples/supported/runtime/all-runtime.yaml"},
+    )
+
+    rule_ids = {finding["rule_id"] for finding in payload["findings"]}
+
+    assert "flow.runtime.cascading_latency" in rule_ids
+    assert "database.runtime.connection_pool.exhaustion" in rule_ids
+    assert payload["readiness_summary"]["root_cause_hypotheses"]
+
+
 def test_kafka_ui_run_check_uses_existing_report_contract(monkeypatch):
     from beacon import ui
 
