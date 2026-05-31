@@ -400,6 +400,11 @@ def test_kafka_runtime_snapshot_v2_covers_production_instability_signals():
             "fetch_throttle_time_ms": 160,
             "schema_registry_available": False,
             "schema_incompatible_changes_24h": 2,
+            "backlog_messages": 5000000,
+            "consumer_throughput_messages_per_sec": 100,
+            "producer_rate_messages_per_sec": 50,
+            "replay_target_hours": 12,
+            "retention_remaining_hours": 10,
             "broker_count": 3,
             "partition_count": 200,
             "replication_factor": 3,
@@ -429,6 +434,27 @@ def test_kafka_runtime_snapshot_v2_covers_production_instability_signals():
     assert "kafka.runtime.fetch_throttle.high" in rule_ids
     assert "kafka.runtime.schema_registry.unavailable" in rule_ids
     assert "kafka.runtime.schema_incompatible_changes" in rule_ids
+    assert "kafka.runtime.replay.time_exceeds_target" in rule_ids
+    assert "kafka.runtime.replay.retention_window_insufficient" in rule_ids
+
+
+def test_kafka_replay_detects_backlog_with_no_drain_capacity():
+    from beacon.runtime_advisor import evaluate_kafka_runtime
+
+    findings = evaluate_kafka_runtime(
+        {
+            "broker_disk_usage_percent": 70,
+            "backlog_messages": 1000000,
+            "consumer_throughput_messages_per_sec": 100,
+            "producer_rate_messages_per_sec": 150,
+            "replay_target_hours": 4,
+        },
+        "runtime.yaml",
+    )
+
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "kafka.runtime.replay.no_drain_capacity" in rule_ids
 
 
 def test_scanner_uses_normalized_terraform_resources():
@@ -923,6 +949,36 @@ def test_kafka_topic_schema_and_ownership_risks_are_scanned():
 
     assert "kafka.topic.schema_compatibility.unsafe" in rule_ids
     assert "kafka.topic.owner.missing" in rule_ids
+
+
+def test_kafka_compacted_topic_operational_risks_are_scanned():
+    from beacon.rules import evaluate_kafka_config
+
+    findings = evaluate_kafka_config(
+        {
+            "kafka": {
+                "topics": [
+                    {
+                        "name": "customer-state",
+                        "replication_factor": 3,
+                        "partitions": 12,
+                        "cleanup_policy": "compact,delete",
+                        "delete_retention_ms": 3600000,
+                        "min_cleanable_dirty_ratio": 0.75,
+                        "key_cardinality_estimate": 2500000,
+                    }
+                ]
+            }
+        },
+        "kafka-compaction.yaml",
+    )
+
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "kafka.topic.compacted_without_retention_bytes" in rule_ids
+    assert "kafka.topic.compaction.tombstone_retention.low" in rule_ids
+    assert "kafka.topic.compaction.dirty_ratio.high" in rule_ids
+    assert "kafka.topic.compaction.key_cardinality.high" in rule_ids
 
 
 def test_kafka_producer_and_consumer_client_risks_are_scanned():

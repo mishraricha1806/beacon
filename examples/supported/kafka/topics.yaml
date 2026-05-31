@@ -14,6 +14,14 @@ kafka:
       partitions: 2
       retention_bytes:
       cleanup_policy:
+    - name: customer-state
+      replication_factor: 3
+      partitions: 12
+      retention_bytes:
+      cleanup_policy: compact
+      delete_retention_ms: 3600000
+      min_cleanable_dirty_ratio: 0.75
+      key_cardinality_estimate: 2500000
   producers:
     - name: checkout-producer
       topic: payments

@@ -32,6 +32,11 @@ class KafkaRuntimeSignal:
     fetch_throttle_time_ms: Optional[float] = None
     schema_registry_available: Optional[bool] = None
     schema_incompatible_changes_24h: Optional[int] = None
+    backlog_messages: Optional[int] = None
+    consumer_throughput_messages_per_sec: Optional[float] = None
+    producer_rate_messages_per_sec: Optional[float] = None
+    replay_target_hours: Optional[float] = None
+    retention_remaining_hours: Optional[float] = None
     broker_count: Optional[int] = None
     partition_count: Optional[int] = None
     replication_factor: Optional[int] = None
@@ -73,6 +78,15 @@ class KafkaRuntimeSignal:
             schema_incompatible_changes_24h=runtime.get(
                 "schema_incompatible_changes_24h"
             ),
+            backlog_messages=runtime.get("backlog_messages"),
+            consumer_throughput_messages_per_sec=runtime.get(
+                "consumer_throughput_messages_per_sec"
+            ),
+            producer_rate_messages_per_sec=runtime.get(
+                "producer_rate_messages_per_sec"
+            ),
+            replay_target_hours=runtime.get("replay_target_hours"),
+            retention_remaining_hours=runtime.get("retention_remaining_hours"),
             broker_count=runtime.get("broker_count"),
             partition_count=runtime.get("partition_count"),
             replication_factor=runtime.get("replication_factor"),
@@ -110,6 +124,11 @@ class KafkaRuntimeSignal:
                 "fetch_throttle_time_ms": self.fetch_throttle_time_ms,
                 "schema_registry_available": self.schema_registry_available,
                 "schema_incompatible_changes_24h": self.schema_incompatible_changes_24h,
+                "backlog_messages": self.backlog_messages,
+                "consumer_throughput_messages_per_sec": self.consumer_throughput_messages_per_sec,
+                "producer_rate_messages_per_sec": self.producer_rate_messages_per_sec,
+                "replay_target_hours": self.replay_target_hours,
+                "retention_remaining_hours": self.retention_remaining_hours,
                 "broker_count": self.broker_count,
                 "partition_count": self.partition_count,
                 "replication_factor": self.replication_factor,
@@ -131,3 +150,31 @@ class KafkaRuntimeSignal:
             or self.avg_message_size_increased
             or self.consumer_lag_increasing
         )
+
+    @property
+    def net_replay_throughput_messages_per_sec(self):
+        if self.consumer_throughput_messages_per_sec is None:
+            return None
+
+        producer_rate = self.producer_rate_messages_per_sec or 0
+        net_throughput = self.consumer_throughput_messages_per_sec - producer_rate
+
+        if net_throughput <= 0:
+            return 0
+
+        return net_throughput
+
+    @property
+    def estimated_replay_hours(self):
+        if self.backlog_messages is None:
+            return None
+
+        net_throughput = self.net_replay_throughput_messages_per_sec
+
+        if net_throughput is None:
+            return None
+
+        if net_throughput <= 0:
+            return float("inf")
+
+        return self.backlog_messages / net_throughput / 3600

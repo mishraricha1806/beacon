@@ -27,6 +27,17 @@ def build_kafka_finding(
     )
 
 
+def has_cleanup_policy(resource, policy):
+    cleanup_policy = resource.attributes.get("cleanup_policy")
+
+    if cleanup_policy is None:
+        return False
+
+    policies = {item.strip().lower() for item in str(cleanup_policy).split(",")}
+
+    return policy in policies
+
+
 def broker_default_replication_factor_low(resource, context):
     value = resource.attributes.get("default_replication_factor")
 
@@ -644,7 +655,7 @@ def compacted_without_retention_bytes(resource, context):
     cleanup_policy = resource.attributes.get("cleanup_policy")
     retention_bytes = resource.attributes.get("retention_bytes")
 
-    if cleanup_policy != "compact" or retention_bytes is not None:
+    if not has_cleanup_policy(resource, "compact") or retention_bytes is not None:
         return None
 
     return build_kafka_finding(
@@ -661,6 +672,91 @@ def compacted_without_retention_bytes(resource, context):
             "retention_bytes": retention_bytes,
         },
         tags=["kafka", "compaction", "storage"],
+    )
+
+
+def compacted_tombstone_retention_low(resource, context):
+    cleanup_policy = resource.attributes.get("cleanup_policy")
+    delete_retention_ms = resource.attributes.get("delete_retention_ms")
+
+    if not has_cleanup_policy(resource, "compact") or delete_retention_ms is None:
+        return None
+
+    if delete_retention_ms >= 86400000:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.compaction.tombstone_retention.low",
+        category="recovery_readiness",
+        severity="MEDIUM",
+        title=f"Kafka compacted topic '{resource.name}' has low tombstone retention",
+        impact="Short tombstone retention can cause slow or recovering consumers to miss delete markers.",
+        recommendation="Validate delete.retention.ms against maximum consumer outage and replay duration.",
+        evidence={
+            "topic": resource.name,
+            "cleanup_policy": cleanup_policy,
+            "delete_retention_ms": delete_retention_ms,
+            "recommended_minimum_ms": 86400000,
+        },
+        tags=["kafka", "compaction", "tombstone"],
+    )
+
+
+def compacted_dirty_ratio_high(resource, context):
+    cleanup_policy = resource.attributes.get("cleanup_policy")
+    ratio = resource.attributes.get("min_cleanable_dirty_ratio")
+
+    if not has_cleanup_policy(resource, "compact") or ratio is None:
+        return None
+
+    if ratio <= 0.5:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.compaction.dirty_ratio.high",
+        category="storage_sustainability",
+        severity="MEDIUM",
+        title=f"Kafka compacted topic '{resource.name}' has high dirty ratio",
+        impact="A high min.cleanable.dirty.ratio can delay compaction and increase disk growth during update-heavy workloads.",
+        recommendation="Tune min.cleanable.dirty.ratio based on update rate, disk headroom, and compaction latency tolerance.",
+        evidence={
+            "topic": resource.name,
+            "cleanup_policy": cleanup_policy,
+            "min_cleanable_dirty_ratio": ratio,
+            "review_threshold": 0.5,
+        },
+        tags=["kafka", "compaction", "storage"],
+    )
+
+
+def compacted_key_cardinality_high(resource, context):
+    cleanup_policy = resource.attributes.get("cleanup_policy")
+    key_cardinality = resource.attributes.get("key_cardinality_estimate")
+    retention_bytes = resource.attributes.get("retention_bytes")
+
+    if not has_cleanup_policy(resource, "compact") or key_cardinality is None:
+        return None
+
+    if key_cardinality < 1000000 or retention_bytes is not None:
+        return None
+
+    return build_kafka_finding(
+        resource=resource,
+        rule_id="kafka.topic.compaction.key_cardinality.high",
+        category="storage_sustainability",
+        severity="HIGH",
+        title=f"Kafka compacted topic '{resource.name}' has high key cardinality without retention_bytes",
+        impact="High key cardinality can make compacted topics grow like append-only logs when storage guardrails are missing.",
+        recommendation="Set retention_bytes or validate disk capacity for the expected unique-key working set.",
+        evidence={
+            "topic": resource.name,
+            "cleanup_policy": cleanup_policy,
+            "key_cardinality_estimate": key_cardinality,
+            "retention_bytes": retention_bytes,
+        },
+        tags=["kafka", "compaction", "key-cardinality"],
     )
 
 
@@ -1241,6 +1337,36 @@ register(
     "Detects compacted Kafka topics without retention_bytes limits.",
     compacted_without_retention_bytes,
     ["kafka", "compaction", "storage"],
+)
+
+register(
+    "kafka.topic.compaction.tombstone_retention.low",
+    "recovery_readiness",
+    "MEDIUM",
+    "Kafka compacted topic tombstone retention low",
+    "Detects compacted topics where delete.retention.ms may be too short for recovery.",
+    compacted_tombstone_retention_low,
+    ["kafka", "compaction", "tombstone"],
+)
+
+register(
+    "kafka.topic.compaction.dirty_ratio.high",
+    "storage_sustainability",
+    "MEDIUM",
+    "Kafka compacted topic dirty ratio high",
+    "Detects compacted topics with high min.cleanable.dirty.ratio.",
+    compacted_dirty_ratio_high,
+    ["kafka", "compaction", "storage"],
+)
+
+register(
+    "kafka.topic.compaction.key_cardinality.high",
+    "storage_sustainability",
+    "HIGH",
+    "Kafka compacted topic key cardinality high",
+    "Detects compacted topics with high key cardinality and missing storage guardrails.",
+    compacted_key_cardinality_high,
+    ["kafka", "compaction", "key-cardinality"],
 )
 
 register(

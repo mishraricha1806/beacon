@@ -324,6 +324,10 @@ def build_live_topic_models(admin_client, metadata, topic_names):
             "min_insync_replicas": get_config_int(configs, "min.insync.replicas"),
             "segment_bytes": get_config_int(configs, "segment.bytes"),
             "max_message_bytes": get_config_int(configs, "max.message.bytes"),
+            "delete_retention_ms": get_config_int(configs, "delete.retention.ms"),
+            "min_cleanable_dirty_ratio": get_config_float(
+                configs, "min.cleanable.dirty.ratio"
+            ),
         }
 
         topic_models.append(topic_model)
@@ -1015,6 +1019,18 @@ def get_config_int(configs, key):
 
     try:
         return int(value)
+    except ValueError:
+        return None
+
+
+def get_config_float(configs, key):
+    value = get_config_value(configs, key)
+
+    if value is None:
+        return None
+
+    try:
+        return float(value)
     except ValueError:
         return None
 

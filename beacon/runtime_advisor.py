@@ -76,6 +76,9 @@ def evaluate_kafka_runtime(runtime, file):
     fetch_throttle_time_ms = signal.fetch_throttle_time_ms
     schema_registry_available = signal.schema_registry_available
     schema_incompatible_changes_24h = signal.schema_incompatible_changes_24h
+    estimated_replay_hours = signal.estimated_replay_hours
+    replay_target_hours = signal.replay_target_hours
+    retention_remaining_hours = signal.retention_remaining_hours
     broker_count = signal.broker_count
     partition_count = signal.partition_count
     replication_factor = signal.replication_factor
@@ -547,6 +550,62 @@ def evaluate_kafka_runtime(runtime, file):
                 file,
                 rule_id="kafka.runtime.schema_incompatible_changes",
                 evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if estimated_replay_hours == float("inf"):
+        findings.append(
+            finding(
+                "CRITICAL",
+                "Kafka backlog cannot be replayed at current throughput",
+                "Consumer throughput is not exceeding producer rate, so backlog will not drain without intervention.",
+                "Increase safe consumer throughput, reduce producer intake, fix downstream bottlenecks, or pause non-critical producers.",
+                file,
+                rule_id="kafka.runtime.replay.no_drain_capacity",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+    elif (
+        estimated_replay_hours is not None
+        and replay_target_hours is not None
+        and estimated_replay_hours > replay_target_hours
+    ):
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka backlog replay time exceeds target: {estimated_replay_hours:.2f}h",
+                "The current backlog may take longer to drain than the operational recovery target allows.",
+                "Increase consumer capacity, remove downstream bottlenecks, reduce producer rate, or revisit replay SLOs.",
+                file,
+                rule_id="kafka.runtime.replay.time_exceeds_target",
+                evidence={
+                    **signal_evidence,
+                    "estimated_replay_hours": round(estimated_replay_hours, 2),
+                },
+                confidence="HIGH",
+            )
+        )
+
+    if (
+        estimated_replay_hours is not None
+        and estimated_replay_hours != float("inf")
+        and retention_remaining_hours is not None
+        and estimated_replay_hours > retention_remaining_hours
+    ):
+        findings.append(
+            finding(
+                "CRITICAL",
+                f"Kafka retention may expire before replay completes: {estimated_replay_hours:.2f}h replay",
+                "Backlog recovery is estimated to take longer than the remaining retention window, creating data-loss risk.",
+                "Extend retention, create capacity headroom, accelerate consumers, or reduce producer intake before data ages out.",
+                file,
+                rule_id="kafka.runtime.replay.retention_window_insufficient",
+                evidence={
+                    **signal_evidence,
+                    "estimated_replay_hours": round(estimated_replay_hours, 2),
+                },
                 confidence="HIGH",
             )
         )
