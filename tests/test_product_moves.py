@@ -925,6 +925,64 @@ def test_kafka_topic_schema_and_ownership_risks_are_scanned():
     assert "kafka.topic.owner.missing" in rule_ids
 
 
+def test_kafka_producer_and_consumer_client_risks_are_scanned():
+    from beacon.rules import evaluate_kafka_config
+
+    findings = evaluate_kafka_config(
+        {
+            "kafka": {
+                "producers": [
+                    {
+                        "name": "checkout-producer",
+                        "topic": "payments",
+                        "acks": 1,
+                        "enable_idempotence": False,
+                        "max_in_flight_requests_per_connection": 10,
+                        "compression_type": "none",
+                    },
+                    {
+                        "name": "ledger-producer",
+                        "topic": "ledger-events",
+                        "acks": "all",
+                        "enable_idempotence": True,
+                        "max_in_flight_requests_per_connection": 10,
+                        "compression_type": "zstd",
+                    },
+                ],
+                "consumers": [
+                    {
+                        "name": "payment-worker",
+                        "topic": "payments",
+                        "group_id": "payment-worker",
+                        "partitions": 2,
+                        "consumer_concurrency": 5,
+                        "enable_auto_commit": True,
+                        "auto_offset_reset": "latest",
+                        "max_poll_interval_ms": 30000,
+                        "session_timeout_ms": 10000,
+                        "heartbeat_interval_ms": 5000,
+                        "retry_max_attempts": 5,
+                    }
+                ],
+            }
+        },
+        "kafka-clients.yaml",
+    )
+
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "kafka.producer.acks.unsafe" in rule_ids
+    assert "kafka.producer.idempotence.disabled" in rule_ids
+    assert "kafka.producer.max_in_flight.unsafe" in rule_ids
+    assert "kafka.producer.compression.missing" in rule_ids
+    assert "kafka.consumer.auto_commit.enabled" in rule_ids
+    assert "kafka.consumer.auto_offset_reset.latest" in rule_ids
+    assert "kafka.consumer.poll_interval.too_low" in rule_ids
+    assert "kafka.consumer.heartbeat_session.mismatch" in rule_ids
+    assert "kafka.consumer.concurrency.exceeds_partitions" in rule_ids
+    assert "kafka.consumer.dlq.missing" in rule_ids
+
+
 def test_cloud_inventory_snapshot_is_scanned(tmp_path):
     from beacon.scanner import scan_file
 

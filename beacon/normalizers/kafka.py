@@ -73,4 +73,49 @@ def normalize_kafka_config(data, source):
             )
         )
 
+    for producer in kafka_data.get("producers", []):
+        resources.append(
+            Resource(
+                type="kafka_producer_config",
+                name=producer.get("name", "unknown-producer"),
+                domain="kafka",
+                source=source,
+                attributes={
+                    "topic": producer.get("topic"),
+                    "acks": producer.get("acks"),
+                    "enable_idempotence": producer.get("enable_idempotence"),
+                    "retries": producer.get("retries"),
+                    "max_in_flight_requests_per_connection": producer.get(
+                        "max_in_flight_requests_per_connection"
+                    ),
+                    "compression_type": producer.get("compression_type"),
+                    "delivery_timeout_ms": producer.get("delivery_timeout_ms"),
+                    "request_timeout_ms": producer.get("request_timeout_ms"),
+                },
+            )
+        )
+
+    for consumer in kafka_data.get("consumers", []):
+        resources.append(
+            Resource(
+                type="kafka_consumer_config",
+                name=consumer.get("name", "unknown-consumer"),
+                domain="kafka",
+                source=source,
+                attributes={
+                    "topic": consumer.get("topic"),
+                    "group_id": consumer.get("group_id"),
+                    "partitions": consumer.get("partitions"),
+                    "consumer_concurrency": consumer.get("consumer_concurrency"),
+                    "enable_auto_commit": consumer.get("enable_auto_commit"),
+                    "auto_offset_reset": consumer.get("auto_offset_reset"),
+                    "max_poll_interval_ms": consumer.get("max_poll_interval_ms"),
+                    "session_timeout_ms": consumer.get("session_timeout_ms"),
+                    "heartbeat_interval_ms": consumer.get("heartbeat_interval_ms"),
+                    "retry_max_attempts": consumer.get("retry_max_attempts"),
+                    "dlq_topic": consumer.get("dlq_topic"),
+                },
+            )
+        )
+
     return resources

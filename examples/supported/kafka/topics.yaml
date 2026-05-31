@@ -14,3 +14,24 @@ kafka:
       partitions: 2
       retention_bytes:
       cleanup_policy:
+  producers:
+    - name: checkout-producer
+      topic: payments
+      acks: 1
+      enable_idempotence: false
+      retries: 3
+      max_in_flight_requests_per_connection: 10
+      compression_type: none
+  consumers:
+    - name: payment-worker
+      topic: payments
+      group_id: payment-worker
+      partitions: 2
+      consumer_concurrency: 5
+      enable_auto_commit: true
+      auto_offset_reset: latest
+      max_poll_interval_ms: 30000
+      session_timeout_ms: 10000
+      heartbeat_interval_ms: 5000
+      retry_max_attempts: 5
+      dlq_topic:

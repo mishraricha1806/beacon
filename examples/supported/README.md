@@ -51,7 +51,7 @@ python3 -m beacon.cli readiness kubernetes --namespace payments --no-html --no-o
 Supported example groups:
 
 * `terraform/` - Terraform HCL, plan JSON, and state JSON
-* `kafka/` - Kafka topic and broker/server config plus Kafka runtime v2 signals
+* `kafka/` - Kafka topic, broker/server, producer, and consumer config plus Kafka runtime v2 signals
 * `kubernetes/` - Kubernetes manifests and runtime snapshots
 * `helm/` - Helm chart rendering input
 * `cicd/` - GitHub Actions deployment workflow risk

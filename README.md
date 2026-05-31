@@ -72,6 +72,8 @@ and analyze:
 * broker metadata
 * topic configuration
 * broker security and ACL safety defaults
+* producer durability, idempotence, ordering, and compression settings
+* consumer offset commit, replay, rebalance, concurrency, and DLQ settings
 * rack/AZ awareness and unclean leader election risk
 * replication factor
 * retention settings

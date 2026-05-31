@@ -713,6 +713,240 @@ def topic_owner_missing(resource, context):
     )
 
 
+def producer_acks_unsafe(resource, context):
+    acks = resource.attributes.get("acks")
+
+    if str(acks).lower() in {"all", "-1"}:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.producer.acks.unsafe",
+        "resiliency",
+        "HIGH",
+        f"Kafka producer '{resource.name}' does not require all in-sync replica acknowledgements",
+        "Producer acks below all can acknowledge writes before the full ISR confirms durability.",
+        "Use acks=all for production producers that publish durable business events.",
+        {
+            "producer": resource.name,
+            "topic": resource.attributes.get("topic"),
+            "acks": acks,
+        },
+        ["kafka", "producer", "durability"],
+    )
+
+
+def producer_idempotence_disabled(resource, context):
+    enabled = resource.attributes.get("enable_idempotence")
+
+    if enabled is True:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.producer.idempotence.disabled",
+        "operational_safety",
+        "HIGH",
+        f"Kafka producer '{resource.name}' has idempotence disabled",
+        "Disabled idempotence can create duplicate messages during retries or transient broker failures.",
+        "Enable producer idempotence for production event publishers unless duplicates are explicitly tolerated.",
+        {
+            "producer": resource.name,
+            "topic": resource.attributes.get("topic"),
+            "enable_idempotence": enabled,
+        },
+        ["kafka", "producer", "duplicates"],
+    )
+
+
+def producer_max_in_flight_unsafe(resource, context):
+    enabled = resource.attributes.get("enable_idempotence")
+    max_in_flight = resource.attributes.get("max_in_flight_requests_per_connection")
+
+    if enabled is not True or max_in_flight is None or max_in_flight <= 5:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.producer.max_in_flight.unsafe",
+        "operational_safety",
+        "MEDIUM",
+        f"Kafka producer '{resource.name}' has high max.in.flight with idempotence",
+        "High in-flight request counts can weaken producer ordering and idempotence guarantees.",
+        "Keep max.in.flight.requests.per.connection at 5 or lower when idempotence is enabled.",
+        {
+            "producer": resource.name,
+            "max_in_flight_requests_per_connection": max_in_flight,
+            "expected_maximum": 5,
+        },
+        ["kafka", "producer", "ordering"],
+    )
+
+
+def producer_compression_missing(resource, context):
+    compression = resource.attributes.get("compression_type")
+
+    if compression and str(compression).lower() not in {"none", "uncompressed"}:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.producer.compression.missing",
+        "scalability",
+        "LOW",
+        f"Kafka producer '{resource.name}' does not configure compression",
+        "Missing producer compression can increase broker network, disk, and replication pressure at scale.",
+        "Configure an approved compression type such as lz4, zstd, or snappy for high-volume producers.",
+        {
+            "producer": resource.name,
+            "topic": resource.attributes.get("topic"),
+            "compression_type": compression,
+        },
+        ["kafka", "producer", "capacity"],
+    )
+
+
+def consumer_auto_commit_enabled(resource, context):
+    enabled = resource.attributes.get("enable_auto_commit")
+
+    if enabled is not True:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.consumer.auto_commit.enabled",
+        "operational_safety",
+        "MEDIUM",
+        f"Kafka consumer '{resource.name}' has auto commit enabled",
+        "Auto commits can acknowledge offsets before downstream processing is safely complete.",
+        "Use explicit offset commits after processing succeeds for production consumers.",
+        {
+            "consumer": resource.name,
+            "group_id": resource.attributes.get("group_id"),
+            "enable_auto_commit": enabled,
+        },
+        ["kafka", "consumer", "offsets"],
+    )
+
+
+def consumer_auto_offset_reset_latest(resource, context):
+    value = resource.attributes.get("auto_offset_reset")
+
+    if str(value).lower() != "latest":
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.consumer.auto_offset_reset.latest",
+        "recovery_readiness",
+        "MEDIUM",
+        f"Kafka consumer '{resource.name}' starts new groups at latest offset",
+        "New or recreated consumer groups can skip existing messages when auto.offset.reset=latest.",
+        "Use earliest for replay-critical consumers or document why skipping historical messages is safe.",
+        {
+            "consumer": resource.name,
+            "group_id": resource.attributes.get("group_id"),
+            "auto_offset_reset": value,
+        },
+        ["kafka", "consumer", "replay"],
+    )
+
+
+def consumer_poll_interval_too_low(resource, context):
+    interval = resource.attributes.get("max_poll_interval_ms")
+
+    if interval is None or interval >= 60000:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.consumer.poll_interval.too_low",
+        "operational_safety",
+        "MEDIUM",
+        f"Kafka consumer '{resource.name}' has a low max poll interval",
+        "A low max.poll.interval.ms can trigger rebalances when processing slows during dependency latency or retries.",
+        "Set max.poll.interval.ms according to worst-case processing time and retry behavior.",
+        {
+            "consumer": resource.name,
+            "max_poll_interval_ms": interval,
+            "expected_minimum": 60000,
+        },
+        ["kafka", "consumer", "rebalance"],
+    )
+
+
+def consumer_heartbeat_session_mismatch(resource, context):
+    heartbeat = resource.attributes.get("heartbeat_interval_ms")
+    session = resource.attributes.get("session_timeout_ms")
+
+    if heartbeat is None or session is None or heartbeat < session / 3:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.consumer.heartbeat_session.mismatch",
+        "operational_safety",
+        "MEDIUM",
+        f"Kafka consumer '{resource.name}' heartbeat interval is too close to session timeout",
+        "Heartbeat intervals that are too close to session timeout can cause avoidable group churn under latency.",
+        "Keep heartbeat.interval.ms comfortably below one third of session.timeout.ms.",
+        {
+            "consumer": resource.name,
+            "heartbeat_interval_ms": heartbeat,
+            "session_timeout_ms": session,
+        },
+        ["kafka", "consumer", "rebalance"],
+    )
+
+
+def consumer_concurrency_exceeds_partitions(resource, context):
+    concurrency = resource.attributes.get("consumer_concurrency")
+    partitions = resource.attributes.get("partitions")
+
+    if concurrency is None or partitions is None or concurrency <= partitions:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.consumer.concurrency.exceeds_partitions",
+        "scalability",
+        "MEDIUM",
+        f"Kafka consumer '{resource.name}' has more consumers than partitions",
+        "Consumer instances beyond partition count remain idle and can create misleading scaling expectations.",
+        "Scale consumer concurrency at or below partition count, or increase partitions after validating key distribution.",
+        {
+            "consumer": resource.name,
+            "consumer_concurrency": concurrency,
+            "partitions": partitions,
+        },
+        ["kafka", "consumer", "parallelism"],
+    )
+
+
+def consumer_dlq_missing(resource, context):
+    attempts = resource.attributes.get("retry_max_attempts")
+    dlq_topic = resource.attributes.get("dlq_topic")
+
+    if attempts is None or attempts <= 3 or dlq_topic:
+        return None
+
+    return build_kafka_finding(
+        resource,
+        "kafka.consumer.dlq.missing",
+        "recovery_readiness",
+        "HIGH",
+        f"Kafka consumer '{resource.name}' retries without a DLQ",
+        "High retry counts without a dead-letter topic can turn poison messages into persistent lag or retry storms.",
+        "Configure a DLQ or quarantine path for messages that exceed retry limits.",
+        {
+            "consumer": resource.name,
+            "retry_max_attempts": attempts,
+            "dlq_topic": dlq_topic,
+        },
+        ["kafka", "consumer", "dlq"],
+    )
+
+
 def register(
     rule_id,
     category,
@@ -1037,4 +1271,114 @@ register(
     "Detects Kafka topics without ownership metadata.",
     topic_owner_missing,
     ["kafka", "governance", "ownership"],
+)
+
+register(
+    "kafka.producer.acks.unsafe",
+    "resiliency",
+    "HIGH",
+    "Kafka producer acknowledgements unsafe",
+    "Detects producers that do not require all in-sync replicas to acknowledge writes.",
+    producer_acks_unsafe,
+    ["kafka", "producer", "durability"],
+    ["kafka_producer_config"],
+)
+
+register(
+    "kafka.producer.idempotence.disabled",
+    "operational_safety",
+    "HIGH",
+    "Kafka producer idempotence disabled",
+    "Detects producers without idempotence enabled.",
+    producer_idempotence_disabled,
+    ["kafka", "producer", "duplicates"],
+    ["kafka_producer_config"],
+)
+
+register(
+    "kafka.producer.max_in_flight.unsafe",
+    "operational_safety",
+    "MEDIUM",
+    "Kafka producer max in-flight unsafe",
+    "Detects idempotent producers with unsafe max.in.flight settings.",
+    producer_max_in_flight_unsafe,
+    ["kafka", "producer", "ordering"],
+    ["kafka_producer_config"],
+)
+
+register(
+    "kafka.producer.compression.missing",
+    "scalability",
+    "LOW",
+    "Kafka producer compression missing",
+    "Detects high-volume producer configs without compression.",
+    producer_compression_missing,
+    ["kafka", "producer", "capacity"],
+    ["kafka_producer_config"],
+)
+
+register(
+    "kafka.consumer.auto_commit.enabled",
+    "operational_safety",
+    "MEDIUM",
+    "Kafka consumer auto commit enabled",
+    "Detects consumers that auto-commit offsets.",
+    consumer_auto_commit_enabled,
+    ["kafka", "consumer", "offsets"],
+    ["kafka_consumer_config"],
+)
+
+register(
+    "kafka.consumer.auto_offset_reset.latest",
+    "recovery_readiness",
+    "MEDIUM",
+    "Kafka consumer starts new groups at latest",
+    "Detects consumers that can skip historical messages when groups are recreated.",
+    consumer_auto_offset_reset_latest,
+    ["kafka", "consumer", "replay"],
+    ["kafka_consumer_config"],
+)
+
+register(
+    "kafka.consumer.poll_interval.too_low",
+    "operational_safety",
+    "MEDIUM",
+    "Kafka consumer poll interval too low",
+    "Detects consumers with low max.poll.interval.ms settings.",
+    consumer_poll_interval_too_low,
+    ["kafka", "consumer", "rebalance"],
+    ["kafka_consumer_config"],
+)
+
+register(
+    "kafka.consumer.heartbeat_session.mismatch",
+    "operational_safety",
+    "MEDIUM",
+    "Kafka consumer heartbeat/session mismatch",
+    "Detects heartbeat intervals too close to session timeout.",
+    consumer_heartbeat_session_mismatch,
+    ["kafka", "consumer", "rebalance"],
+    ["kafka_consumer_config"],
+)
+
+register(
+    "kafka.consumer.concurrency.exceeds_partitions",
+    "scalability",
+    "MEDIUM",
+    "Kafka consumer concurrency exceeds partitions",
+    "Detects consumer concurrency above topic partition count.",
+    consumer_concurrency_exceeds_partitions,
+    ["kafka", "consumer", "parallelism"],
+    ["kafka_consumer_config"],
+)
+
+register(
+    "kafka.consumer.dlq.missing",
+    "recovery_readiness",
+    "HIGH",
+    "Kafka consumer DLQ missing",
+    "Detects retry-heavy consumers without a dead-letter topic.",
+    consumer_dlq_missing,
+    ["kafka", "consumer", "dlq"],
+    ["kafka_consumer_config"],
 )
