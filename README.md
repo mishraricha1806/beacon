@@ -118,6 +118,8 @@ Beacon also supports standalone runtime snapshots for:
 * database latency, connection pool pressure, replication lag, lock contention, and storage saturation
 * storage/cloud capacity, growth rate, I/O saturation, and backup freshness
 
+Prometheus collector configs can also map Kafka JMX exporter metrics into Beacon's Kafka runtime advisor, including broker disk skew, ISR/offline partition health, controller churn, request queue saturation, throttling, and Schema Registry availability.
+
 ---
 
 ## Example: Infrastructure Scan

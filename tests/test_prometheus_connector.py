@@ -25,6 +25,29 @@ class FakeResponse:
         return json.dumps(payload).encode("utf-8")
 
 
+class FakeVectorResponse:
+    def __init__(self, values, label="broker"):
+        self.values = values
+        self.label = label
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def read(self):
+        result = [
+            {
+                "metric": {self.label: str(key)},
+                "value": [1234567890, str(value)],
+            }
+            for key, value in self.values.items()
+        ]
+        payload = {"status": "success", "data": {"result": result}}
+        return json.dumps(payload).encode("utf-8")
+
+
 def test_prometheus_config_maps_queries_to_runtime_findings(monkeypatch, tmp_path):
     from beacon import prometheus_connector
 
@@ -111,3 +134,68 @@ def test_prometheus_missing_url_blocks_analysis(tmp_path):
 
     assert findings[0]["rule_id"] == "prometheus.config.url.missing"
     assert findings[0]["severity"] == "ERROR"
+
+
+def test_prometheus_kafka_jmx_metrics_map_to_kafka_runtime_findings(
+    monkeypatch, tmp_path
+):
+    from beacon import prometheus_connector
+
+    config = """
+prometheus:
+  url: http://prometheus.local
+  kafka_runtime:
+    broker_count: 3
+    partition_count: 200
+    replication_factor: 3
+    queries:
+      broker_disk_usage_percent: kafka_disk_usage
+      broker_disk_usage_by_broker:
+        query: kafka_disk_by_broker
+        type: map
+        label: broker
+      under_replicated_partitions: kafka_under_replicated
+      offline_partitions: kafka_offline
+      active_controller_count: kafka_active_controllers
+      request_queue_utilization_percent: kafka_request_queue
+      produce_throttle_time_ms: kafka_produce_throttle
+      fetch_throttle_time_ms: kafka_fetch_throttle
+      schema_registry_available:
+        query: schema_registry_up
+        type: bool
+"""
+    path = tmp_path / "kafka-prometheus.yaml"
+    path.write_text(config)
+
+    values = {
+        "kafka_disk_usage": 88,
+        "kafka_under_replicated": 2,
+        "kafka_offline": 1,
+        "kafka_active_controllers": 2,
+        "kafka_request_queue": 86,
+        "kafka_produce_throttle": 140,
+        "kafka_fetch_throttle": 160,
+        "schema_registry_up": 0,
+    }
+
+    def fake_urlopen(url, timeout=None):
+        if "kafka_disk_by_broker" in url:
+            return FakeVectorResponse({"1": 94, "2": 62, "3": 60})
+        for query, value in values.items():
+            if query in url:
+                return FakeResponse(value)
+        raise AssertionError(url)
+
+    monkeypatch.setattr(prometheus_connector.urllib.request, "urlopen", fake_urlopen)
+
+    findings = prometheus_connector.analyze_prometheus_config(str(path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "prometheus.runtime.read_only_mode" in rule_ids
+    assert "kafka.runtime.broker_disk_skew.critical" in rule_ids
+    assert "kafka.runtime.offline_partitions" in rule_ids
+    assert "kafka.runtime.controller_count.invalid" in rule_ids
+    assert "kafka.runtime.request_queue_saturation.high" in rule_ids
+    assert "kafka.runtime.producer_throttle.high" in rule_ids
+    assert "kafka.runtime.fetch_throttle.high" in rule_ids
+    assert "kafka.runtime.schema_registry.unavailable" in rule_ids

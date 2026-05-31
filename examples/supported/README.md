@@ -32,6 +32,7 @@ Run Prometheus collector config:
 
 ```bash
 python3 -m beacon.cli readiness prometheus examples/supported/prometheus/platform-prometheus.yaml --no-html --no-open-report
+python3 -m beacon.cli readiness prometheus examples/supported/prometheus/kafka-jmx-prometheus.yaml --no-html --no-open-report
 ```
 
 Run OpenTelemetry export:
@@ -57,5 +58,5 @@ Supported example groups:
 * `cloud/` - Cloud inventory snapshot risk
 * `topology/` - Service topology and blast-radius input
 * `runtime/` - API, database, storage, and flow runtime snapshots
-* `prometheus/` - Prometheus query mapping into runtime snapshots
+* `prometheus/` - Prometheus query mapping into runtime snapshots, including Kafka JMX exporter signals
 * `opentelemetry/` - OpenTelemetry span and metric export mapping into runtime snapshots

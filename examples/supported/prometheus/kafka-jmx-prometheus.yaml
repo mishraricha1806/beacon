@@ -1,0 +1,33 @@
+prometheus:
+  url: http://localhost:9090
+
+  kafka_runtime:
+    broker_count: 3
+    partition_count: 200
+    replication_factor: 3
+    queries:
+      broker_disk_usage_percent: >-
+        max(kafka_log_log_size_bytes / kafka_log_log_capacity_bytes * 100)
+      broker_disk_usage_by_broker:
+        query: >-
+          max by (broker) (kafka_log_log_size_bytes / kafka_log_log_capacity_bytes * 100)
+        type: map
+        label: broker
+      under_replicated_partitions: sum(kafka_server_replicamanager_underreplicatedpartitions)
+      under_min_isr_partitions: sum(kafka_cluster_partition_underminisr)
+      offline_partitions: sum(kafka_controller_kafkacontroller_offlinepartitionscount)
+      leader_imbalance_percent: max(kafka_controller_kafkacontroller_preferredreplicaimbalancecount)
+      active_controller_count: sum(kafka_controller_kafkacontroller_activecontrollercount)
+      controller_change_count_15m: increase(kafka_controller_controllerstats_leaderelectionrateandtimems_count[15m])
+      partition_reassignment_count: sum(kafka_server_replicamanager_reassigningpartitions)
+      replication_fetcher_lag: max(kafka_server_replicafetchermanager_maxlag)
+      request_latency_p95_ms: >-
+        histogram_quantile(0.95, sum(rate(kafka_network_requestmetrics_totaltimems_bucket[5m])) by (le))
+      request_queue_utilization_percent: max(kafka_network_processor_requestqueuepercent)
+      network_io_utilization_percent: max(kafka_server_brokertopicmetrics_bytesin_total + kafka_server_brokertopicmetrics_bytesout_total)
+      produce_throttle_time_ms: max(kafka_network_requestmetrics_throttle_timems{request="Produce"})
+      fetch_throttle_time_ms: max(kafka_network_requestmetrics_throttle_timems{request=~"FetchConsumer|Fetch"})
+      schema_registry_available:
+        query: min(up{job="schema-registry"})
+        type: bool
+      schema_incompatible_changes_24h: increase(schema_registry_incompatible_schema_total[24h])

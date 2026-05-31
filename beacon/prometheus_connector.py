@@ -5,14 +5,19 @@ import urllib.request
 import yaml
 
 from beacon.runtime_snapshot import analyze_runtime_snapshot
+from beacon.runtime_advisor import evaluate_kafka_runtime
 
 
 def analyze_prometheus_config(path, timeout=5):
     snapshot, collection_findings = collect_prometheus_snapshot(path, timeout=timeout)
     findings = list(collection_findings)
+    kafka_runtime = snapshot.pop("kafka_runtime", None)
 
     if snapshot:
         findings.extend(analyze_runtime_snapshot(snapshot, source=path))
+
+    if kafka_runtime:
+        findings.extend(evaluate_kafka_runtime(kafka_runtime, path))
 
     return findings
 
@@ -55,6 +60,7 @@ def collect_prometheus_snapshot(path, timeout=5):
         "database_runtime",
         "storage_runtime",
         "flow_runtime",
+        "kafka_runtime",
     ):
         if section in prometheus:
             snapshot[section] = collect_section(
@@ -112,6 +118,16 @@ def collect_section(base_url, section_config, section_name, source, findings, ti
             data["components"] = components
         return data
 
+    if section_name == "kafka_runtime":
+        data = {
+            key: value
+            for key, value in section_config.items()
+            if key not in {"queries", "signals"}
+        }
+        queries = section_config.get("queries", section_config.get("signals", {}))
+        data.update(collect_signals(base_url, queries, source, findings, timeout))
+        return data
+
     return {}
 
 
@@ -143,9 +159,15 @@ def collect_signals(base_url, queries, source, findings, timeout):
         value_type = (
             query_config.get("type") if isinstance(query_config, dict) else None
         )
+        label = query_config.get("label") if isinstance(query_config, dict) else None
 
         try:
-            value = query_prometheus(base_url, query, timeout=timeout)
+            if value_type == "map":
+                value = query_prometheus_map(
+                    base_url, query, label=label, timeout=timeout
+                )
+            else:
+                value = query_prometheus(base_url, query, timeout=timeout)
             signals[field] = coerce_value(value, value_type)
         except Exception as error:
             findings.append(
@@ -184,6 +206,34 @@ def query_prometheus(base_url, query, timeout=5):
         return None
 
     return float(value)
+
+
+def query_prometheus_map(base_url, query, label, timeout=5):
+    if not label:
+        raise ValueError("Prometheus map query requires a label")
+
+    params = urllib.parse.urlencode({"query": query})
+    url = f"{base_url.rstrip('/')}/api/v1/query?{params}"
+
+    with urllib.request.urlopen(url, timeout=timeout) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    if payload.get("status") != "success":
+        raise ValueError(payload.get("error") or "Prometheus query did not succeed")
+
+    result = payload.get("data", {}).get("result", [])
+    mapped = {}
+
+    for item in result:
+        key = item.get("metric", {}).get(label)
+        value = item.get("value", [None, None])[1]
+
+        if key is None or value is None:
+            continue
+
+        mapped[str(key)] = float(value)
+
+    return mapped
 
 
 def coerce_value(value, value_type):

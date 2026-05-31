@@ -15,7 +15,7 @@ Module 1 is ready to release when these surfaces are supported by examples, dete
 - Cloud inventory snapshots
 - Service topology and blast-radius snapshots
 - Runtime snapshots for API, database, storage, flow, Kubernetes, and Kafka signals
-- Prometheus collector configs that map metrics into runtime snapshots
+- Prometheus collector configs that map metrics into runtime snapshots, including Kafka JMX exporter signals
 - OpenTelemetry span/metric exports that map into runtime snapshots
 - Deterministic root-cause hypotheses derived from correlated findings
 
