@@ -248,11 +248,14 @@ def diagnose_opentelemetry(
 
 @diagnose_app.command("kafka")
 def diagnose_kafka(
-    bootstrap_server: str = typer.Option(..., help="Kafka bootstrap server."),
+    bootstrap_server: str = typer.Option(None, help="Kafka bootstrap server."),
     security_protocol: str = typer.Option("PLAINTEXT", help="PLAINTEXT, SSL, SASL_SSL"),
     ca_cert: str = typer.Option(None, help="Path to CA certificate"),
     client_cert: str = typer.Option(None, help="Path to client certificate"),
     client_key: str = typer.Option(None, help="Path to client private key"),
+    access_config: str = typer.Option(
+        None, help="Path to generic Kafka access profile config YAML."
+    ),
     topic: str = typer.Option(None, help="Analyze only a specific topic."),
     consumer_group: str = typer.Option(
         None, help="Analyze only a specific consumer group."
@@ -275,6 +278,7 @@ def diagnose_kafka(
         topic=topic,
         consumer_group=consumer_group,
         max_groups=max_groups,
+        access_config=access_config,
     )
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
@@ -394,11 +398,12 @@ def diagnose_all(
 
 @readiness_app.command("kafka")
 def readiness_kafka(
-    bootstrap_server: str = typer.Option(...),
+    bootstrap_server: str = typer.Option(None),
     security_protocol: str = typer.Option("PLAINTEXT"),
     ca_cert: str = typer.Option(None),
     client_cert: str = typer.Option(None),
     client_key: str = typer.Option(None),
+    access_config: str = typer.Option(None),
     topic: str = typer.Option(None),
     consumer_group: str = typer.Option(None),
     max_topics: int = typer.Option(50),
@@ -417,6 +422,7 @@ def readiness_kafka(
         topic=topic,
         consumer_group=consumer_group,
         max_groups=max_groups,
+        access_config=access_config,
     )
 
     policy = load_policy()

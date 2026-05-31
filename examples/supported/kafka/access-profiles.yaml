@@ -1,0 +1,40 @@
+kafka_access:
+  profiles:
+    - name: cluster-discovery
+      scope: cluster
+      bootstrap_servers: kafka.company.example:9093
+      auth:
+        type: bearer_token
+        token: example-token
+      capabilities:
+        - list_topics
+        - describe_cluster
+        - describe_topic_metadata
+
+    - name: payments-topic-mtls
+      scope: topic
+      bootstrap_servers: kafka.company.example:9093
+      topics:
+        - payments
+        - payments.*
+      auth:
+        type: mtls
+        ca_cert: examples/supported/kafka/certs/ca.pem
+        client_cert: examples/supported/kafka/certs/payments-client.pem
+        client_key: examples/supported/kafka/certs/payments-client.key
+      capabilities:
+        - describe_topic
+        - describe_configs
+        - describe_offsets
+
+    - name: payments-consumer-group
+      scope: consumer_group
+      bootstrap_servers: kafka.company.example:9093
+      consumer_groups:
+        - payment-worker
+      auth:
+        type: sasl_plain
+        username: readonly-user
+        password: readonly-password
+      capabilities:
+        - describe_consumer_group

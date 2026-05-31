@@ -2,6 +2,10 @@ from confluent_kafka import TopicPartition, ConsumerGroupTopicPartitions
 from confluent_kafka.admin import AdminClient, ConfigResource, ResourceType, OffsetSpec
 
 import beacon.rules.kafka_registered_rules  # noqa: F401
+from beacon.diagnose.kafka.access_config import (
+    admin_config_from_profile,
+    load_kafka_access_config,
+)
 from beacon.diagnose.kafka.server_config import KafkaServerConfig
 from beacon.engine.evaluator import evaluate
 from beacon.engine.normalizer import normalize_kafka_config
@@ -65,6 +69,19 @@ def build_admin_config(
     return config
 
 
+def access_profile_finding(rule_id, severity, title, impact, recommendation, evidence):
+    return finding(
+        severity,
+        title,
+        impact,
+        recommendation,
+        rule_id=rule_id,
+        category="operational_safety",
+        evidence=evidence,
+        confidence="HIGH",
+    )
+
+
 def analyze_kafka_cluster(
     bootstrap_server,
     security_protocol="PLAINTEXT",
@@ -75,7 +92,56 @@ def analyze_kafka_cluster(
     topic=None,
     consumer_group=None,
     max_groups=20,
+    access_config=None,
 ):
+    findings = []
+    access_resolver = None
+    cluster_profile = None
+
+    if access_config:
+        access_resolver = load_kafka_access_config(access_config)
+
+        if not access_resolver.valid:
+            findings.append(
+                access_profile_finding(
+                    "kafka.runtime.access.invalid",
+                    "ERROR",
+                    "Kafka access config is invalid",
+                    "Beacon cannot safely start Kafka diagnostics with invalid access profile configuration.",
+                    "Fix the reported access profile validation errors and retry.",
+                    {"access_config": access_config, "errors": access_resolver.errors},
+                )
+            )
+            return findings
+
+        cluster_profile = access_resolver.profile_for("list_topics")
+
+        if not cluster_profile:
+            findings.append(
+                access_profile_finding(
+                    "kafka.runtime.access.cluster_profile.missing",
+                    "ERROR",
+                    "Kafka access config has no cluster discovery profile",
+                    "Beacon needs a profile capable of read-only cluster discovery before it can enumerate Kafka topics.",
+                    "Add a cluster or all-scope profile with list_topics capability.",
+                    {"access_config": access_config},
+                )
+            )
+            return findings
+
+        findings.append(
+            access_profile_finding(
+                "kafka.runtime.access.cluster_profile.loaded",
+                "INFO",
+                f"Kafka access profile '{cluster_profile.name}' selected for cluster discovery",
+                "Beacon will use this profile for read-only cluster metadata discovery.",
+                "No Kafka mutation operation will be performed.",
+                {"profile": cluster_profile.evidence()},
+            )
+        )
+
+        bootstrap_server = cluster_profile.bootstrap_servers
+
     server_config = KafkaServerConfig(
         bootstrap_server=bootstrap_server,
         security_protocol=security_protocol,
@@ -87,7 +153,6 @@ def analyze_kafka_cluster(
         consumer_group=consumer_group,
         max_groups=max_groups,
     )
-    findings = []
     findings.append(
         finding(
             "INFO",
@@ -120,13 +185,16 @@ def analyze_kafka_cluster(
         return findings
 
     try:
-        config = build_admin_config(
-            bootstrap_server=bootstrap_server,
-            security_protocol=security_protocol,
-            ca_cert=ca_cert,
-            client_cert=client_cert,
-            client_key=client_key,
-        )
+        if cluster_profile:
+            config = admin_config_from_profile(cluster_profile)
+        else:
+            config = build_admin_config(
+                bootstrap_server=bootstrap_server,
+                security_protocol=security_protocol,
+                ca_cert=ca_cert,
+                client_cert=client_cert,
+                client_key=client_key,
+            )
 
         admin_client = AdminClient(config)
         metadata = admin_client.list_topics(timeout=3)
@@ -204,8 +272,12 @@ def analyze_kafka_cluster(
 
         selected_topics = user_topics[:max_topics]
 
-        live_topic_models = build_live_topic_models(
-            admin_client=admin_client, metadata=metadata, topic_names=selected_topics
+        live_topic_models = build_live_topic_models_with_access(
+            admin_client=admin_client,
+            metadata=metadata,
+            topic_names=selected_topics,
+            access_resolver=access_resolver,
+            findings=findings,
         )
 
         if live_topic_models:
@@ -270,15 +342,99 @@ def analyze_kafka_cluster(
         return findings
     # Only analyze consumer groups when admin client was created successfully
     if "admin_client" in locals() and admin_client is not None:
+        consumer_group_admin_client = admin_client
+        if access_resolver and consumer_group:
+            group_profile = access_resolver.profile_for(
+                "describe_consumer_group", consumer_group=consumer_group
+            )
+            if group_profile:
+                findings.append(
+                    access_profile_finding(
+                        "kafka.runtime.access.consumer_group_profile.loaded",
+                        "INFO",
+                        f"Kafka access profile '{group_profile.name}' selected for consumer group diagnostics",
+                        "Beacon will use this profile for read-only consumer group diagnostics.",
+                        "No Kafka offset or group mutation operation will be performed.",
+                        {
+                            "profile": group_profile.evidence(),
+                            "consumer_group": consumer_group,
+                        },
+                    )
+                )
+                consumer_group_admin_client = AdminClient(
+                    admin_config_from_profile(group_profile)
+                )
+            else:
+                findings.append(
+                    access_profile_finding(
+                        "kafka.runtime.access.consumer_group_profile.missing",
+                        "LOW",
+                        "No matching Kafka consumer group access profile found",
+                        "Beacon will use the cluster profile for consumer group diagnostics.",
+                        "Add a consumer_group or all-scope profile if this group requires separate credentials.",
+                        {"consumer_group": consumer_group},
+                    )
+                )
         findings.extend(
             analyze_consumer_group_lag(
-                admin_client=admin_client,
+                admin_client=consumer_group_admin_client,
                 consumer_group=consumer_group,
                 max_groups=max_groups,
             )
         )
 
     return findings
+
+
+def build_live_topic_models_with_access(
+    admin_client, metadata, topic_names, access_resolver=None, findings=None
+):
+    if not access_resolver:
+        return build_live_topic_models(admin_client, metadata, topic_names)
+
+    topic_models = []
+
+    for topic_name in topic_names:
+        profile = access_resolver.profile_for("describe_topic", topic=topic_name)
+
+        if not profile:
+            if findings is not None:
+                findings.append(
+                    access_profile_finding(
+                        "kafka.runtime.access.topic_profile.missing",
+                        "LOW",
+                        f"No matching Kafka topic access profile found for '{topic_name}'",
+                        "Beacon discovered this topic but no scoped profile matched it for topic config diagnostics.",
+                        "Add a topic or all-scope profile if this topic requires separate credentials.",
+                        {"topic": topic_name},
+                    )
+                )
+            profile = access_resolver.profile_for("describe_topic")
+
+        topic_admin_client = admin_client
+        if profile:
+            if findings is not None:
+                findings.append(
+                    access_profile_finding(
+                        "kafka.runtime.access.topic_profile.loaded",
+                        "INFO",
+                        f"Kafka access profile '{profile.name}' selected for topic '{topic_name}'",
+                        "Beacon will use this profile for read-only topic diagnostics.",
+                        "No topic mutation operation will be performed.",
+                        {"profile": profile.evidence(), "topic": topic_name},
+                    )
+                )
+            topic_admin_client = AdminClient(admin_config_from_profile(profile))
+
+        topic_models.extend(
+            build_live_topic_models(
+                admin_client=topic_admin_client,
+                metadata=metadata,
+                topic_names=[topic_name],
+            )
+        )
+
+    return topic_models
 
 
 def build_live_topic_models(admin_client, metadata, topic_names):

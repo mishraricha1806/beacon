@@ -520,6 +520,88 @@ def test_direct_server_config_validation_fails_before_connect(monkeypatch):
     )
 
 
+def test_kafka_access_config_resolves_generic_profiles(tmp_path):
+    from beacon.diagnose.kafka.access_config import (
+        admin_config_from_profile,
+        load_kafka_access_config,
+    )
+
+    ca = tmp_path / "ca.pem"
+    cert = tmp_path / "client.pem"
+    key = tmp_path / "client.key"
+    ca.write_text("")
+    cert.write_text("")
+    key.write_text("")
+
+    path = tmp_path / "kafka-access.yaml"
+    path.write_text(
+        f"""
+kafka_access:
+  profiles:
+    - name: discovery
+      scope: cluster
+      bootstrap_servers: kafka.example:9093
+      auth:
+        type: bearer_token
+        token: token-value
+      capabilities:
+        - list_topics
+    - name: payments
+      scope: topic
+      bootstrap_servers: kafka.example:9093
+      topics:
+        - payments.*
+      auth:
+        type: mtls
+        ca_cert: {ca}
+        client_cert: {cert}
+        client_key: {key}
+      capabilities:
+        - describe_topic
+"""
+    )
+
+    access = load_kafka_access_config(str(path))
+    cluster_profile = access.profile_for("list_topics")
+    topic_profile = access.profile_for("describe_topic", topic="payments.events")
+
+    assert access.valid
+    assert cluster_profile.name == "discovery"
+    assert topic_profile.name == "payments"
+    assert (
+        admin_config_from_profile(cluster_profile)["sasl.mechanisms"] == "OAUTHBEARER"
+    )
+    assert admin_config_from_profile(topic_profile)["security.protocol"] == "SSL"
+
+
+def test_kafka_access_config_invalid_blocks_before_connect(monkeypatch, tmp_path):
+    from beacon import kafka_runtime_connector
+
+    path = tmp_path / "bad-access.yaml"
+    path.write_text(
+        """
+kafka_access:
+  profiles:
+    - name: invalid
+      scope: cluster
+      auth:
+        type: bearer_token
+"""
+    )
+
+    def fail_if_called(config):
+        raise AssertionError("AdminClient should not be constructed")
+
+    monkeypatch.setattr(kafka_runtime_connector, "AdminClient", fail_if_called)
+
+    findings = kafka_runtime_connector.analyze_kafka_cluster(
+        bootstrap_server=None,
+        access_config=str(path),
+    )
+
+    assert findings[0]["rule_id"] == "kafka.runtime.access.invalid"
+
+
 def test_runtime_info_findings_do_not_reduce_score():
     from beacon.reporter import calculate_score
 

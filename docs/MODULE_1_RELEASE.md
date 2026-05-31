@@ -10,6 +10,7 @@ Module 1 is ready to release when these surfaces are supported by examples, dete
 - Helm chart rendering into Kubernetes manifests
 - Kubernetes YAML, runtime snapshots, and read-only live cluster collection
 - Kafka topic, broker/server configuration, and read-only live metadata/lag collection
+- Generic Kafka access profiles for cluster, topic, and consumer group scoped credentials
 - Kafka producer and consumer client configuration risk checks
 - Kafka deterministic checks for broker security defaults, rack/AZ safety, replica placement, schema compatibility, ownership, compaction safety, replay survivability, controller health, reassignment pressure, replication lag, throttling, and request queue saturation
 - CI/CD deployment workflow manifests

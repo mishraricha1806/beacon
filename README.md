@@ -180,6 +180,15 @@ python3 -m beacon.cli diagnose kafka \
   --bootstrap-server localhost:9092
 ```
 
+For organizations with separate cluster and topic credentials, use a generic
+access profile config:
+
+```bash
+python3 -m beacon.cli diagnose kafka \
+  --access-config examples/supported/kafka/access-profiles.yaml \
+  --topic payments
+```
+
 ---
 
 ## Example: Live Kubernetes Diagnostics
