@@ -136,6 +136,12 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
     )
     monkeypatch.setattr(
         cli,
+        "analyze_schema_registry_config",
+        lambda path, timeout=5: calls.append(("schema-registry", path, timeout))
+        or [finding("schema_registry.rule", "kafka")],
+    )
+    monkeypatch.setattr(
+        cli,
         "analyze_kafka_cluster",
         lambda **kwargs: calls.append(("kafka", kwargs))
         or [finding("kafka.rule", "kafka")],
@@ -153,7 +159,9 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
         flow_path="flow.yaml",
         prometheus_path="prom.yaml",
         opentelemetry_path="otel.yaml",
+        schema_registry_path="schema-registry.yaml",
         prometheus_timeout=2,
+        schema_registry_timeout=3,
         kafka_bootstrap_server="localhost:9092",
         kubernetes_live=True,
         kubernetes_namespace="payments",
@@ -167,10 +175,12 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
         "flow.rule",
         "prometheus.rule",
         "opentelemetry.rule",
+        "schema_registry.rule",
         "kafka.rule",
         "kubernetes.rule",
     }
     assert ("prometheus", "prom.yaml", 2) in calls
+    assert ("schema-registry", "schema-registry.yaml", 3) in calls
     assert any(call[0] == "kafka" for call in calls)
     assert any(call[0] == "kubernetes" for call in calls)
 

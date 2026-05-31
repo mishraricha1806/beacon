@@ -14,6 +14,7 @@ from beacon.kubernetes_runtime_connector import analyze_kubernetes_cluster
 from beacon.flow_runtime import analyze_flow_file
 from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.prometheus_connector import analyze_prometheus_config
+from beacon.schema_registry_connector import analyze_schema_registry_config
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon import rules_registry
@@ -68,7 +69,9 @@ def collect_all_domain_findings(
     flow_path=None,
     prometheus_path=None,
     opentelemetry_path=None,
+    schema_registry_path=None,
     prometheus_timeout=5,
+    schema_registry_timeout=5,
     kafka_bootstrap_server=None,
     kafka_security_protocol="PLAINTEXT",
     kafka_ca_cert=None,
@@ -108,6 +111,13 @@ def collect_all_domain_findings(
 
     if opentelemetry_path:
         findings.extend(analyze_opentelemetry_file(opentelemetry_path))
+
+    if schema_registry_path:
+        findings.extend(
+            analyze_schema_registry_config(
+                schema_registry_path, timeout=schema_registry_timeout
+            )
+        )
 
     if kafka_bootstrap_server:
         findings.extend(
@@ -246,6 +256,25 @@ def diagnose_opentelemetry(
     print_report(findings, html=html, open_report=open_report, output=output)
 
 
+@diagnose_app.command("schema-registry")
+def diagnose_schema_registry(
+    path: str = typer.Argument(
+        ..., help="Path to Schema Registry collector config YAML."
+    ),
+    timeout: int = typer.Option(5, help="Schema Registry query timeout in seconds."),
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Diagnose Kafka Schema Registry readiness."""
+
+    findings = analyze_schema_registry_config(path, timeout=timeout)
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    print_report(findings, html=html, open_report=open_report, output=output)
+
+
 @diagnose_app.command("kafka")
 def diagnose_kafka(
     bootstrap_server: str = typer.Option(None, help="Kafka bootstrap server."),
@@ -345,8 +374,14 @@ def diagnose_all(
     opentelemetry_path: str = typer.Option(
         None, "--opentelemetry", help="OpenTelemetry export YAML or JSON path."
     ),
+    schema_registry_path: str = typer.Option(
+        None, "--schema-registry", help="Schema Registry collector config path."
+    ),
     prometheus_timeout: int = typer.Option(
         5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
+    ),
+    schema_registry_timeout: int = typer.Option(
+        5, "--schema-registry-timeout", help="Schema Registry query timeout in seconds."
     ),
     kafka_bootstrap_server: str = typer.Option(
         None, "--kafka-bootstrap-server", help="Kafka bootstrap server."
@@ -377,7 +412,9 @@ def diagnose_all(
         flow_path=flow_path,
         prometheus_path=prometheus_path,
         opentelemetry_path=opentelemetry_path,
+        schema_registry_path=schema_registry_path,
         prometheus_timeout=prometheus_timeout,
+        schema_registry_timeout=schema_registry_timeout,
         kafka_bootstrap_server=kafka_bootstrap_server,
         kafka_security_protocol=kafka_security_protocol,
         kafka_ca_cert=kafka_ca_cert,
@@ -460,8 +497,14 @@ def readiness_all(
     opentelemetry_path: str = typer.Option(
         None, "--opentelemetry", help="OpenTelemetry export YAML or JSON path."
     ),
+    schema_registry_path: str = typer.Option(
+        None, "--schema-registry", help="Schema Registry collector config path."
+    ),
     prometheus_timeout: int = typer.Option(
         5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
+    ),
+    schema_registry_timeout: int = typer.Option(
+        5, "--schema-registry-timeout", help="Schema Registry query timeout in seconds."
     ),
     kafka_bootstrap_server: str = typer.Option(
         None, "--kafka-bootstrap-server", help="Kafka bootstrap server."
@@ -492,7 +535,9 @@ def readiness_all(
         flow_path=flow_path,
         prometheus_path=prometheus_path,
         opentelemetry_path=opentelemetry_path,
+        schema_registry_path=schema_registry_path,
         prometheus_timeout=prometheus_timeout,
+        schema_registry_timeout=schema_registry_timeout,
         kafka_bootstrap_server=kafka_bootstrap_server,
         kafka_security_protocol=kafka_security_protocol,
         kafka_ca_cert=kafka_ca_cert,
@@ -662,6 +707,36 @@ def readiness_opentelemetry(
     """Analyze runtime readiness from OpenTelemetry exports."""
 
     findings = analyze_opentelemetry_file(path)
+
+    policy = load_policy()
+    findings = apply_policy_to_findings(findings, policy)
+
+    readiness_summary = calculate_readiness(findings)
+
+    print_readiness_summary(readiness_summary)
+
+    print_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        readiness_summary=readiness_summary,
+    )
+
+
+@readiness_app.command("schema-registry")
+def readiness_schema_registry(
+    path: str = typer.Argument(
+        ..., help="Path to Schema Registry collector config YAML."
+    ),
+    timeout: int = typer.Option(5, help="Schema Registry query timeout in seconds."),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Analyze Kafka Schema Registry production readiness."""
+
+    findings = analyze_schema_registry_config(path, timeout=timeout)
 
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)

@@ -1,0 +1,14 @@
+schema_registry:
+  url: http://schema-registry.local:8081
+  max_subjects: 25
+  auth:
+    type: bearer_token
+    token: example-read-only-token
+  expected_topics:
+    - name: payments
+      subjects:
+        - payments-key
+        - payments-value
+    - name: audit-events
+      subjects:
+        - audit-events-value

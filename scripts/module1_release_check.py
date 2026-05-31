@@ -21,6 +21,7 @@ import beacon.rules.storage_registered_rules  # noqa: F401
 import beacon.rules.storage_runtime_registered_rules  # noqa: F401
 import beacon.rules.topology_registered_rules  # noqa: F401
 import beacon.prometheus_connector as prometheus_connector
+import beacon.schema_registry_connector as schema_registry_connector
 from beacon.engine.registry import registry
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
@@ -230,6 +231,38 @@ def check_prometheus_failure_contract():
     print("prometheus failure contract ok")
 
 
+def check_schema_registry_failure_contract():
+    original_query = schema_registry_connector.query_schema_registry
+
+    def fail_query(*args, **kwargs):
+        raise RuntimeError("schema registry unavailable")
+
+    schema_registry_connector.query_schema_registry = fail_query
+    try:
+        findings = schema_registry_connector.analyze_schema_registry_config(
+            str(SUPPORTED / "kafka" / "schema-registry.yaml"),
+            timeout=1,
+        )
+    finally:
+        schema_registry_connector.query_schema_registry = original_query
+
+    summary = calculate_readiness(findings)
+    require(
+        "schema_registry.query.failed" in rule_ids(findings),
+        "Schema Registry failure was not surfaced",
+    )
+    require(
+        summary["score_status"] == "BLOCKED_BY_ANALYSIS_ERROR",
+        "Schema Registry failure did not block score",
+    )
+    require(
+        summary["production_decision"] == "NOT READY",
+        "Schema Registry failure did not block readiness",
+    )
+
+    print("schema registry failure contract ok")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run Beacon Module 1 release checks.")
     parser.add_argument(
@@ -245,6 +278,7 @@ def main():
         check_runtime_snapshot()
         check_opentelemetry()
         check_prometheus_failure_contract()
+        check_schema_registry_failure_contract()
     except AssertionError as error:
         return fail(str(error))
 

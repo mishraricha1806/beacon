@@ -12,6 +12,7 @@ Module 1 is ready to release when these surfaces are supported by examples, dete
 - Kafka topic, broker/server configuration, and read-only live metadata/lag collection
 - Generic Kafka access profiles for cluster, topic, and consumer group scoped credentials
 - Kafka producer and consumer client configuration risk checks
+- Kafka Schema Registry read-only diagnostics for compatibility posture, expected subjects, latest schema availability, and schema type visibility
 - Kafka deterministic checks for broker security defaults, rack/AZ safety, replica placement, schema compatibility, ownership, compaction safety, replay survivability, controller health, reassignment pressure, replication lag, throttling, and request queue saturation
 - CI/CD deployment workflow manifests
 - Cloud inventory snapshots
@@ -38,7 +39,7 @@ Those are intentionally outside the first release. Beacon should remain a produc
 ## Release Checklist
 
 - Supported examples exist under `examples/supported/` for every release surface.
-- Readiness tests cover static examples, runtime snapshots, Prometheus, and OpenTelemetry paths.
+- Readiness tests cover static examples, runtime snapshots, Prometheus, OpenTelemetry, and Schema Registry paths.
 - Every registered release rule has metadata.
 - Read-only collectors emit explicit read-only findings.
 - Analysis errors block readiness with `score_status=BLOCKED_BY_ANALYSIS_ERROR`.
@@ -77,13 +78,13 @@ python3 -m beacon.cli readiness snapshot examples/supported/runtime/all-runtime.
 Run combined all-domain readiness across static and runtime inputs:
 
 ```bash
-python3 -m beacon.cli readiness all --static-path examples/supported --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --no-html --no-open-report --output json
+python3 -m beacon.cli readiness all --static-path examples/supported --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --schema-registry examples/supported/kafka/schema-registry.yaml --no-html --no-open-report --output json
 ```
 
 Run combined all-domain diagnostics:
 
 ```bash
-python3 -m beacon.cli diagnose all --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --no-html --no-open-report --output json
+python3 -m beacon.cli diagnose all --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --schema-registry examples/supported/kafka/schema-registry.yaml --no-html --no-open-report --output json
 ```
 
 Run the OpenTelemetry sample:
@@ -96,6 +97,12 @@ Run the Prometheus sample. In local development this may intentionally produce q
 
 ```bash
 python3 -m beacon.cli readiness prometheus examples/supported/prometheus/platform-prometheus.yaml --timeout 1 --no-html --no-open-report --output json
+```
+
+Run the Schema Registry sample. In local development this may intentionally produce query failures if no Schema Registry server is available; that should block readiness rather than silently pass.
+
+```bash
+python3 -m beacon.cli readiness schema-registry examples/supported/kafka/schema-registry.yaml --timeout 1 --no-html --no-open-report --output json
 ```
 
 Optional live read-only checks:

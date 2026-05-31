@@ -269,6 +269,17 @@ Beacon reads exported OpenTelemetry spans and metric samples, derives API/databa
 
 ---
 
+## Example: Schema Registry Diagnostics
+
+```bash
+python3 -m beacon.cli diagnose schema-registry \
+  ./examples/supported/kafka/schema-registry.yaml
+```
+
+Beacon queries Schema Registry through read-only HTTP APIs and checks compatibility posture, expected topic subjects, latest schema availability, and schema type visibility.
+
+---
+
 ## Example: All-Domain Readiness
 
 ```bash
@@ -276,11 +287,12 @@ python3 -m beacon.cli readiness all \
   --static-path ./examples/supported \
   --snapshot ./examples/supported/runtime/all-runtime.yaml \
   --opentelemetry ./examples/supported/opentelemetry/checkout-otel.yaml \
+  --schema-registry ./examples/supported/kafka/schema-registry.yaml \
   --no-html \
   --no-open-report
 ```
 
-`readiness all` combines every provided domain input into one production-readiness decision. Static inputs cover Terraform, Helm-rendered Kubernetes, Kubernetes YAML, Kafka config, CI/CD, cloud inventory, and topology. Runtime inputs cover API, database, storage, flow, Kubernetes, Kafka snapshots, Prometheus-derived signals, OpenTelemetry-derived signals, and optional read-only live Kafka/Kubernetes collection.
+`readiness all` combines every provided domain input into one production-readiness decision. Static inputs cover Terraform, Helm-rendered Kubernetes, Kubernetes YAML, Kafka config, CI/CD, cloud inventory, and topology. Runtime inputs cover API, database, storage, flow, Kubernetes, Kafka snapshots, Prometheus-derived signals, OpenTelemetry-derived signals, Schema Registry metadata, and optional read-only live Kafka/Kubernetes collection.
 
 ---
 
@@ -290,6 +302,7 @@ python3 -m beacon.cli readiness all \
 python3 -m beacon.cli diagnose all \
   --snapshot ./examples/supported/runtime/all-runtime.yaml \
   --opentelemetry ./examples/supported/opentelemetry/checkout-otel.yaml \
+  --schema-registry ./examples/supported/kafka/schema-registry.yaml \
   --no-html \
   --no-open-report
 ```

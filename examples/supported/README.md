@@ -19,13 +19,13 @@ python3 -m beacon.cli runtime examples/supported/kafka/runtime-v2.yaml --no-html
 Run combined all-domain readiness:
 
 ```bash
-python3 -m beacon.cli readiness all --static-path examples/supported --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --no-html --no-open-report
+python3 -m beacon.cli readiness all --static-path examples/supported --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --schema-registry examples/supported/kafka/schema-registry.yaml --no-html --no-open-report
 ```
 
 Run combined all-domain diagnostics:
 
 ```bash
-python3 -m beacon.cli diagnose all --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --no-html --no-open-report
+python3 -m beacon.cli diagnose all --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --schema-registry examples/supported/kafka/schema-registry.yaml --no-html --no-open-report
 ```
 
 Run Prometheus collector config:
@@ -41,6 +41,12 @@ Run OpenTelemetry export:
 python3 -m beacon.cli readiness opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --no-html --no-open-report
 ```
 
+Run Schema Registry collector config:
+
+```bash
+python3 -m beacon.cli readiness schema-registry examples/supported/kafka/schema-registry.yaml --no-html --no-open-report
+```
+
 Run direct live collectors when you have access:
 
 ```bash
@@ -52,7 +58,7 @@ python3 -m beacon.cli readiness kubernetes --namespace payments --no-html --no-o
 Supported example groups:
 
 * `terraform/` - Terraform HCL, plan JSON, and state JSON
-* `kafka/` - Kafka topic, broker/server, producer, consumer, and generic access profile config plus Kafka runtime v2 signals
+* `kafka/` - Kafka topic, broker/server, producer, consumer, Schema Registry, and generic access profile config plus Kafka runtime v2 signals
 * `kubernetes/` - Kubernetes manifests and runtime snapshots
 * `helm/` - Helm chart rendering input
 * `cicd/` - GitHub Actions deployment workflow risk
