@@ -1,6 +1,8 @@
 import fnmatch
 import os
+import ssl
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 import yaml
@@ -85,6 +87,14 @@ class KafkaAccessConfig:
             if profile.supports(capability, topic=topic, consumer_group=consumer_group):
                 return profile
         return None
+
+    def posture_issues(self, now=None):
+        issues = []
+
+        for profile in self.profiles:
+            issues.extend(assess_profile_posture(profile, now=now))
+
+        return issues
 
 
 def load_kafka_access_config(path):
@@ -263,6 +273,177 @@ def validate_auth_values(auth_type, values, index):
             )
 
     return errors
+
+
+def assess_profile_posture(profile, now=None):
+    issues = []
+    auth_type = profile.auth.type
+    values = profile.auth.values
+    security_protocol = str(values.get("security_protocol", "")).upper()
+
+    if auth_type == "plaintext":
+        issues.append(
+            posture_issue(
+                "kafka.runtime.access.auth.plaintext",
+                "HIGH",
+                profile,
+                "Kafka access profile uses plaintext authentication",
+                "Plaintext Kafka access can expose metadata, credentials, or event data on production networks.",
+                "Use SSL, mTLS, or SASL over SSL for production Kafka access profiles.",
+            )
+        )
+
+    if auth_type in {"sasl_plain", "sasl_scram", "bearer_token", "sasl_oauthbearer"}:
+        if security_protocol == "PLAINTEXT" or security_protocol == "SASL_PLAINTEXT":
+            issues.append(
+                posture_issue(
+                    "kafka.runtime.access.auth.sasl_without_ssl",
+                    "CRITICAL",
+                    profile,
+                    "Kafka SASL access profile does not require SSL",
+                    "SASL without SSL can expose credentials or tokens in transit.",
+                    "Use SASL_SSL for production Kafka access profiles.",
+                    {"security_protocol": security_protocol},
+                )
+            )
+
+    if auth_type == "sasl_plain":
+        issues.append(
+            posture_issue(
+                "kafka.runtime.access.auth.sasl_plain",
+                "MEDIUM",
+                profile,
+                "Kafka access profile uses SASL/PLAIN",
+                "SASL/PLAIN depends heavily on TLS and secret handling discipline.",
+                "Prefer SCRAM, OAUTHBEARER, or mTLS where available; ensure SASL/PLAIN only runs over SSL.",
+            )
+        )
+
+    if auth_type == "sasl_scram":
+        mechanism = values.get("mechanism", "SCRAM-SHA-512")
+        if mechanism == "SCRAM-SHA-256":
+            issues.append(
+                posture_issue(
+                    "kafka.runtime.access.auth.scram_sha256",
+                    "LOW",
+                    profile,
+                    "Kafka access profile uses SCRAM-SHA-256",
+                    "SCRAM-SHA-256 may be acceptable but is weaker than SCRAM-SHA-512.",
+                    "Prefer SCRAM-SHA-512 when supported by the Kafka platform.",
+                    {"mechanism": mechanism},
+                )
+            )
+
+    if profile.scope == "all" and not profile.topics and not profile.consumer_groups:
+        issues.append(
+            posture_issue(
+                "kafka.runtime.access.scope.broad",
+                "MEDIUM",
+                profile,
+                "Kafka access profile has broad all-cluster scope",
+                "Broad profiles increase credential blast radius if leaked or overused.",
+                "Prefer cluster, topic, or consumer_group scoped profiles with explicit capabilities.",
+            )
+        )
+
+    if profile.scope == "topic" and not profile.topics:
+        issues.append(
+            posture_issue(
+                "kafka.runtime.access.scope.topic_unbounded",
+                "HIGH",
+                profile,
+                "Kafka topic access profile has no topic patterns",
+                "A topic-scoped profile without topic patterns can match every topic.",
+                "Set explicit topic names or patterns for topic-scoped profiles.",
+            )
+        )
+
+    if profile.scope == "consumer_group" and not profile.consumer_groups:
+        issues.append(
+            posture_issue(
+                "kafka.runtime.access.scope.consumer_group_unbounded",
+                "MEDIUM",
+                profile,
+                "Kafka consumer group access profile has no group patterns",
+                "A consumer-group-scoped profile without group patterns can match every consumer group.",
+                "Set explicit consumer group names or patterns for consumer-group-scoped profiles.",
+            )
+        )
+
+    for cert_field in ("client_cert", "ca_cert"):
+        cert_path = values.get(cert_field)
+        expiry_issue = certificate_expiry_issue(profile, cert_field, cert_path, now=now)
+        if expiry_issue:
+            issues.append(expiry_issue)
+
+    return issues
+
+
+def posture_issue(
+    rule_id, severity, profile, title, impact, recommendation, extra=None
+):
+    evidence = {"profile": profile.evidence()}
+    if extra:
+        evidence.update(extra)
+
+    return {
+        "rule_id": rule_id,
+        "severity": severity,
+        "title": title,
+        "impact": impact,
+        "recommendation": recommendation,
+        "evidence": evidence,
+    }
+
+
+def certificate_expiry_issue(profile, cert_field, cert_path, now=None):
+    if not cert_path or not os.path.exists(cert_path):
+        return None
+
+    try:
+        decoded = ssl._ssl._test_decode_cert(cert_path)
+    except Exception:
+        return None
+
+    not_after = decoded.get("notAfter")
+    if not not_after:
+        return None
+
+    expires_at = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z").replace(
+        tzinfo=timezone.utc
+    )
+    now = now or datetime.now(timezone.utc)
+    days_remaining = (expires_at - now).days
+
+    if days_remaining < 0:
+        severity = "CRITICAL"
+        rule_id = "kafka.runtime.access.cert.expired"
+        title = f"Kafka access profile certificate is expired: {cert_field}"
+        impact = "Expired Kafka certificates can block diagnostics or production client access."
+        recommendation = "Rotate the expired Kafka certificate immediately."
+    elif days_remaining <= 30:
+        severity = "HIGH"
+        rule_id = "kafka.runtime.access.cert.expiring_soon"
+        title = f"Kafka access profile certificate expires soon: {cert_field}"
+        impact = "Soon-to-expire Kafka certificates can cause unexpected access loss."
+        recommendation = "Rotate the Kafka certificate before the expiry window closes."
+    else:
+        return None
+
+    return posture_issue(
+        rule_id,
+        severity,
+        profile,
+        title,
+        impact,
+        recommendation,
+        {
+            "cert_field": cert_field,
+            "cert_path": cert_path,
+            "expires_at": expires_at.isoformat(),
+            "days_remaining": days_remaining,
+        },
+    )
 
 
 def env_value(name):

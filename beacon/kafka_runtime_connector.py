@@ -82,6 +82,23 @@ def access_profile_finding(rule_id, severity, title, impact, recommendation, evi
     )
 
 
+def connection_evidence(server_config, profile=None):
+    evidence = server_config.evidence()
+
+    if profile:
+        evidence.update(
+            {
+                "access_profile": profile.evidence(),
+                "security_protocol": None,
+                "ca_cert_configured": bool(profile.auth.values.get("ca_cert")),
+                "client_cert_configured": bool(profile.auth.values.get("client_cert")),
+                "client_key_configured": bool(profile.auth.values.get("client_key")),
+            }
+        )
+
+    return evidence
+
+
 def analyze_kafka_cluster(
     bootstrap_server,
     security_protocol="PLAINTEXT",
@@ -113,6 +130,8 @@ def analyze_kafka_cluster(
                 )
             )
             return findings
+
+        findings.extend(access_posture_findings(access_resolver.posture_issues()))
 
         cluster_profile = access_resolver.profile_for("list_topics")
 
@@ -222,7 +241,7 @@ def analyze_kafka_cluster(
                 "Beacon used read-only metadata access. No Kafka mutation operation was performed.",
                 rule_id="kafka.runtime.connection.success",
                 evidence={
-                    **server_config.evidence(),
+                    **connection_evidence(server_config, cluster_profile),
                     "broker_count": broker_count,
                     "topic_count": topic_count,
                 },
@@ -332,7 +351,7 @@ def analyze_kafka_cluster(
                 "Check bootstrap server, network access, security protocol, certificates, and firewall rules.",
                 rule_id="kafka.runtime.connection.failed",
                 evidence={
-                    **server_config.evidence(),
+                    **connection_evidence(server_config, cluster_profile),
                     "error": str(e),
                 },
                 confidence="HIGH",
@@ -435,6 +454,20 @@ def build_live_topic_models_with_access(
         )
 
     return topic_models
+
+
+def access_posture_findings(issues):
+    return [
+        access_profile_finding(
+            issue["rule_id"],
+            issue["severity"],
+            issue["title"],
+            issue["impact"],
+            issue["recommendation"],
+            issue["evidence"],
+        )
+        for issue in issues
+    ]
 
 
 def build_live_topic_models(admin_client, metadata, topic_names):

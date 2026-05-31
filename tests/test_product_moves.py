@@ -602,6 +602,51 @@ kafka_access:
     assert findings[0]["rule_id"] == "kafka.runtime.access.invalid"
 
 
+def test_kafka_access_config_reports_auth_posture_findings(tmp_path):
+    from beacon.diagnose.kafka.access_config import load_kafka_access_config
+
+    path = tmp_path / "risky-access.yaml"
+    path.write_text(
+        """
+kafka_access:
+  profiles:
+    - name: discovery
+      scope: cluster
+      bootstrap_servers: kafka.example:9092
+      auth:
+        type: plaintext
+      capabilities:
+        - list_topics
+    - name: broad
+      scope: all
+      bootstrap_servers: kafka.example:9093
+      auth:
+        type: sasl_plain
+        security_protocol: SASL_PLAINTEXT
+        username: user
+        password: pass
+    - name: topic-unbounded
+      scope: topic
+      bootstrap_servers: kafka.example:9093
+      auth:
+        type: sasl_scram
+        mechanism: SCRAM-SHA-256
+        username: user
+        password: pass
+"""
+    )
+
+    access = load_kafka_access_config(str(path))
+    rule_ids = {issue["rule_id"] for issue in access.posture_issues()}
+
+    assert "kafka.runtime.access.auth.plaintext" in rule_ids
+    assert "kafka.runtime.access.auth.sasl_without_ssl" in rule_ids
+    assert "kafka.runtime.access.auth.sasl_plain" in rule_ids
+    assert "kafka.runtime.access.scope.broad" in rule_ids
+    assert "kafka.runtime.access.scope.topic_unbounded" in rule_ids
+    assert "kafka.runtime.access.auth.scram_sha256" in rule_ids
+
+
 def test_runtime_info_findings_do_not_reduce_score():
     from beacon.reporter import calculate_score
 
