@@ -74,8 +74,13 @@ and analyze:
 * replication factor
 * retention settings
 * partition topology
+* offline partitions and ISR shrink
+* leader imbalance
 * consumer group lag
+* consumer group rebalancing or empty membership
 * hot partition symptoms
+* broker disk skew
+* producer error rate and request latency pressure
 * storage growth pressure
 * operational bottlenecks
 
@@ -232,6 +237,35 @@ python3 -m beacon.cli diagnose opentelemetry \
 ```
 
 Beacon reads exported OpenTelemetry spans and metric samples, derives API/database/storage/Flow runtime signals, and evaluates them through deterministic runtime rules.
+
+---
+
+## Example: All-Domain Readiness
+
+```bash
+python3 -m beacon.cli readiness all \
+  --static-path ./examples/supported \
+  --snapshot ./examples/supported/runtime/all-runtime.yaml \
+  --opentelemetry ./examples/supported/opentelemetry/checkout-otel.yaml \
+  --no-html \
+  --no-open-report
+```
+
+`readiness all` combines every provided domain input into one production-readiness decision. Static inputs cover Terraform, Helm-rendered Kubernetes, Kubernetes YAML, Kafka config, CI/CD, cloud inventory, and topology. Runtime inputs cover API, database, storage, flow, Kubernetes, Kafka snapshots, Prometheus-derived signals, OpenTelemetry-derived signals, and optional read-only live Kafka/Kubernetes collection.
+
+---
+
+## Example: All-Domain Diagnostics
+
+```bash
+python3 -m beacon.cli diagnose all \
+  --snapshot ./examples/supported/runtime/all-runtime.yaml \
+  --opentelemetry ./examples/supported/opentelemetry/checkout-otel.yaml \
+  --no-html \
+  --no-open-report
+```
+
+`diagnose all` uses the same domain inputs, but reports operational findings for investigation instead of producing a production-readiness decision.
 
 ---
 

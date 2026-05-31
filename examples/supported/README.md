@@ -13,6 +13,19 @@ Run runtime snapshot examples:
 ```bash
 python3 -m beacon.cli readiness snapshot examples/supported/runtime/platform-runtime.yaml --no-html --no-open-report
 python3 -m beacon.cli readiness flow examples/supported/runtime/flow-runtime.yaml --no-html --no-open-report
+python3 -m beacon.cli runtime examples/supported/kafka/runtime-v2.yaml --no-html --no-open-report
+```
+
+Run combined all-domain readiness:
+
+```bash
+python3 -m beacon.cli readiness all --static-path examples/supported --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --no-html --no-open-report
+```
+
+Run combined all-domain diagnostics:
+
+```bash
+python3 -m beacon.cli diagnose all --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --no-html --no-open-report
 ```
 
 Run Prometheus collector config:
@@ -37,7 +50,7 @@ python3 -m beacon.cli readiness kubernetes --namespace payments --no-html --no-o
 Supported example groups:
 
 * `terraform/` - Terraform HCL, plan JSON, and state JSON
-* `kafka/` - Kafka topic and broker/server config
+* `kafka/` - Kafka topic and broker/server config plus Kafka runtime v2 signals
 * `kubernetes/` - Kubernetes manifests and runtime snapshots
 * `helm/` - Helm chart rendering input
 * `cicd/` - GitHub Actions deployment workflow risk

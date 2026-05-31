@@ -38,6 +38,104 @@ rules_app = typer.Typer(help="Rules metadata and management.")
 app.add_typer(rules_app, name="rules")
 
 
+def apply_runtime_policy(findings):
+    policy = load_policy()
+    return apply_policy_to_findings(findings, policy)
+
+
+def emit_readiness(findings, html=True, open_report=True, output="terminal"):
+    findings = apply_runtime_policy(findings)
+    readiness_summary = calculate_readiness(findings)
+
+    print_readiness_summary(readiness_summary)
+    print_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        readiness_summary=readiness_summary,
+    )
+
+
+def emit_diagnostics(findings, html=True, open_report=True, output="terminal"):
+    findings = apply_runtime_policy(findings)
+    print_report(findings, html=html, open_report=open_report, output=output)
+
+
+def collect_all_domain_findings(
+    static_path=None,
+    snapshot_path=None,
+    flow_path=None,
+    prometheus_path=None,
+    opentelemetry_path=None,
+    prometheus_timeout=5,
+    kafka_bootstrap_server=None,
+    kafka_security_protocol="PLAINTEXT",
+    kafka_ca_cert=None,
+    kafka_client_cert=None,
+    kafka_client_key=None,
+    kafka_topic=None,
+    kafka_consumer_group=None,
+    kafka_max_topics=50,
+    kafka_max_groups=20,
+    kubernetes_live=False,
+    kubernetes_namespace=None,
+    kubernetes_context=None,
+    kubernetes_kubeconfig=None,
+):
+    """Collect all explicitly provided Beacon domain inputs.
+
+    Static inputs can include Terraform, Helm, Kubernetes YAML, Kafka config,
+    CI/CD, cloud inventory, topology, and runtime snapshots discovered by the
+    scanner. Live Kafka and Kubernetes collection stays opt-in and read-only.
+    """
+
+    findings = []
+
+    if static_path:
+        findings.extend(scan_path(static_path))
+
+    if snapshot_path:
+        findings.extend(analyze_runtime_snapshot_file(snapshot_path))
+
+    if flow_path:
+        findings.extend(analyze_flow_file(flow_path))
+
+    if prometheus_path:
+        findings.extend(
+            analyze_prometheus_config(prometheus_path, timeout=prometheus_timeout)
+        )
+
+    if opentelemetry_path:
+        findings.extend(analyze_opentelemetry_file(opentelemetry_path))
+
+    if kafka_bootstrap_server:
+        findings.extend(
+            analyze_kafka_cluster(
+                bootstrap_server=kafka_bootstrap_server,
+                security_protocol=kafka_security_protocol,
+                ca_cert=kafka_ca_cert,
+                client_cert=kafka_client_cert,
+                client_key=kafka_client_key,
+                max_topics=kafka_max_topics,
+                topic=kafka_topic,
+                consumer_group=kafka_consumer_group,
+                max_groups=kafka_max_groups,
+            )
+        )
+
+    if kubernetes_live:
+        findings.extend(
+            analyze_kubernetes_cluster(
+                namespace=kubernetes_namespace,
+                context=kubernetes_context,
+                kubeconfig=kubernetes_kubeconfig,
+            )
+        )
+
+    return findings
+
+
 @rules_app.command("list")
 def list_rules(output: str = typer.Option("terminal", help="Output: terminal or json")):
     """List available rule metadata."""
@@ -224,6 +322,76 @@ def diagnose_kubernetes(
     print_report(findings, html=html, open_report=open_report, output=output)
 
 
+@diagnose_app.command("all")
+def diagnose_all(
+    static_path: str = typer.Option(
+        None,
+        "--static-path",
+        help="Static config path: Terraform, Helm, Kubernetes YAML, Kafka, CI/CD, cloud, topology.",
+    ),
+    snapshot_path: str = typer.Option(
+        None,
+        "--snapshot",
+        help="Runtime snapshot path for API, database, storage, flow, Kubernetes, or Kafka signals.",
+    ),
+    flow_path: str = typer.Option(None, "--flow", help="Flow runtime snapshot path."),
+    prometheus_path: str = typer.Option(
+        None, "--prometheus", help="Prometheus collector config path."
+    ),
+    opentelemetry_path: str = typer.Option(
+        None, "--opentelemetry", help="OpenTelemetry export YAML or JSON path."
+    ),
+    prometheus_timeout: int = typer.Option(
+        5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
+    ),
+    kafka_bootstrap_server: str = typer.Option(
+        None, "--kafka-bootstrap-server", help="Kafka bootstrap server."
+    ),
+    kafka_security_protocol: str = typer.Option("PLAINTEXT"),
+    kafka_ca_cert: str = typer.Option(None),
+    kafka_client_cert: str = typer.Option(None),
+    kafka_client_key: str = typer.Option(None),
+    kafka_topic: str = typer.Option(None),
+    kafka_consumer_group: str = typer.Option(None),
+    kafka_max_topics: int = typer.Option(50),
+    kafka_max_groups: int = typer.Option(20),
+    kubernetes_live: bool = typer.Option(
+        False, "--kubernetes-live", help="Collect live Kubernetes runtime signals."
+    ),
+    kubernetes_namespace: str = typer.Option(None),
+    kubernetes_context: str = typer.Option(None),
+    kubernetes_kubeconfig: str = typer.Option(None),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Diagnose all provided Beacon domains in one deterministic pass."""
+
+    findings = collect_all_domain_findings(
+        static_path=static_path,
+        snapshot_path=snapshot_path,
+        flow_path=flow_path,
+        prometheus_path=prometheus_path,
+        opentelemetry_path=opentelemetry_path,
+        prometheus_timeout=prometheus_timeout,
+        kafka_bootstrap_server=kafka_bootstrap_server,
+        kafka_security_protocol=kafka_security_protocol,
+        kafka_ca_cert=kafka_ca_cert,
+        kafka_client_cert=kafka_client_cert,
+        kafka_client_key=kafka_client_key,
+        kafka_topic=kafka_topic,
+        kafka_consumer_group=kafka_consumer_group,
+        kafka_max_topics=kafka_max_topics,
+        kafka_max_groups=kafka_max_groups,
+        kubernetes_live=kubernetes_live,
+        kubernetes_namespace=kubernetes_namespace,
+        kubernetes_context=kubernetes_context,
+        kubernetes_kubeconfig=kubernetes_kubeconfig,
+    )
+
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
+
+
 @readiness_app.command("kafka")
 def readiness_kafka(
     bootstrap_server: str = typer.Option(...),
@@ -265,6 +433,76 @@ def readiness_kafka(
         output=output,
         readiness_summary=readiness_summary,
     )
+
+
+@readiness_app.command("all")
+def readiness_all(
+    static_path: str = typer.Option(
+        None,
+        "--static-path",
+        help="Static config path: Terraform, Helm, Kubernetes YAML, Kafka, CI/CD, cloud, topology.",
+    ),
+    snapshot_path: str = typer.Option(
+        None,
+        "--snapshot",
+        help="Runtime snapshot path for API, database, storage, flow, Kubernetes, or Kafka signals.",
+    ),
+    flow_path: str = typer.Option(None, "--flow", help="Flow runtime snapshot path."),
+    prometheus_path: str = typer.Option(
+        None, "--prometheus", help="Prometheus collector config path."
+    ),
+    opentelemetry_path: str = typer.Option(
+        None, "--opentelemetry", help="OpenTelemetry export YAML or JSON path."
+    ),
+    prometheus_timeout: int = typer.Option(
+        5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
+    ),
+    kafka_bootstrap_server: str = typer.Option(
+        None, "--kafka-bootstrap-server", help="Kafka bootstrap server."
+    ),
+    kafka_security_protocol: str = typer.Option("PLAINTEXT"),
+    kafka_ca_cert: str = typer.Option(None),
+    kafka_client_cert: str = typer.Option(None),
+    kafka_client_key: str = typer.Option(None),
+    kafka_topic: str = typer.Option(None),
+    kafka_consumer_group: str = typer.Option(None),
+    kafka_max_topics: int = typer.Option(50),
+    kafka_max_groups: int = typer.Option(20),
+    kubernetes_live: bool = typer.Option(
+        False, "--kubernetes-live", help="Collect live Kubernetes runtime signals."
+    ),
+    kubernetes_namespace: str = typer.Option(None),
+    kubernetes_context: str = typer.Option(None),
+    kubernetes_kubeconfig: str = typer.Option(None),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+):
+    """Analyze production readiness across all provided Beacon domains."""
+
+    findings = collect_all_domain_findings(
+        static_path=static_path,
+        snapshot_path=snapshot_path,
+        flow_path=flow_path,
+        prometheus_path=prometheus_path,
+        opentelemetry_path=opentelemetry_path,
+        prometheus_timeout=prometheus_timeout,
+        kafka_bootstrap_server=kafka_bootstrap_server,
+        kafka_security_protocol=kafka_security_protocol,
+        kafka_ca_cert=kafka_ca_cert,
+        kafka_client_cert=kafka_client_cert,
+        kafka_client_key=kafka_client_key,
+        kafka_topic=kafka_topic,
+        kafka_consumer_group=kafka_consumer_group,
+        kafka_max_topics=kafka_max_topics,
+        kafka_max_groups=kafka_max_groups,
+        kubernetes_live=kubernetes_live,
+        kubernetes_namespace=kubernetes_namespace,
+        kubernetes_context=kubernetes_context,
+        kubernetes_kubeconfig=kubernetes_kubeconfig,
+    )
+
+    emit_readiness(findings, html=html, open_report=open_report, output=output)
 
 
 @readiness_app.command("static")

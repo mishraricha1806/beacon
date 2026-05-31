@@ -86,6 +86,189 @@ def test_readiness_static_applies_policy(monkeypatch):
     assert captured["readiness_summary"]["score"] == 100
 
 
+def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatch):
+    from beacon import cli
+
+    calls = []
+
+    def finding(rule_id, domain):
+        return {
+            "rule_id": rule_id,
+            "domain": domain,
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": rule_id,
+            "impact": "impact",
+            "recommendation": "recommendation",
+            "file": domain,
+            "evidence": {},
+            "tags": [],
+        }
+
+    monkeypatch.setattr(
+        cli,
+        "scan_path",
+        lambda path: calls.append(("static", path))
+        or [finding("static.rule", "static")],
+    )
+    monkeypatch.setattr(
+        cli,
+        "analyze_runtime_snapshot_file",
+        lambda path: calls.append(("snapshot", path))
+        or [finding("snapshot.rule", "snapshot")],
+    )
+    monkeypatch.setattr(
+        cli,
+        "analyze_flow_file",
+        lambda path: calls.append(("flow", path)) or [finding("flow.rule", "flow")],
+    )
+    monkeypatch.setattr(
+        cli,
+        "analyze_prometheus_config",
+        lambda path, timeout=5: calls.append(("prometheus", path, timeout))
+        or [finding("prometheus.rule", "prometheus")],
+    )
+    monkeypatch.setattr(
+        cli,
+        "analyze_opentelemetry_file",
+        lambda path: calls.append(("opentelemetry", path))
+        or [finding("opentelemetry.rule", "opentelemetry")],
+    )
+    monkeypatch.setattr(
+        cli,
+        "analyze_kafka_cluster",
+        lambda **kwargs: calls.append(("kafka", kwargs))
+        or [finding("kafka.rule", "kafka")],
+    )
+    monkeypatch.setattr(
+        cli,
+        "analyze_kubernetes_cluster",
+        lambda **kwargs: calls.append(("kubernetes", kwargs))
+        or [finding("kubernetes.rule", "kubernetes")],
+    )
+
+    findings = cli.collect_all_domain_findings(
+        static_path="infra",
+        snapshot_path="runtime.yaml",
+        flow_path="flow.yaml",
+        prometheus_path="prom.yaml",
+        opentelemetry_path="otel.yaml",
+        prometheus_timeout=2,
+        kafka_bootstrap_server="localhost:9092",
+        kubernetes_live=True,
+        kubernetes_namespace="payments",
+    )
+
+    rule_ids = {item["rule_id"] for item in findings}
+
+    assert rule_ids == {
+        "static.rule",
+        "snapshot.rule",
+        "flow.rule",
+        "prometheus.rule",
+        "opentelemetry.rule",
+        "kafka.rule",
+        "kubernetes.rule",
+    }
+    assert ("prometheus", "prom.yaml", 2) in calls
+    assert any(call[0] == "kafka" for call in calls)
+    assert any(call[0] == "kubernetes" for call in calls)
+
+
+def test_readiness_all_emits_readiness_summary(monkeypatch):
+    from beacon import cli
+
+    captured = {}
+
+    monkeypatch.setattr(
+        cli,
+        "collect_all_domain_findings",
+        lambda **kwargs: [
+            {
+                "rule_id": "api.runtime.retry_amplification",
+                "domain": "api",
+                "category": "runtime_stability",
+                "severity": "CRITICAL",
+                "title": "API retry amplification",
+                "impact": "impact",
+                "recommendation": "recommendation",
+                "file": "snapshot",
+                "evidence": {},
+                "tags": [],
+            }
+        ],
+    )
+    monkeypatch.setattr(cli, "load_policy", lambda: {})
+    monkeypatch.setattr(
+        cli, "apply_policy_to_findings", lambda findings, policy: findings
+    )
+    monkeypatch.setattr(
+        cli,
+        "print_readiness_summary",
+        lambda summary: captured.setdefault("summary", summary),
+    )
+    monkeypatch.setattr(
+        cli,
+        "print_report",
+        lambda findings, **kwargs: captured.update({"findings": findings, **kwargs}),
+    )
+
+    cli.readiness_all(
+        static_path="infra",
+        html=False,
+        open_report=False,
+        output="json",
+    )
+
+    assert captured["summary"]["production_decision"] == "NOT READY"
+    assert captured["readiness_summary"] == captured["summary"]
+    assert captured["findings"][0]["domain"] == "api"
+
+
+def test_diagnose_all_emits_diagnostic_report_without_readiness_summary(monkeypatch):
+    from beacon import cli
+
+    captured = {}
+
+    monkeypatch.setattr(
+        cli,
+        "collect_all_domain_findings",
+        lambda **kwargs: [
+            {
+                "rule_id": "database.runtime.latency.high",
+                "domain": "database",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "Database latency",
+                "impact": "impact",
+                "recommendation": "recommendation",
+                "file": "snapshot",
+                "evidence": {},
+                "tags": [],
+            }
+        ],
+    )
+    monkeypatch.setattr(cli, "load_policy", lambda: {})
+    monkeypatch.setattr(
+        cli, "apply_policy_to_findings", lambda findings, policy: findings
+    )
+    monkeypatch.setattr(
+        cli,
+        "print_report",
+        lambda findings, **kwargs: captured.update({"findings": findings, **kwargs}),
+    )
+
+    cli.diagnose_all(
+        snapshot_path="runtime.yaml",
+        html=False,
+        open_report=False,
+        output="json",
+    )
+
+    assert captured["findings"][0]["domain"] == "database"
+    assert "readiness_summary" not in captured
+
+
 def test_live_kafka_topics_use_normalized_evaluator(monkeypatch):
     from beacon import kafka_runtime_connector
 
@@ -133,6 +316,101 @@ def test_live_kafka_topics_use_normalized_evaluator(monkeypatch):
     assert "kafka_topic" in captured["resource_types"]
     assert "kafka_broker_config" in captured["resource_types"]
     assert captured["context"] == {"file": "runtime-kafka"}
+
+
+def test_live_kafka_partition_health_detects_replication_and_leader_risk():
+    from types import SimpleNamespace
+
+    from beacon.kafka_runtime_connector import build_partition_health_findings
+
+    metadata = SimpleNamespace(
+        topics={
+            "payments": SimpleNamespace(
+                partitions={
+                    0: SimpleNamespace(leader=-1, replicas=[1, 2, 3], isrs=[1, 2]),
+                    1: SimpleNamespace(leader=1, replicas=[1, 2, 3], isrs=[1]),
+                    2: SimpleNamespace(leader=1, replicas=[1, 2, 3], isrs=[1, 2, 3]),
+                    3: SimpleNamespace(leader=1, replicas=[1, 2, 3], isrs=[1, 2, 3]),
+                }
+            )
+        }
+    )
+
+    findings = build_partition_health_findings(
+        metadata=metadata,
+        topic_names=["payments"],
+        broker_count=3,
+    )
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "kafka.cluster.offline_partitions" in rule_ids
+    assert "kafka.cluster.under_replicated_partitions" in rule_ids
+    assert "kafka.cluster.under_min_isr_partitions" in rule_ids
+    assert "kafka.cluster.leader_imbalance.high" in rule_ids
+
+
+def test_live_kafka_consumer_group_stability_detects_rebalancing_and_empty():
+    from types import SimpleNamespace
+
+    from beacon.kafka_runtime_connector import build_consumer_group_stability_findings
+
+    rebalancing = build_consumer_group_stability_findings(
+        "payments-consumer",
+        SimpleNamespace(state="PREPARING_REBALANCE", members=[object()]),
+    )
+    empty = build_consumer_group_stability_findings(
+        "audit-consumer",
+        SimpleNamespace(state="EMPTY", members=[]),
+    )
+
+    assert any(
+        finding["rule_id"] == "kafka.consumer_group.rebalancing"
+        for finding in rebalancing
+    )
+    assert any(finding["rule_id"] == "kafka.consumer_group.empty" for finding in empty)
+
+
+def test_kafka_runtime_snapshot_v2_covers_production_instability_signals():
+    from beacon.runtime_advisor import evaluate_kafka_runtime
+
+    findings = evaluate_kafka_runtime(
+        {
+            "broker_disk_usage_percent": 88,
+            "broker_disk_usage_by_broker": {"1": 94, "2": 62, "3": 60},
+            "retention_bytes_configured": True,
+            "cleanup_policy_configured": True,
+            "consumer_lag_increasing": True,
+            "consumer_group_state": "REBALANCING",
+            "active_members": 0,
+            "expected_members": 3,
+            "rebalance_count_15m": 5,
+            "producer_error_rate_percent": 7,
+            "under_replicated_partitions": 2,
+            "under_min_isr_partitions": 1,
+            "offline_partitions": 1,
+            "leader_imbalance_percent": 65,
+            "request_latency_p95_ms": 750,
+            "network_io_utilization_percent": 91,
+            "broker_count": 3,
+            "partition_count": 200,
+            "replication_factor": 3,
+        },
+        "runtime.yaml",
+    )
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "kafka.runtime.broker_disk_skew.critical" in rule_ids
+    assert "kafka.runtime.broker_disk_skew.high" in rule_ids
+    assert "kafka.runtime.offline_partitions" in rule_ids
+    assert "kafka.runtime.under_min_isr_partitions" in rule_ids
+    assert "kafka.runtime.leader_imbalance.high" in rule_ids
+    assert "kafka.runtime.rebalance_storm" in rule_ids
+    assert "kafka.runtime.consumer_group.unstable" in rule_ids
+    assert "kafka.runtime.consumer_group.no_active_members" in rule_ids
+    assert "kafka.runtime.consumer_group.member_shortfall" in rule_ids
+    assert "kafka.runtime.producer_error_rate.high" in rule_ids
+    assert "kafka.runtime.request_latency.high" in rule_ids
+    assert "kafka.runtime.network_saturation.high" in rule_ids
 
 
 def test_scanner_uses_normalized_terraform_resources():

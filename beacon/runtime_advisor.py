@@ -49,13 +49,24 @@ def evaluate_kafka_runtime(runtime, file):
     signal_evidence = signal.evidence()
 
     disk_usage = signal.broker_disk_usage_percent
+    broker_disk_usage_by_broker = signal.broker_disk_usage_by_broker or {}
     disk_growth_7d = signal.disk_growth_percent_7d
     retention_bytes_configured = signal.retention_bytes_configured
     cleanup_policy_configured = signal.cleanup_policy_configured
     producer_rate_increased = signal.producer_rate_increased
+    producer_error_rate_percent = signal.producer_error_rate_percent
     consumer_lag_increasing = signal.consumer_lag_increasing
+    consumer_group_state = (signal.consumer_group_state or "").upper()
+    active_members = signal.active_members
+    expected_members = signal.expected_members
+    rebalance_count_15m = signal.rebalance_count_15m
     avg_message_size_increased = signal.avg_message_size_increased
     under_replicated_partitions = signal.under_replicated_partitions
+    under_min_isr_partitions = signal.under_min_isr_partitions
+    offline_partitions = signal.offline_partitions
+    leader_imbalance_percent = signal.leader_imbalance_percent
+    request_latency_p95_ms = signal.request_latency_p95_ms
+    network_io_utilization_percent = signal.network_io_utilization_percent
     broker_count = signal.broker_count
     partition_count = signal.partition_count
     replication_factor = signal.replication_factor
@@ -102,6 +113,53 @@ def evaluate_kafka_runtime(runtime, file):
                 confidence="HIGH",
             )
         )
+
+    if broker_disk_usage_by_broker:
+        max_broker = max(
+            broker_disk_usage_by_broker, key=broker_disk_usage_by_broker.get
+        )
+        min_broker = min(
+            broker_disk_usage_by_broker, key=broker_disk_usage_by_broker.get
+        )
+        max_usage = broker_disk_usage_by_broker[max_broker]
+        min_usage = broker_disk_usage_by_broker[min_broker]
+
+        if max_usage >= 90:
+            findings.append(
+                finding(
+                    "CRITICAL",
+                    f"Kafka broker '{max_broker}' disk usage is critically high: {max_usage}%",
+                    "A single broker can fail or reject writes even when aggregate cluster disk usage looks acceptable.",
+                    "Create broker-specific headroom, inspect partition placement, and move or reassign hot partitions.",
+                    file,
+                    rule_id="kafka.runtime.broker_disk_skew.critical",
+                    evidence={
+                        **signal_evidence,
+                        "max_broker": max_broker,
+                        "max_usage_percent": max_usage,
+                    },
+                    confidence="HIGH",
+                )
+            )
+
+        if max_usage - min_usage >= 25:
+            findings.append(
+                finding(
+                    "HIGH",
+                    "Kafka broker disk usage is skewed across brokers",
+                    "Uneven broker disk usage can cause one broker to saturate before the cluster appears full.",
+                    "Review partition placement, topic retention, leader distribution, and reassignment needs.",
+                    file,
+                    rule_id="kafka.runtime.broker_disk_skew.high",
+                    evidence={
+                        **signal_evidence,
+                        "max_broker": max_broker,
+                        "min_broker": min_broker,
+                        "skew_percent": max_usage - min_usage,
+                    },
+                    confidence="HIGH",
+                )
+            )
 
     if disk_usage >= 80 and retention_bytes_configured is False:
         findings.append(
@@ -187,6 +245,20 @@ def evaluate_kafka_runtime(runtime, file):
             )
         )
 
+    if offline_partitions is not None and offline_partitions > 0:
+        findings.append(
+            finding(
+                "CRITICAL",
+                f"Kafka has {offline_partitions} offline partition(s)",
+                "Offline partitions are unavailable for reads or writes and indicate active production impact.",
+                "Identify affected brokers and partitions, restore broker health, and validate replica recovery.",
+                file,
+                rule_id="kafka.runtime.offline_partitions",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
     if under_replicated_partitions is not None and under_replicated_partitions > 0:
         findings.append(
             finding(
@@ -196,6 +268,143 @@ def evaluate_kafka_runtime(runtime, file):
                 "Investigate broker health, disk I/O, network latency, ISR shrink, and partition leadership distribution.",
                 file,
                 rule_id="kafka.runtime.under_replicated_partitions",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if under_min_isr_partitions is not None and under_min_isr_partitions > 0:
+        findings.append(
+            finding(
+                "CRITICAL",
+                f"Kafka has {under_min_isr_partitions} partition(s) below min ISR",
+                "Partitions below min ISR can reject acks=all writes or weaken durability during broker failure.",
+                "Restore ISR health, inspect slow replicas, disk I/O, network latency, and broker placement.",
+                file,
+                rule_id="kafka.runtime.under_min_isr_partitions",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if leader_imbalance_percent is not None and leader_imbalance_percent >= 50:
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka leader distribution is imbalanced: {leader_imbalance_percent}%",
+                "Leader imbalance can overload a subset of brokers and create uneven request latency.",
+                "Review partition leadership, preferred leader election safety, and broker load distribution.",
+                file,
+                rule_id="kafka.runtime.leader_imbalance.high",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if rebalance_count_15m is not None and rebalance_count_15m >= 3:
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka consumer group rebalanced {rebalance_count_15m} times in 15 minutes",
+                "Frequent rebalances can stall consumption and amplify lag during incidents.",
+                "Inspect deployment churn, heartbeat/session timeouts, max.poll settings, and consumer crashes.",
+                file,
+                rule_id="kafka.runtime.rebalance_storm",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if consumer_group_state in {
+        "REBALANCING",
+        "PREPARING_REBALANCE",
+        "COMPLETING_REBALANCE",
+    }:
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka consumer group is unstable: {consumer_group_state}",
+                "Consumer group instability can pause processing and increase end-to-end latency.",
+                "Review member churn, consumer logs, polling behavior, session timeout, and recent deploys.",
+                file,
+                rule_id="kafka.runtime.consumer_group.unstable",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if active_members == 0 and consumer_lag_increasing:
+        findings.append(
+            finding(
+                "HIGH",
+                "Kafka consumer group has no active members while lag is increasing",
+                "No active consumers means backlog can grow without processing.",
+                "Restore consumer deployment health, check scaling targets, and verify consumer group membership.",
+                file,
+                rule_id="kafka.runtime.consumer_group.no_active_members",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if (
+        expected_members
+        and active_members is not None
+        and active_members < expected_members
+    ):
+        findings.append(
+            finding(
+                "MEDIUM",
+                "Kafka consumer group has fewer active members than expected",
+                "Reduced consumer membership lowers processing capacity and can trigger lag growth.",
+                "Check consumer pod/process health, autoscaling, deployment rollout, and assignment balance.",
+                file,
+                rule_id="kafka.runtime.consumer_group.member_shortfall",
+                evidence=signal_evidence,
+                confidence="MEDIUM",
+            )
+        )
+
+    if producer_error_rate_percent is not None and producer_error_rate_percent >= 5:
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka producer error rate is high: {producer_error_rate_percent}%",
+                "Producer errors can indicate broker throttling, serialization failures, auth issues, or network instability.",
+                "Inspect producer error classes, broker request errors, throttling, auth, and recent producer deployments.",
+                file,
+                rule_id="kafka.runtime.producer_error_rate.high",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if request_latency_p95_ms is not None and request_latency_p95_ms >= 500:
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka request p95 latency is high: {request_latency_p95_ms}ms",
+                "High request latency can slow producers, consumers, replication, and controller operations.",
+                "Inspect broker CPU, disk I/O, network, request queues, throttling, and hot partitions.",
+                file,
+                rule_id="kafka.runtime.request_latency.high",
+                evidence=signal_evidence,
+                confidence="HIGH",
+            )
+        )
+
+    if (
+        network_io_utilization_percent is not None
+        and network_io_utilization_percent >= 85
+    ):
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka network I/O utilization is high: {network_io_utilization_percent}%",
+                "Network saturation can slow replication, increase consumer lag, and destabilize brokers.",
+                "Review broker network throughput, cross-AZ replication, client traffic, and compression settings.",
+                file,
+                rule_id="kafka.runtime.network_saturation.high",
                 evidence=signal_evidence,
                 confidence="HIGH",
             )

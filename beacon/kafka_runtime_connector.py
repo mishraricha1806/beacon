@@ -194,6 +194,14 @@ def analyze_kafka_cluster(
                 )
             )
 
+        findings.extend(
+            build_partition_health_findings(
+                metadata=metadata,
+                topic_names=user_topics,
+                broker_count=broker_count,
+            )
+        )
+
         selected_topics = user_topics[:max_topics]
 
         live_topic_models = build_live_topic_models(
@@ -403,6 +411,13 @@ def analyze_consumer_group_lag(
         )
         return findings
 
+    findings.extend(
+        describe_consumer_group_stability(
+            admin_client=admin_client,
+            group_ids=group_ids,
+        )
+    )
+
     for group_id in group_ids:
         try:
             lag_summary = calculate_group_lag_admin_only(
@@ -512,6 +527,144 @@ def calculate_group_lag_admin_only(admin_client, group_id):
         "topics": topics,
         "status": "OK",
     }
+
+
+def build_partition_health_findings(metadata, topic_names, broker_count):
+    offline_partitions = []
+    under_replicated_partitions = []
+    under_min_isr_partitions = []
+    leader_counts = {}
+    total_partitions = 0
+
+    for topic_name in topic_names:
+        topic_metadata = metadata.topics.get(topic_name)
+
+        if not topic_metadata:
+            continue
+
+        for partition_id, partition_metadata in (
+            topic_metadata.partitions or {}
+        ).items():
+            total_partitions += 1
+            leader = getattr(partition_metadata, "leader", None)
+            replicas = list(getattr(partition_metadata, "replicas", []) or [])
+            isrs = list(getattr(partition_metadata, "isrs", []) or [])
+
+            if leader is None or leader < 0:
+                offline_partitions.append(
+                    {
+                        "topic": topic_name,
+                        "partition": partition_id,
+                        "leader": leader,
+                    }
+                )
+            else:
+                leader_counts[leader] = leader_counts.get(leader, 0) + 1
+
+            if replicas and isrs and len(isrs) < len(replicas):
+                under_replicated_partitions.append(
+                    {
+                        "topic": topic_name,
+                        "partition": partition_id,
+                        "replicas": replicas,
+                        "isr": isrs,
+                    }
+                )
+
+            if replicas and len(isrs) <= max(1, len(replicas) - 2):
+                under_min_isr_partitions.append(
+                    {
+                        "topic": topic_name,
+                        "partition": partition_id,
+                        "replicas": replicas,
+                        "isr": isrs,
+                    }
+                )
+
+    findings = []
+
+    if offline_partitions:
+        findings.append(
+            finding(
+                "CRITICAL",
+                f"Kafka has {len(offline_partitions)} offline partition(s)",
+                "Offline partitions are unavailable and indicate active production impact.",
+                "Restore affected brokers, inspect partition leadership, and validate replica recovery.",
+                rule_id="kafka.cluster.offline_partitions",
+                category="resiliency",
+                evidence={
+                    "offline_partitions": offline_partitions[:10],
+                    "offline_partition_count": len(offline_partitions),
+                },
+                confidence="HIGH",
+            )
+        )
+
+    if under_replicated_partitions:
+        findings.append(
+            finding(
+                "CRITICAL",
+                f"Kafka has {len(under_replicated_partitions)} under-replicated partition(s)",
+                "Under-replicated partitions weaken failover safety and can precede unavailability.",
+                "Investigate slow replicas, broker health, disk I/O, network latency, and ISR shrink.",
+                rule_id="kafka.cluster.under_replicated_partitions",
+                category="resiliency",
+                evidence={
+                    "under_replicated_partitions": under_replicated_partitions[:10],
+                    "under_replicated_partition_count": len(
+                        under_replicated_partitions
+                    ),
+                },
+                confidence="HIGH",
+            )
+        )
+
+    if under_min_isr_partitions:
+        findings.append(
+            finding(
+                "CRITICAL",
+                f"Kafka has {len(under_min_isr_partitions)} partition(s) below safe ISR",
+                "Partitions below safe ISR can reject durable writes or lose fault tolerance.",
+                "Restore ISR health before increasing producer pressure or rolling more brokers.",
+                rule_id="kafka.cluster.under_min_isr_partitions",
+                category="resiliency",
+                evidence={
+                    "under_min_isr_partitions": under_min_isr_partitions[:10],
+                    "under_min_isr_partition_count": len(under_min_isr_partitions),
+                },
+                confidence="HIGH",
+            )
+        )
+
+    if total_partitions and broker_count and leader_counts:
+        average_leaders = total_partitions / broker_count
+        max_leader_count = max(leader_counts.values())
+        leader_imbalance_percent = (
+            ((max_leader_count - average_leaders) / average_leaders) * 100
+            if average_leaders
+            else 0
+        )
+
+        if leader_imbalance_percent >= 50:
+            findings.append(
+                finding(
+                    "HIGH",
+                    "Kafka partition leadership is imbalanced across brokers",
+                    "Leader imbalance can overload a subset of brokers and create uneven request latency.",
+                    "Review preferred leader election safety, broker load, and partition distribution.",
+                    rule_id="kafka.cluster.leader_imbalance.high",
+                    category="scalability",
+                    evidence={
+                        "leader_counts": leader_counts,
+                        "total_partitions": total_partitions,
+                        "broker_count": broker_count,
+                        "leader_imbalance_percent": round(leader_imbalance_percent, 2),
+                    },
+                    confidence="HIGH",
+                )
+            )
+
+    return findings
 
 
 def fetch_committed_offsets(admin_client, group_id):
@@ -667,6 +820,76 @@ def build_lag_findings(group_id, lag_summary):
         )
 
     findings.append(build_lag_decision_finding(group_id, lag_summary))
+
+    return findings
+
+
+def build_consumer_group_stability_findings(group_id, group_description):
+    state = str(getattr(group_description, "state", "") or "").upper()
+    members = getattr(group_description, "members", []) or []
+    member_count = len(members)
+
+    findings = []
+
+    if state in {"REBALANCING", "PREPARING_REBALANCE", "COMPLETING_REBALANCE"}:
+        findings.append(
+            finding(
+                "HIGH",
+                f"Kafka consumer group '{group_id}' is unstable: {state}",
+                "Consumer group rebalancing can pause consumption and increase lag during incidents.",
+                "Inspect member churn, deployment rollouts, heartbeat/session timeouts, max.poll settings, and consumer crashes.",
+                rule_id="kafka.consumer_group.rebalancing",
+                evidence={
+                    "consumer_group": group_id,
+                    "state": state,
+                    "member_count": member_count,
+                },
+                confidence="HIGH",
+            )
+        )
+    elif state == "EMPTY":
+        findings.append(
+            finding(
+                "MEDIUM",
+                f"Kafka consumer group '{group_id}' has no active members",
+                "An empty consumer group cannot process backlog until consumers return.",
+                "Check consumer deployment health, scaling, and recent rollouts.",
+                rule_id="kafka.consumer_group.empty",
+                evidence={
+                    "consumer_group": group_id,
+                    "state": state,
+                    "member_count": member_count,
+                },
+                confidence="HIGH",
+            )
+        )
+
+    return findings
+
+
+def describe_consumer_group_stability(admin_client, group_ids):
+    if not group_ids or not hasattr(admin_client, "describe_consumer_groups"):
+        return []
+
+    findings = []
+
+    try:
+        futures = admin_client.describe_consumer_groups(group_ids, request_timeout=3)
+    except TypeError:
+        try:
+            futures = admin_client.describe_consumer_groups(group_ids)
+        except Exception:
+            return []
+    except Exception:
+        return []
+
+    for group_id, future in (futures or {}).items():
+        try:
+            description = future.result(timeout=3)
+        except Exception:
+            continue
+
+        findings.extend(build_consumer_group_stability_findings(group_id, description))
 
     return findings
 

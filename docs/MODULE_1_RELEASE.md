@@ -71,6 +71,18 @@ Run the all-domain runtime snapshot:
 python3 -m beacon.cli readiness snapshot examples/supported/runtime/all-runtime.yaml --no-html --no-open-report --output json
 ```
 
+Run combined all-domain readiness across static and runtime inputs:
+
+```bash
+python3 -m beacon.cli readiness all --static-path examples/supported --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --no-html --no-open-report --output json
+```
+
+Run combined all-domain diagnostics:
+
+```bash
+python3 -m beacon.cli diagnose all --snapshot examples/supported/runtime/all-runtime.yaml --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml --no-html --no-open-report --output json
+```
+
 Run the OpenTelemetry sample:
 
 ```bash

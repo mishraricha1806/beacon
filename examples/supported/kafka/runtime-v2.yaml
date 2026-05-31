@@ -1,0 +1,29 @@
+kafka_runtime:
+  broker_disk_usage_percent: 88
+  broker_disk_usage_by_broker:
+    "1": 94
+    "2": 62
+    "3": 60
+
+  retention_bytes_configured: true
+  cleanup_policy_configured: true
+
+  producer_rate_increased: true
+  producer_error_rate_percent: 7
+  consumer_lag_increasing: true
+  consumer_group_state: REBALANCING
+  active_members: 0
+  expected_members: 3
+  rebalance_count_15m: 5
+  avg_message_size_increased: false
+
+  under_replicated_partitions: 2
+  under_min_isr_partitions: 1
+  offline_partitions: 1
+  leader_imbalance_percent: 65
+  request_latency_p95_ms: 750
+  network_io_utilization_percent: 91
+
+  broker_count: 3
+  partition_count: 200
+  replication_factor: 3
