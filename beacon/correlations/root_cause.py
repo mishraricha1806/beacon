@@ -134,7 +134,9 @@ def correlate_findings(findings, limit=5):
                 "description": pattern["description"],
                 "recommendation": pattern["recommendation"],
                 "evidence": build_evidence(matched),
-                "matched_rule_ids": sorted({finding.get("rule_id") for finding in matched}),
+                "matched_rule_ids": sorted(
+                    {finding.get("rule_id") for finding in matched}
+                ),
             }
         )
 

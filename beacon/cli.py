@@ -202,7 +202,9 @@ def diagnose_flow(
 
 @diagnose_app.command("kubernetes")
 def diagnose_kubernetes(
-    namespace: str = typer.Option(None, help="Namespace to analyze, defaults to all namespaces."),
+    namespace: str = typer.Option(
+        None, help="Namespace to analyze, defaults to all namespaces."
+    ),
     context: str = typer.Option(None, help="kubectl context to use."),
     kubeconfig: str = typer.Option(None, help="Path to kubeconfig."),
     html: bool = typer.Option(True, help="Generate browser-based HTML report."),

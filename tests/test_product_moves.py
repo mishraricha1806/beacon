@@ -547,10 +547,14 @@ def test_live_kubernetes_connector_uses_read_only_kubectl(monkeypatch):
 
         raise AssertionError(command)
 
-    monkeypatch.setattr(kubernetes_runtime_connector.shutil, "which", lambda binary: "/usr/bin/kubectl")
+    monkeypatch.setattr(
+        kubernetes_runtime_connector.shutil, "which", lambda binary: "/usr/bin/kubectl"
+    )
     monkeypatch.setattr(kubernetes_runtime_connector.subprocess, "run", fake_run)
 
-    findings = kubernetes_runtime_connector.analyze_kubernetes_cluster(namespace="payments")
+    findings = kubernetes_runtime_connector.analyze_kubernetes_cluster(
+        namespace="payments"
+    )
     rule_ids = {finding["rule_id"] for finding in findings}
 
     assert "k8s.runtime.read_only_mode" in rule_ids

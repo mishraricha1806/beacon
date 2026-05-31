@@ -112,9 +112,7 @@ def cascading_latency(resource, context):
         {
             "flow": resource.name,
             "api_timeout_rate_percent": signals.get("api_timeout_rate_percent"),
-            "consumer_retry_rate_percent": signals.get(
-                "consumer_retry_rate_percent"
-            ),
+            "consumer_retry_rate_percent": signals.get("consumer_retry_rate_percent"),
             "kafka_consumer_lag_increasing": signals.get(
                 "kafka_consumer_lag_increasing"
             ),

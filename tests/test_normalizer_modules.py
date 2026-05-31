@@ -22,14 +22,10 @@ def test_mixed_runtime_sections_are_normalized_by_domain_modules():
                 "signals": {"kafka_consumer_lag_increasing": True},
             },
             "api_runtime": {
-                "services": [
-                    {"name": "checkout-api", "latency_p95_ms": 1500}
-                ]
+                "services": [{"name": "checkout-api", "latency_p95_ms": 1500}]
             },
             "database_runtime": {
-                "databases": [
-                    {"name": "orders-db", "latency_ms": 700}
-                ]
+                "databases": [{"name": "orders-db", "latency_ms": 700}]
             },
         },
         "runtime.yaml",

@@ -2,7 +2,17 @@ from beacon.engine.models import Finding, Rule
 from beacon.engine.registry import registry
 
 
-def build_database_finding(resource, rule_id, category, severity, title, impact, recommendation, evidence, tags=None):
+def build_database_finding(
+    resource,
+    rule_id,
+    category,
+    severity,
+    title,
+    impact,
+    recommendation,
+    evidence,
+    tags=None,
+):
     return Finding(
         rule_id=rule_id,
         domain="database",
@@ -31,7 +41,11 @@ def high_latency(resource, context):
         f"Database '{resource.name}' has high latency",
         "High database latency can slow consumers, APIs, and background jobs.",
         "Inspect slow queries, indexes, connection pool pressure, locks, and recent workload changes.",
-        {"database": resource.name, "engine": resource.attributes.get("engine"), "latency_ms": latency},
+        {
+            "database": resource.name,
+            "engine": resource.attributes.get("engine"),
+            "latency_ms": latency,
+        },
         ["database", "latency"],
     )
 
@@ -130,8 +144,48 @@ def register(rule_id, category, severity, title, description, evaluator, tags):
     )
 
 
-register("database.runtime.latency.high", "runtime_stability", "HIGH", "Database latency high", "Detects databases with high runtime latency.", high_latency, ["database", "latency"])
-register("database.runtime.connection_pool.exhaustion", "scalability", "HIGH", "Database connection pool exhaustion", "Detects near-exhausted database connection pools.", connection_pool_exhaustion, ["database", "connections"])
-register("database.runtime.replication_lag.high", "recovery_readiness", "HIGH", "Database replication lag high", "Detects unsafe database replication lag.", replication_lag_high, ["database", "replication"])
-register("database.runtime.lock_contention.high", "runtime_stability", "HIGH", "Database lock contention high", "Detects high lock contention.", lock_contention, ["database", "locks"])
-register("database.runtime.storage_saturation", "storage_sustainability", "HIGH", "Database storage saturation", "Detects high database storage utilization.", storage_saturation, ["database", "storage"])
+register(
+    "database.runtime.latency.high",
+    "runtime_stability",
+    "HIGH",
+    "Database latency high",
+    "Detects databases with high runtime latency.",
+    high_latency,
+    ["database", "latency"],
+)
+register(
+    "database.runtime.connection_pool.exhaustion",
+    "scalability",
+    "HIGH",
+    "Database connection pool exhaustion",
+    "Detects near-exhausted database connection pools.",
+    connection_pool_exhaustion,
+    ["database", "connections"],
+)
+register(
+    "database.runtime.replication_lag.high",
+    "recovery_readiness",
+    "HIGH",
+    "Database replication lag high",
+    "Detects unsafe database replication lag.",
+    replication_lag_high,
+    ["database", "replication"],
+)
+register(
+    "database.runtime.lock_contention.high",
+    "runtime_stability",
+    "HIGH",
+    "Database lock contention high",
+    "Detects high lock contention.",
+    lock_contention,
+    ["database", "locks"],
+)
+register(
+    "database.runtime.storage_saturation",
+    "storage_sustainability",
+    "HIGH",
+    "Database storage saturation",
+    "Detects high database storage utilization.",
+    storage_saturation,
+    ["database", "storage"],
+)

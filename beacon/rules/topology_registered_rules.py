@@ -2,7 +2,17 @@ from beacon.engine.models import Finding, Rule
 from beacon.engine.registry import registry
 
 
-def build_topology_finding(resource, rule_id, category, severity, title, impact, recommendation, evidence, tags=None):
+def build_topology_finding(
+    resource,
+    rule_id,
+    category,
+    severity,
+    title,
+    impact,
+    recommendation,
+    evidence,
+    tags=None,
+):
     return Finding(
         rule_id=rule_id,
         domain="topology",

@@ -86,9 +86,7 @@ def normalize_database_runtime(data, source):
                         "connection_pool_utilization_percent"
                     ),
                     "lock_waits_high": database.get("lock_waits_high", False),
-                    "replication_lag_seconds": database.get(
-                        "replication_lag_seconds"
-                    ),
+                    "replication_lag_seconds": database.get("replication_lag_seconds"),
                     "storage_used_percent": database.get("storage_used_percent"),
                 },
             )

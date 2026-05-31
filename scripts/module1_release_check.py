@@ -64,8 +64,13 @@ def check_metadata():
         if required - set(data)
     }
 
-    require(not missing_metadata, f"registered rules missing metadata: {missing_metadata}")
-    require(not missing_required, f"metadata entries missing required fields: {missing_required}")
+    require(
+        not missing_metadata, f"registered rules missing metadata: {missing_metadata}"
+    )
+    require(
+        not missing_required,
+        f"metadata entries missing required fields: {missing_required}",
+    )
 
     print(f"metadata ok: registered={len(registered)} metadata={len(metadata)}")
 
@@ -102,7 +107,10 @@ def check_static_examples(require_helm):
     for surface, expected in expected_by_surface.items():
         findings = scan_path(str(SUPPORTED / surface))
         ids = rule_ids(findings)
-        require(expected <= ids, f"{surface} missing expected findings: {sorted(expected - ids)}")
+        require(
+            expected <= ids,
+            f"{surface} missing expected findings: {sorted(expected - ids)}",
+        )
 
     helm_findings = scan_path(str(SUPPORTED / "helm"))
     helm_ids = rule_ids(helm_findings)
@@ -112,17 +120,31 @@ def check_static_examples(require_helm):
         require(helm_available, "helm CLI is required for release CI")
 
     if helm_available:
-        require("helm.render.unavailable" not in helm_ids, "helm was installed but reported unavailable")
-        require("helm.render.failed" not in helm_ids, "supported Helm chart failed to render")
-        require("k8s.workload.replicas.single" in helm_ids, "rendered Helm chart was not scanned as Kubernetes")
+        require(
+            "helm.render.unavailable" not in helm_ids,
+            "helm was installed but reported unavailable",
+        )
+        require(
+            "helm.render.failed" not in helm_ids,
+            "supported Helm chart failed to render",
+        )
+        require(
+            "k8s.workload.replicas.single" in helm_ids,
+            "rendered Helm chart was not scanned as Kubernetes",
+        )
     else:
-        require("helm.render.unavailable" in helm_ids, "missing helm should block Helm analysis")
+        require(
+            "helm.render.unavailable" in helm_ids,
+            "missing helm should block Helm analysis",
+        )
 
     print("static examples ok")
 
 
 def check_runtime_snapshot():
-    findings = analyze_runtime_snapshot_file(str(SUPPORTED / "runtime" / "all-runtime.yaml"))
+    findings = analyze_runtime_snapshot_file(
+        str(SUPPORTED / "runtime" / "all-runtime.yaml")
+    )
     ids = rule_ids(findings)
     expected = {
         "flow.runtime.cascading_latency",
@@ -130,14 +152,24 @@ def check_runtime_snapshot():
         "database.runtime.connection_pool.exhaustion",
         "storage.runtime.backup_stale",
     }
-    require(expected <= ids, f"runtime snapshot missing expected findings: {sorted(expected - ids)}")
+    require(
+        expected <= ids,
+        f"runtime snapshot missing expected findings: {sorted(expected - ids)}",
+    )
 
     summary = calculate_readiness(findings)
-    require(summary["root_cause_hypotheses"], "runtime snapshot produced no root-cause hypotheses")
+    require(
+        summary["root_cause_hypotheses"],
+        "runtime snapshot produced no root-cause hypotheses",
+    )
 
     top = summary["root_cause_hypotheses"][0]
-    require(top["confidence"] in {"MEDIUM", "HIGH"}, "top root-cause confidence is too weak")
-    require(top["matched_rule_ids"], "top root-cause hypothesis has no matched rule ids")
+    require(
+        top["confidence"] in {"MEDIUM", "HIGH"}, "top root-cause confidence is too weak"
+    )
+    require(
+        top["matched_rule_ids"], "top root-cause hypothesis has no matched rule ids"
+    )
 
     print("runtime snapshot ok")
 
@@ -152,10 +184,16 @@ def check_opentelemetry():
         "flow.runtime.cascading_latency",
         "database.runtime.connection_pool.exhaustion",
     }
-    require(expected <= ids, f"OpenTelemetry missing expected findings: {sorted(expected - ids)}")
+    require(
+        expected <= ids,
+        f"OpenTelemetry missing expected findings: {sorted(expected - ids)}",
+    )
 
     summary = calculate_readiness(findings)
-    require(summary["root_cause_hypotheses"], "OpenTelemetry produced no root-cause hypotheses")
+    require(
+        summary["root_cause_hypotheses"],
+        "OpenTelemetry produced no root-cause hypotheses",
+    )
 
     print("opentelemetry ok")
 
@@ -176,9 +214,18 @@ def check_prometheus_failure_contract():
         prometheus_connector.query_prometheus = original_query
 
     summary = calculate_readiness(findings)
-    require("prometheus.query.failed" in rule_ids(findings), "Prometheus failure was not surfaced")
-    require(summary["score_status"] == "BLOCKED_BY_ANALYSIS_ERROR", "Prometheus failure did not block score")
-    require(summary["production_decision"] == "NOT READY", "Prometheus failure did not block readiness")
+    require(
+        "prometheus.query.failed" in rule_ids(findings),
+        "Prometheus failure was not surfaced",
+    )
+    require(
+        summary["score_status"] == "BLOCKED_BY_ANALYSIS_ERROR",
+        "Prometheus failure did not block score",
+    )
+    require(
+        summary["production_decision"] == "NOT READY",
+        "Prometheus failure did not block readiness",
+    )
 
     print("prometheus failure contract ok")
 

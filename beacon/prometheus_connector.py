@@ -50,7 +50,12 @@ def collect_prometheus_snapshot(path, timeout=5):
         )
     ]
 
-    for section in ("api_runtime", "database_runtime", "storage_runtime", "flow_runtime"):
+    for section in (
+        "api_runtime",
+        "database_runtime",
+        "storage_runtime",
+        "flow_runtime",
+    ):
         if section in prometheus:
             snapshot[section] = collect_section(
                 base_url,
@@ -69,23 +74,39 @@ def collect_section(base_url, section_config, section_name, source, findings, ti
         return {}
 
     if section_name == "api_runtime":
-        return {"services": collect_named_items(base_url, section_config.get("services", []), source, findings, timeout)}
+        return {
+            "services": collect_named_items(
+                base_url, section_config.get("services", []), source, findings, timeout
+            )
+        }
 
     if section_name == "database_runtime":
-        return {"databases": collect_named_items(base_url, section_config.get("databases", []), source, findings, timeout)}
+        return {
+            "databases": collect_named_items(
+                base_url, section_config.get("databases", []), source, findings, timeout
+            )
+        }
 
     if section_name == "storage_runtime":
-        return {"resources": collect_named_items(base_url, section_config.get("resources", []), source, findings, timeout)}
+        return {
+            "resources": collect_named_items(
+                base_url, section_config.get("resources", []), source, findings, timeout
+            )
+        }
 
     if section_name == "flow_runtime":
         data = {"name": section_config.get("name", "unknown-flow")}
-        data["signals"] = collect_signals(base_url, section_config.get("signals", {}), source, findings, timeout)
+        data["signals"] = collect_signals(
+            base_url, section_config.get("signals", {}), source, findings, timeout
+        )
         components = {}
         for name, component in (section_config.get("components", {}) or {}).items():
             components[name] = {
                 "type": component.get("type"),
                 "depends_on": component.get("depends_on", []) or [],
-                "signals": collect_signals(base_url, component.get("signals", {}), source, findings, timeout),
+                "signals": collect_signals(
+                    base_url, component.get("signals", {}), source, findings, timeout
+                ),
             }
         if components:
             data["components"] = components
@@ -114,8 +135,14 @@ def collect_signals(base_url, queries, source, findings, timeout):
     signals = {}
 
     for field, query_config in (queries or {}).items():
-        query = query_config.get("query") if isinstance(query_config, dict) else query_config
-        value_type = query_config.get("type") if isinstance(query_config, dict) else None
+        query = (
+            query_config.get("query")
+            if isinstance(query_config, dict)
+            else query_config
+        )
+        value_type = (
+            query_config.get("type") if isinstance(query_config, dict) else None
+        )
 
         try:
             value = query_prometheus(base_url, query, timeout=timeout)
@@ -166,7 +193,9 @@ def coerce_value(value, value_type):
     return value
 
 
-def prometheus_finding(rule_id, severity, title, impact, recommendation, file, evidence):
+def prometheus_finding(
+    rule_id, severity, title, impact, recommendation, file, evidence
+):
     return {
         "rule_id": rule_id,
         "domain": "prometheus",

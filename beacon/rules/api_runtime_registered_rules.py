@@ -2,7 +2,9 @@ from beacon.engine.models import Finding, Rule
 from beacon.engine.registry import registry
 
 
-def build_api_finding(resource, rule_id, severity, title, impact, recommendation, evidence, tags=None):
+def build_api_finding(
+    resource, rule_id, severity, title, impact, recommendation, evidence, tags=None
+):
     return Finding(
         rule_id=rule_id,
         domain="api",
@@ -139,8 +141,43 @@ def register(rule_id, severity, title, description, evaluator, tags):
     )
 
 
-register("api.runtime.latency_p95.high", "HIGH", "API p95 latency high", "Detects API services with high p95 latency.", high_latency, ["api", "latency"])
-register("api.runtime.error_rate.high", "HIGH", "API error rate high", "Detects API services with elevated error rate.", high_error_rate, ["api", "errors"])
-register("api.runtime.timeout_rate.high", "HIGH", "API timeout rate high", "Detects API services with elevated timeout rate.", high_timeout_rate, ["api", "timeouts"])
-register("api.runtime.retry_amplification", "CRITICAL", "API retry amplification", "Detects retry amplification during API degradation.", retry_amplification, ["api", "retries", "cascade"])
-register("api.runtime.deployment_correlated_degradation", "HIGH", "API deployment-correlated degradation", "Detects API degradation correlated with a recent deployment.", deployment_correlated_api_degradation, ["api", "deployment"])
+register(
+    "api.runtime.latency_p95.high",
+    "HIGH",
+    "API p95 latency high",
+    "Detects API services with high p95 latency.",
+    high_latency,
+    ["api", "latency"],
+)
+register(
+    "api.runtime.error_rate.high",
+    "HIGH",
+    "API error rate high",
+    "Detects API services with elevated error rate.",
+    high_error_rate,
+    ["api", "errors"],
+)
+register(
+    "api.runtime.timeout_rate.high",
+    "HIGH",
+    "API timeout rate high",
+    "Detects API services with elevated timeout rate.",
+    high_timeout_rate,
+    ["api", "timeouts"],
+)
+register(
+    "api.runtime.retry_amplification",
+    "CRITICAL",
+    "API retry amplification",
+    "Detects retry amplification during API degradation.",
+    retry_amplification,
+    ["api", "retries", "cascade"],
+)
+register(
+    "api.runtime.deployment_correlated_degradation",
+    "HIGH",
+    "API deployment-correlated degradation",
+    "Detects API degradation correlated with a recent deployment.",
+    deployment_correlated_api_degradation,
+    ["api", "deployment"],
+)

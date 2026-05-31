@@ -17,7 +17,9 @@ def normalize_terraform_config(data, source):
 
             for name, config in instances.items():
                 name = normalize_hcl_identifier(name)
-                resources.extend(build_infra_resources(resource_type, name, config, source))
+                resources.extend(
+                    build_infra_resources(resource_type, name, config, source)
+                )
 
     return resources
 
