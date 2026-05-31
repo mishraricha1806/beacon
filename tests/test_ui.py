@@ -28,6 +28,8 @@ def test_kafka_ui_run_check_uses_existing_report_contract(monkeypatch):
             "security_protocol": "PLAINTEXT",
             "max_topics": "50",
             "max_groups": "20",
+            "churn_samples": "3",
+            "churn_interval_seconds": "0.5",
         },
         {},
     )
@@ -255,3 +257,54 @@ def test_beacon_ui_does_not_run_kafka_without_kafka_inputs(monkeypatch):
 
     assert calls == []
     assert result["score"] == 100
+
+
+def test_beacon_ui_runs_live_kubernetes_when_enabled(monkeypatch):
+    from beacon import ui
+
+    calls = []
+    monkeypatch.setattr(
+        ui,
+        "analyze_kubernetes_cluster",
+        lambda **kwargs: calls.append(kwargs) or [],
+    )
+
+    ui.run_beacon_check(
+        {
+            "mode": "direct",
+            "kubernetes_live": "true",
+            "kubernetes_namespace": "payments",
+            "kubernetes_context": "prod",
+        },
+        {"kubernetes_kubeconfig": "/tmp/kubeconfig"},
+    )
+
+    assert calls == [
+        {
+            "namespace": "payments",
+            "context": "prod",
+            "kubeconfig": "/tmp/kubeconfig",
+        }
+    ]
+
+
+def test_beacon_ui_passes_kafka_churn_sampling_options(monkeypatch):
+    from beacon import ui
+
+    calls = []
+    monkeypatch.setattr(
+        ui, "analyze_kafka_cluster", lambda **kwargs: calls.append(kwargs) or []
+    )
+
+    ui.run_beacon_check(
+        {
+            "mode": "direct",
+            "bootstrap_server": "localhost:9092",
+            "churn_samples": "4",
+            "churn_interval_seconds": "0.25",
+        },
+        {},
+    )
+
+    assert calls[0]["churn_samples"] == 4
+    assert calls[0]["churn_interval_seconds"] == 0.25

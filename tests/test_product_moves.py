@@ -163,6 +163,8 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
         prometheus_timeout=2,
         schema_registry_timeout=3,
         kafka_bootstrap_server="localhost:9092",
+        kafka_churn_samples=3,
+        kafka_churn_interval_seconds=0.25,
         kubernetes_live=True,
         kubernetes_namespace="payments",
     )
@@ -181,7 +183,9 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
     }
     assert ("prometheus", "prom.yaml", 2) in calls
     assert ("schema-registry", "schema-registry.yaml", 3) in calls
-    assert any(call[0] == "kafka" for call in calls)
+    kafka_call = next(call for call in calls if call[0] == "kafka")
+    assert kafka_call[1]["churn_samples"] == 3
+    assert kafka_call[1]["churn_interval_seconds"] == 0.25
     assert any(call[0] == "kubernetes" for call in calls)
 
 
@@ -384,6 +388,89 @@ def test_live_kafka_consumer_group_stability_detects_rebalancing_and_empty():
         for finding in rebalancing
     )
     assert any(finding["rule_id"] == "kafka.consumer_group.empty" for finding in empty)
+
+
+def test_live_kafka_acl_posture_detects_broad_allow():
+    from types import SimpleNamespace
+
+    from beacon.kafka_runtime_connector import analyze_acl_posture
+
+    class FakeFuture:
+        def result(self, timeout=None):
+            return [
+                SimpleNamespace(
+                    principal="User:*",
+                    host="*",
+                    operation="AclOperation.ALL",
+                    permission_type="AclPermissionType.ALLOW",
+                    restype="ResourceType.TOPIC",
+                    name="*",
+                    resource_pattern_type="ResourcePatternType.LITERAL",
+                )
+            ]
+
+    class FakeAdminClient:
+        def describe_acls(self, *args, **kwargs):
+            return FakeFuture()
+
+    findings = analyze_acl_posture(FakeAdminClient())
+
+    assert findings[0]["rule_id"] == "kafka.runtime.acl.broad_allow"
+    assert findings[0]["severity"] == "HIGH"
+
+
+def test_live_kafka_client_quota_posture_detects_missing_and_configured():
+    from beacon.kafka_runtime_connector import build_live_quota_findings
+
+    missing = build_live_quota_findings(
+        [
+            {"id": "1", "producer_quota_bytes_per_second": None},
+            {"id": "2", "consumer_quota_bytes_per_second": None},
+        ]
+    )
+    configured = build_live_quota_findings(
+        [
+            {
+                "id": "1",
+                "producer_quota_bytes_per_second": 1048576,
+                "consumer_quota_bytes_per_second": 1048576,
+            }
+        ]
+    )
+
+    assert missing[0]["rule_id"] == "kafka.runtime.client_quotas.missing"
+    assert configured[0]["rule_id"] == "kafka.runtime.client_quotas.configured"
+
+
+def test_live_kafka_consumer_group_churn_detects_member_changes(monkeypatch):
+    from types import SimpleNamespace
+
+    from beacon import kafka_runtime_connector
+
+    samples = [
+        {"payments": SimpleNamespace(members=[SimpleNamespace(member_id="a")])},
+        {"payments": SimpleNamespace(members=[SimpleNamespace(member_id="b")])},
+        {
+            "payments": SimpleNamespace(
+                members=[SimpleNamespace(member_id="b"), SimpleNamespace(member_id="c")]
+            )
+        },
+    ]
+
+    monkeypatch.setattr(
+        kafka_runtime_connector,
+        "describe_consumer_groups",
+        lambda admin_client, group_ids: samples.pop(0),
+    )
+
+    findings = kafka_runtime_connector.analyze_consumer_group_churn(
+        admin_client=object(),
+        group_ids=["payments"],
+        samples=3,
+        interval_seconds=0,
+    )
+
+    assert findings[0]["rule_id"] == "kafka.consumer_group.member_churn.high"
 
 
 def test_kafka_runtime_snapshot_v2_covers_production_instability_signals():

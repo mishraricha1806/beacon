@@ -81,6 +81,8 @@ def collect_all_domain_findings(
     kafka_consumer_group=None,
     kafka_max_topics=50,
     kafka_max_groups=20,
+    kafka_churn_samples=1,
+    kafka_churn_interval_seconds=0,
     kubernetes_live=False,
     kubernetes_namespace=None,
     kubernetes_context=None,
@@ -131,6 +133,8 @@ def collect_all_domain_findings(
                 topic=kafka_topic,
                 consumer_group=kafka_consumer_group,
                 max_groups=kafka_max_groups,
+                churn_samples=kafka_churn_samples,
+                churn_interval_seconds=kafka_churn_interval_seconds,
             )
         )
 
@@ -291,6 +295,12 @@ def diagnose_kafka(
     ),
     max_topics: int = typer.Option(50, help="Maximum topics to analyze."),
     max_groups: int = typer.Option(20, help="Maximum consumer groups to analyze."),
+    churn_samples: int = typer.Option(
+        1, help="Number of consumer group member samples for churn diagnostics."
+    ),
+    churn_interval_seconds: float = typer.Option(
+        0, help="Seconds between consumer group churn samples."
+    ),
     html: bool = typer.Option(True, help="Generate browser-based HTML report."),
     open_report: bool = typer.Option(True, help="Open HTML report in browser."),
     output: str = typer.Option("terminal", help="Output format: terminal or json."),
@@ -308,6 +318,8 @@ def diagnose_kafka(
         consumer_group=consumer_group,
         max_groups=max_groups,
         access_config=access_config,
+        churn_samples=churn_samples,
+        churn_interval_seconds=churn_interval_seconds,
     )
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
@@ -394,6 +406,8 @@ def diagnose_all(
     kafka_consumer_group: str = typer.Option(None),
     kafka_max_topics: int = typer.Option(50),
     kafka_max_groups: int = typer.Option(20),
+    kafka_churn_samples: int = typer.Option(1),
+    kafka_churn_interval_seconds: float = typer.Option(0),
     kubernetes_live: bool = typer.Option(
         False, "--kubernetes-live", help="Collect live Kubernetes runtime signals."
     ),
@@ -424,6 +438,8 @@ def diagnose_all(
         kafka_consumer_group=kafka_consumer_group,
         kafka_max_topics=kafka_max_topics,
         kafka_max_groups=kafka_max_groups,
+        kafka_churn_samples=kafka_churn_samples,
+        kafka_churn_interval_seconds=kafka_churn_interval_seconds,
         kubernetes_live=kubernetes_live,
         kubernetes_namespace=kubernetes_namespace,
         kubernetes_context=kubernetes_context,
@@ -445,6 +461,8 @@ def readiness_kafka(
     consumer_group: str = typer.Option(None),
     max_topics: int = typer.Option(50),
     max_groups: int = typer.Option(20),
+    churn_samples: int = typer.Option(1),
+    churn_interval_seconds: float = typer.Option(0),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -460,6 +478,8 @@ def readiness_kafka(
         consumer_group=consumer_group,
         max_groups=max_groups,
         access_config=access_config,
+        churn_samples=churn_samples,
+        churn_interval_seconds=churn_interval_seconds,
     )
 
     policy = load_policy()
@@ -517,6 +537,8 @@ def readiness_all(
     kafka_consumer_group: str = typer.Option(None),
     kafka_max_topics: int = typer.Option(50),
     kafka_max_groups: int = typer.Option(20),
+    kafka_churn_samples: int = typer.Option(1),
+    kafka_churn_interval_seconds: float = typer.Option(0),
     kubernetes_live: bool = typer.Option(
         False, "--kubernetes-live", help="Collect live Kubernetes runtime signals."
     ),
@@ -547,6 +569,8 @@ def readiness_all(
         kafka_consumer_group=kafka_consumer_group,
         kafka_max_topics=kafka_max_topics,
         kafka_max_groups=kafka_max_groups,
+        kafka_churn_samples=kafka_churn_samples,
+        kafka_churn_interval_seconds=kafka_churn_interval_seconds,
         kubernetes_live=kubernetes_live,
         kubernetes_namespace=kubernetes_namespace,
         kubernetes_context=kubernetes_context,

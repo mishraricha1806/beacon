@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from beacon.flow_runtime import analyze_flow_file
 from beacon.kafka_runtime_connector import analyze_kafka_cluster
+from beacon.kubernetes_runtime_connector import analyze_kubernetes_cluster
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.policy import apply_policy_to_findings, load_policy
 from beacon.prometheus_connector import analyze_prometheus_config
@@ -115,6 +116,11 @@ HTML = """<!doctype html>
     .mode input {
       width: auto;
       margin-right: 6px;
+    }
+    .domain-panel {
+      border-top: 1px solid var(--line);
+      margin-top: 16px;
+      padding-top: 16px;
     }
     .hint {
       color: var(--muted);
@@ -228,6 +234,18 @@ HTML = """<!doctype html>
         Beacon collectors are read-only. Runtime checks query metadata, metrics, spans, configs, and offsets without producing, consuming, altering topics, resetting offsets, or changing infrastructure.
       </div>
       <form id="kafka-form">
+        <label for="domain-select">Domain</label>
+        <select id="domain-select" name="domain_select">
+          <option value="all">All domains</option>
+          <option value="files">Static and runtime files</option>
+          <option value="kafka">Kafka</option>
+          <option value="kubernetes">Kubernetes</option>
+          <option value="schema">Schema Registry</option>
+          <option value="telemetry">Prometheus and OpenTelemetry</option>
+        </select>
+        <div class="hint">Choose a focused domain, or keep all domains visible to combine multiple inputs into one report.</div>
+
+        <div class="domain-panel" data-domain-panel="files">
         <h2>Static & Runtime Files</h2>
         <label for="static_config">Static config file</label>
         <input id="static_config" name="static_config" type="file">
@@ -238,13 +256,18 @@ HTML = """<!doctype html>
 
         <label for="flow_snapshot">Flow snapshot</label>
         <input id="flow_snapshot" name="flow_snapshot" type="file">
+        </div>
 
+        <div class="domain-panel" data-domain-panel="telemetry">
+        <h2>Telemetry Collectors</h2>
         <label for="prometheus_config">Prometheus collector config</label>
         <input id="prometheus_config" name="prometheus_config" type="file">
 
         <label for="opentelemetry_file">OpenTelemetry export</label>
         <input id="opentelemetry_file" name="opentelemetry_file" type="file">
+        </div>
 
+        <div class="domain-panel" data-domain-panel="kafka">
         <h2>Kafka Connection</h2>
         <div class="mode">
           <label><input type="radio" name="mode" value="direct" checked> Direct</label>
@@ -301,6 +324,32 @@ HTML = """<!doctype html>
           </div>
         </div>
 
+        <div class="grid2">
+          <div>
+            <label for="churn_samples">Group churn samples</label>
+            <input id="churn_samples" name="churn_samples" type="number" value="1" min="1" max="5">
+          </div>
+          <div>
+            <label for="churn_interval_seconds">Churn interval seconds</label>
+            <input id="churn_interval_seconds" name="churn_interval_seconds" type="number" value="0" min="0" max="30">
+          </div>
+        </div>
+        <div class="hint">Use 3 samples with a short interval to catch rebalance/member churn during a live incident.</div>
+        </div>
+
+        <div class="domain-panel" data-domain-panel="kubernetes">
+        <h2>Kubernetes Live</h2>
+        <label><input type="checkbox" name="kubernetes_live" value="true"> Collect live Kubernetes runtime signals</label>
+        <label for="kubernetes_namespace">Namespace</label>
+        <input id="kubernetes_namespace" name="kubernetes_namespace" placeholder="optional">
+        <label for="kubernetes_context">Context</label>
+        <input id="kubernetes_context" name="kubernetes_context" placeholder="optional">
+        <label for="kubernetes_kubeconfig">Kubeconfig</label>
+        <input id="kubernetes_kubeconfig" name="kubernetes_kubeconfig" type="file">
+        <div class="hint">Uses read-only kubectl get commands. Leave unchecked if you only want uploaded Kubernetes snapshots.</div>
+        </div>
+
+        <div class="domain-panel" data-domain-panel="schema">
         <h2>Schema Registry</h2>
         <label for="schema_registry_config">Schema Registry YAML</label>
         <input id="schema_registry_config" name="schema_registry_config" type="file">
@@ -356,6 +405,7 @@ HTML = """<!doctype html>
         <label for="schema_registry_expected_topics">Expected topic subjects</label>
         <textarea id="schema_registry_expected_topics" name="schema_registry_expected_topics" placeholder="payments: payments-key, payments-value&#10;audit-events: audit-events-value"></textarea>
         <div class="hint">Optional. One topic per line. Use "topic: subject-a, subject-b" or just "topic" for default key/value subjects.</div>
+        </div>
 
         <button id="run-button" type="submit">Run Beacon Readiness</button>
       </form>
@@ -375,6 +425,7 @@ HTML = """<!doctype html>
     const schemaAuth = document.getElementById('schema_registry_auth_type');
     const schemaTokenFields = document.getElementById('schema-token-fields');
     const schemaBasicFields = document.getElementById('schema-basic-fields');
+    const domainSelect = document.getElementById('domain-select');
 
     document.querySelectorAll('input[name="mode"]').forEach((input) => {
       input.addEventListener('change', () => {
@@ -387,6 +438,14 @@ HTML = """<!doctype html>
     schemaAuth.addEventListener('change', () => {
       schemaTokenFields.classList.toggle('hidden', schemaAuth.value !== 'bearer_token');
       schemaBasicFields.classList.toggle('hidden', schemaAuth.value !== 'basic');
+    });
+
+    domainSelect.addEventListener('change', () => {
+      document.querySelectorAll('[data-domain-panel]').forEach((panel) => {
+        const selected = domainSelect.value;
+        const domains = panel.dataset.domainPanel.split(' ');
+        panel.classList.toggle('hidden', selected !== 'all' && !domains.includes(selected));
+      });
     });
 
     form.addEventListener('submit', async (event) => {
@@ -599,6 +658,15 @@ def run_beacon_check(fields, files, force_kafka=False):
     if force_kafka or has_kafka_input(fields, files):
         findings.extend(run_kafka_collector(fields, files))
 
+    if fields.get("kubernetes_live") == "true":
+        findings.extend(
+            analyze_kubernetes_cluster(
+                namespace=value_or_none(fields.get("kubernetes_namespace")),
+                context=value_or_none(fields.get("kubernetes_context")),
+                kubeconfig=files.get("kubernetes_kubeconfig"),
+            )
+        )
+
     schema_registry_config = resolve_schema_registry_config(fields, files)
     if schema_registry_config:
         findings.extend(
@@ -647,6 +715,8 @@ def run_kafka_collector(fields, files):
         consumer_group=value_or_none(fields.get("consumer_group")),
         max_topics=int(fields.get("max_topics") or 50),
         max_groups=int(fields.get("max_groups") or 20),
+        churn_samples=int(fields.get("churn_samples") or 1),
+        churn_interval_seconds=float(fields.get("churn_interval_seconds") or 0),
     )
 
 

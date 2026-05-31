@@ -1,5 +1,11 @@
 from confluent_kafka import TopicPartition, ConsumerGroupTopicPartitions
-from confluent_kafka.admin import AdminClient, ConfigResource, ResourceType, OffsetSpec
+from confluent_kafka.admin import (
+    AdminClient,
+    ConfigResource,
+    ResourceType,
+    OffsetSpec,
+)
+import time
 
 import beacon.rules.kafka_registered_rules  # noqa: F401
 from beacon.diagnose.kafka.access_config import (
@@ -110,6 +116,8 @@ def analyze_kafka_cluster(
     consumer_group=None,
     max_groups=20,
     access_config=None,
+    churn_samples=1,
+    churn_interval_seconds=0,
 ):
     findings = []
     access_resolver = None
@@ -315,6 +323,9 @@ def analyze_kafka_cluster(
             metadata=metadata,
         )
 
+        findings.extend(build_live_quota_findings(live_broker_models))
+        findings.extend(analyze_acl_posture(admin_client))
+
         if live_broker_models:
             kafka_config_payload = {"brokers": live_broker_models}
             resources = normalize_kafka_config(kafka_config_payload, "runtime-kafka")
@@ -399,6 +410,8 @@ def analyze_kafka_cluster(
                 admin_client=consumer_group_admin_client,
                 consumer_group=consumer_group,
                 max_groups=max_groups,
+                churn_samples=churn_samples,
+                churn_interval_seconds=churn_interval_seconds,
             )
         )
 
@@ -601,6 +614,8 @@ def analyze_consumer_group_lag(
     admin_client,
     consumer_group=None,
     max_groups=20,
+    churn_samples=1,
+    churn_interval_seconds=0,
 ):
     findings = []
 
@@ -633,6 +648,14 @@ def analyze_consumer_group_lag(
             group_ids=group_ids,
         )
     )
+    findings.extend(
+        analyze_consumer_group_churn(
+            admin_client=admin_client,
+            group_ids=group_ids,
+            samples=churn_samples,
+            interval_seconds=churn_interval_seconds,
+        )
+    )
 
     for group_id in group_ids:
         try:
@@ -657,6 +680,268 @@ def analyze_consumer_group_lag(
             )
 
     return findings
+
+
+def build_live_quota_findings(broker_models):
+    if not broker_models:
+        return []
+
+    producer_quotas = [
+        broker.get("producer_quota_bytes_per_second")
+        for broker in broker_models
+        if broker.get("producer_quota_bytes_per_second") is not None
+    ]
+    consumer_quotas = [
+        broker.get("consumer_quota_bytes_per_second")
+        for broker in broker_models
+        if broker.get("consumer_quota_bytes_per_second") is not None
+    ]
+
+    if producer_quotas and consumer_quotas:
+        return [
+            finding(
+                "LOW",
+                "Kafka broker client quotas are configured",
+                "Beacon detected producer and consumer byte-rate quota settings in broker configuration.",
+                "Validate quota values against tenant isolation and peak traffic requirements.",
+                rule_id="kafka.runtime.client_quotas.configured",
+                category="operational_safety",
+                evidence={
+                    "broker_count": len(broker_models),
+                    "producer_quota_count": len(producer_quotas),
+                    "consumer_quota_count": len(consumer_quotas),
+                },
+                confidence="HIGH",
+            )
+        ]
+
+    return [
+        finding(
+            "MEDIUM",
+            "Kafka broker client quotas are not fully configured",
+            "Without producer and consumer quotas, a single client or tenant can consume disproportionate broker capacity during spikes.",
+            "Configure producer and consumer byte-rate quotas or document equivalent platform-level traffic controls.",
+            rule_id="kafka.runtime.client_quotas.missing",
+            category="operational_safety",
+            evidence={
+                "broker_count": len(broker_models),
+                "producer_quota_count": len(producer_quotas),
+                "consumer_quota_count": len(consumer_quotas),
+            },
+            confidence="HIGH",
+        )
+    ]
+
+
+def analyze_acl_posture(admin_client):
+    if not hasattr(admin_client, "describe_acls"):
+        return [
+            finding(
+                "LOW",
+                "Kafka ACL posture could not be inspected",
+                "The active Kafka client does not expose a read-only ACL describe API.",
+                "Provide ACL exports or use a Kafka client/platform that supports describe_acls for authorization posture checks.",
+                rule_id="kafka.runtime.acl.analysis_unavailable",
+                category="operational_safety",
+                evidence={"api": "describe_acls", "available": False},
+                confidence="MEDIUM",
+            )
+        ]
+
+    try:
+        acl_filter = build_acl_filter()
+        if acl_filter is not None:
+            future = admin_client.describe_acls(acl_filter, request_timeout=3)
+        else:
+            future = admin_client.describe_acls(request_timeout=3)
+        result = future.result(timeout=3)
+        acl_bindings = list(getattr(result, "acl_bindings", result) or [])
+    except Exception as error:
+        return [
+            finding(
+                "LOW",
+                "Kafka ACL posture collection failed",
+                "Beacon could not inspect ACLs through the read-only Admin API.",
+                "Check Describe ACL permissions or provide an ACL export for offline analysis.",
+                rule_id="kafka.runtime.acl.collection_failed",
+                category="operational_safety",
+                evidence={"error": str(error)},
+                confidence="MEDIUM",
+            )
+        ]
+
+    if not acl_bindings:
+        return [
+            finding(
+                "HIGH",
+                "Kafka ACL list is empty",
+                "An empty ACL list can mean authorization is not enforced or access control is managed outside Kafka.",
+                "Verify authorizer configuration and document equivalent platform authorization controls.",
+                rule_id="kafka.runtime.acl.none_found",
+                category="operational_safety",
+                evidence={"acl_count": 0},
+                confidence="MEDIUM",
+            )
+        ]
+
+    broad_acls = [acl_evidence(acl) for acl in acl_bindings if is_broad_allow_acl(acl)]
+    if broad_acls:
+        return [
+            finding(
+                "HIGH",
+                "Kafka ACLs include broad allow permissions",
+                "Broad ACLs can give users or services access beyond the intended topic or consumer-group blast radius.",
+                "Replace wildcard or all-operation ACLs with scoped topic, group, and transactional-id permissions.",
+                rule_id="kafka.runtime.acl.broad_allow",
+                category="operational_safety",
+                evidence={
+                    "acl_count": len(acl_bindings),
+                    "broad_acl_count": len(broad_acls),
+                    "broad_acls": broad_acls[:10],
+                },
+                confidence="HIGH",
+            )
+        ]
+
+    return [
+        finding(
+            "LOW",
+            "Kafka ACL posture inspected",
+            "Beacon inspected Kafka ACL metadata and did not detect broad allow patterns in the sampled ACLs.",
+            "Continue enforcing least privilege and review ACL changes during production readiness checks.",
+            rule_id="kafka.runtime.acl.posture_inspected",
+            category="operational_safety",
+            evidence={"acl_count": len(acl_bindings)},
+            confidence="HIGH",
+        )
+    ]
+
+
+def build_acl_filter():
+    try:
+        from confluent_kafka.admin import (  # noqa: PLC0415
+            AclBindingFilter,
+            ResourcePatternType,
+            AclOperation,
+            AclPermissionType,
+        )
+
+        return AclBindingFilter(
+            restype=ResourceType.ANY,
+            name=None,
+            resource_pattern_type=ResourcePatternType.ANY,
+            principal=None,
+            host=None,
+            operation=AclOperation.ANY,
+            permission_type=AclPermissionType.ANY,
+        )
+    except Exception:
+        return None
+
+
+def is_broad_allow_acl(acl):
+    evidence = acl_evidence(acl)
+    principal = str(evidence.get("principal") or "")
+    resource_name = str(evidence.get("resource_name") or "")
+    operation = str(evidence.get("operation") or "").upper()
+    permission = str(evidence.get("permission_type") or "").upper()
+    pattern_type = str(evidence.get("resource_pattern_type") or "").upper()
+
+    if "DENY" in permission:
+        return False
+
+    return any(
+        [
+            principal in {"User:*", "*"},
+            resource_name in {"*", ""},
+            "ALL" in operation or "ANY" in operation,
+            "ANY" in pattern_type,
+        ]
+    )
+
+
+def acl_evidence(acl):
+    return {
+        "principal": str(getattr(acl, "principal", "")),
+        "host": str(getattr(acl, "host", "")),
+        "operation": str(getattr(acl, "operation", "")),
+        "permission_type": str(getattr(acl, "permission_type", "")),
+        "resource_type": str(
+            getattr(acl, "restype", getattr(acl, "resource_type", ""))
+        ),
+        "resource_name": str(getattr(acl, "name", getattr(acl, "resource_name", ""))),
+        "resource_pattern_type": str(
+            getattr(
+                acl,
+                "resource_pattern_type",
+                getattr(acl, "pattern_type", ""),
+            )
+        ),
+    }
+
+
+def analyze_consumer_group_churn(
+    admin_client,
+    group_ids,
+    samples=1,
+    interval_seconds=0,
+):
+    sample_count = max(1, int(samples or 1))
+    if sample_count < 2 or not group_ids:
+        return []
+
+    snapshots = []
+
+    for sample_index in range(sample_count):
+        snapshots.append(consumer_group_member_snapshot(admin_client, group_ids))
+        if sample_index < sample_count - 1 and interval_seconds:
+            time.sleep(max(0, float(interval_seconds)))
+
+    findings = []
+
+    for group_id in group_ids:
+        member_sets = [snapshot.get(group_id, set()) for snapshot in snapshots]
+        unique_member_sets = {tuple(sorted(members)) for members in member_sets}
+        member_counts = [len(members) for members in member_sets]
+
+        if len(unique_member_sets) >= 3 or member_counts.count(0) >= 2:
+            findings.append(
+                finding(
+                    "HIGH",
+                    f"Kafka consumer group '{group_id}' has member churn across samples",
+                    "Consumer membership changed repeatedly during the sampling window, which can cause rebalances and lag spikes.",
+                    "Inspect rolling deployments, session timeout, heartbeat interval, max.poll.interval.ms, and consumer crashes.",
+                    rule_id="kafka.consumer_group.member_churn.high",
+                    evidence={
+                        "consumer_group": group_id,
+                        "samples": sample_count,
+                        "member_counts": member_counts,
+                        "unique_member_set_count": len(unique_member_sets),
+                    },
+                    confidence="HIGH",
+                )
+            )
+
+    return findings
+
+
+def consumer_group_member_snapshot(admin_client, group_ids):
+    descriptions = describe_consumer_groups(admin_client, group_ids)
+    snapshot = {}
+
+    for group_id, description in descriptions.items():
+        members = getattr(description, "members", []) or []
+        snapshot[group_id] = {
+            str(
+                getattr(member, "member_id", None)
+                or getattr(member, "consumer_id", None)
+                or getattr(member, "client_id", None)
+                or member
+            )
+            for member in members
+        }
+
+    return snapshot
 
 
 def discover_consumer_groups(admin_client, consumer_group=None, max_groups=20):
@@ -1139,10 +1424,18 @@ def build_consumer_group_stability_findings(group_id, group_description):
 
 
 def describe_consumer_group_stability(admin_client, group_ids):
-    if not group_ids or not hasattr(admin_client, "describe_consumer_groups"):
-        return []
-
+    descriptions = describe_consumer_groups(admin_client, group_ids)
     findings = []
+
+    for group_id, description in descriptions.items():
+        findings.extend(build_consumer_group_stability_findings(group_id, description))
+
+    return findings
+
+
+def describe_consumer_groups(admin_client, group_ids):
+    if not group_ids or not hasattr(admin_client, "describe_consumer_groups"):
+        return {}
 
     try:
         futures = admin_client.describe_consumer_groups(group_ids, request_timeout=3)
@@ -1150,19 +1443,19 @@ def describe_consumer_group_stability(admin_client, group_ids):
         try:
             futures = admin_client.describe_consumer_groups(group_ids)
         except Exception:
-            return []
+            return {}
     except Exception:
-        return []
+        return {}
+
+    descriptions = {}
 
     for group_id, future in (futures or {}).items():
         try:
-            description = future.result(timeout=3)
+            descriptions[group_id] = future.result(timeout=3)
         except Exception:
             continue
 
-        findings.extend(build_consumer_group_stability_findings(group_id, description))
-
-    return findings
+    return descriptions
 
 
 def build_lag_decision_finding(group_id, lag_summary):
