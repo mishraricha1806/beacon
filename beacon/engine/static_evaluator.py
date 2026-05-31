@@ -1,3 +1,5 @@
+"""Static readiness evaluators backed by registered rules."""
+
 import beacon.rules.iam_registered_rules  # noqa: F401
 import beacon.rules.kafka_registered_rules  # noqa: F401
 import beacon.rules.kubernetes_registered_rules  # noqa: F401
@@ -29,3 +31,10 @@ def evaluate_yaml_document(data, file):
         normalize_yaml_document(data, file),
         context={"file": file},
     )
+
+
+__all__ = [
+    "evaluate_kafka_config",
+    "evaluate_terraform_config",
+    "evaluate_yaml_document",
+]

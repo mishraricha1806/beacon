@@ -63,10 +63,10 @@ version: "1.0"
 
 ## On-disk layout & loading
 
-Start with a simple `beacon/rules_metadata.py` (Python dict) for now (fast). Later we will move to `rules/metadata/*.yaml` with a loader.
+Start with YAML metadata under `beacon/rules/metadata/*.yaml` plus the registry loader in `beacon/engine/metadata_registry.py`.
 
 Loading rules:
-- At module import or startup, load `beacon.rules_metadata.RULES` dict into an in-memory registry.
+- At module import or startup, load YAML metadata and registered-rule metadata into an in-memory registry.
 - Provide a small API:
   - `rules_registry.get(rule_id)` → metadata
   - `rules_registry.list()`
@@ -145,4 +145,3 @@ Long-term:
 
 - Do we want rule IDs to follow a stricter naming convention (e.g., semantic segments)? Proposal: `<domain>.<resource>.<check>`, optional subtypes e.g., `kafka.topic.replication_factor.low`.
 - Where should runtime policy overrides live? Candidate: `~/.beacon/policy.yaml` or CI-driven config per environment.
-

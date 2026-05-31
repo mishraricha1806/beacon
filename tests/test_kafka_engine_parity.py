@@ -3,7 +3,7 @@ from beacon.engine.normalizer import normalize_kafka_config
 
 import beacon.rules.kafka_registered_rules  # noqa: F401
 
-from beacon.rules.kafka_rules import evaluate_kafka_config
+from beacon.rules import evaluate_kafka_config
 
 
 def test_kafka_engine_parity():
@@ -18,7 +18,7 @@ def test_kafka_engine_parity():
         ]
     }
 
-    old_findings = evaluate_kafka_config(
+    facade_findings = evaluate_kafka_config(
         data,
         "examples/test.yaml",
     )
@@ -33,7 +33,7 @@ def test_kafka_engine_parity():
         context={"file": "examples/test.yaml"},
     )
 
-    old_rule_ids = {f["rule_id"] for f in old_findings}
+    facade_rule_ids = {f["rule_id"] for f in facade_findings}
     new_rule_ids = {f["rule_id"] for f in new_findings}
 
-    assert old_rule_ids.issubset(new_rule_ids)
+    assert facade_rule_ids.issubset(new_rule_ids)
