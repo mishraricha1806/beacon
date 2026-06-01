@@ -20,9 +20,13 @@ def print_report(
     """
     if readiness_summary:
         score = readiness_summary.get("score", calculate_score(findings))
-        display_findings = interpret_findings(
-            findings, environment=readiness_summary.get("environment")
-        )["findings"]
+        display_findings = readiness_summary.get(
+            "interpreted_findings"
+        ) or sort_findings(
+            interpret_findings(
+                findings, environment=readiness_summary.get("environment")
+            )["findings"]
+        )
     else:
         score = calculate_score(findings)
         display_findings = sort_findings(findings)

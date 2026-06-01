@@ -1,6 +1,13 @@
 import re
 from collections import Counter, defaultdict
 
+from beacon.intelligence.context import (
+    context_environment,
+    kafka_environment_policy,
+    rule_context_override,
+    topic_context,
+)
+
 
 SEVERITY_ORDER = {
     "ERROR": 0,
@@ -124,9 +131,13 @@ ROLLUP_RULES = {
 }
 
 
-def infer_environment(findings, explicit=None):
-    if explicit:
+def infer_environment(findings, explicit=None, intelligence_context=None):
+    if isinstance(explicit, str) and explicit:
         return explicit
+
+    contextual_environment = context_environment(intelligence_context)
+    if contextual_environment:
+        return contextual_environment
 
     haystack = " ".join(
         str(value)
@@ -147,8 +158,10 @@ def infer_environment(findings, explicit=None):
     return "prod"
 
 
-def interpret_findings(findings, environment=None):
-    environment = infer_environment(findings, explicit=environment)
+def interpret_findings(findings, environment=None, intelligence_context=None):
+    environment = infer_environment(
+        findings, explicit=environment, intelligence_context=intelligence_context
+    )
     single_broker = any(
         finding.get("rule_id") == "kafka.cluster.broker_count.low"
         for finding in findings
@@ -158,10 +171,12 @@ def interpret_findings(findings, environment=None):
     for finding in findings:
         adjusted = dict(finding)
         adjusted["original_severity"] = finding.get("severity")
-        adjusted["severity"] = adjusted_severity(finding, environment, single_broker)
+        adjusted["severity"] = adjusted_severity(
+            finding, environment, single_broker, intelligence_context
+        )
         if adjusted["severity"] != finding.get("severity"):
             adjusted["severity_adjustment_reason"] = adjustment_reason(
-                finding, environment, single_broker
+                finding, environment, single_broker, intelligence_context
             )
         interpreted.append(adjusted)
 
@@ -177,9 +192,39 @@ def interpret_findings(findings, environment=None):
     }
 
 
-def adjusted_severity(finding, environment, single_broker):
+def adjusted_severity(finding, environment, single_broker, intelligence_context=None):
     rule_id = finding.get("rule_id")
     severity = finding.get("severity")
+
+    context_override = rule_context_override(intelligence_context, rule_id, environment)
+    if context_override.get("severity"):
+        return context_override["severity"]
+
+    kafka_policy = kafka_environment_policy(intelligence_context, environment)
+    if (
+        rule_id == "kafka.cluster.broker_count.low"
+        and kafka_policy.get("allow_single_broker") is True
+    ):
+        return "INFO"
+
+    if (
+        rule_id == "kafka.topic.replication_factor.low"
+        and kafka_policy.get("allow_replication_factor_one") is True
+    ):
+        return "INFO"
+
+    topic_policy = topic_context(intelligence_context, extract_entity_name(finding))
+    if (
+        rule_id == "kafka.topic.partitions.low"
+        and topic_policy.get("low_partitions_allowed") is True
+    ):
+        return topic_policy.get("severity", "INFO")
+
+    if (
+        rule_id == "kafka.topic.owner.missing"
+        and kafka_policy.get("require_owner_metadata") is False
+    ):
+        return "INFO"
 
     if environment != "prod" and rule_id in ENV_DOWNGRADES:
         return ENV_DOWNGRADES[rule_id]
@@ -194,8 +239,44 @@ def adjusted_severity(finding, environment, single_broker):
     return CONTEXTUAL_SEVERITIES.get(rule_id, severity)
 
 
-def adjustment_reason(finding, environment, single_broker):
+def adjustment_reason(finding, environment, single_broker, intelligence_context=None):
     rule_id = finding.get("rule_id")
+    context_override = rule_context_override(intelligence_context, rule_id, environment)
+    if context_override.get("reason"):
+        return context_override["reason"]
+    if context_override.get("severity"):
+        return (
+            "Adjusted by organization intelligence context rule override "
+            f"for {environment}."
+        )
+
+    kafka_policy = kafka_environment_policy(intelligence_context, environment)
+    if (
+        rule_id == "kafka.cluster.broker_count.low"
+        and kafka_policy.get("allow_single_broker") is True
+    ):
+        return f"Downgraded because the {environment} intelligence context allows single-broker Kafka."
+    if (
+        rule_id == "kafka.topic.replication_factor.low"
+        and kafka_policy.get("allow_replication_factor_one") is True
+    ):
+        return f"Downgraded because the {environment} intelligence context allows replication factor 1."
+    if (
+        rule_id == "kafka.topic.partitions.low"
+        and topic_context(intelligence_context, extract_entity_name(finding)).get(
+            "low_partitions_allowed"
+        )
+        is True
+    ):
+        return (
+            "Downgraded because the matched topic pattern allows low partition count."
+        )
+    if (
+        rule_id == "kafka.topic.owner.missing"
+        and kafka_policy.get("require_owner_metadata") is False
+    ):
+        return f"Downgraded because the {environment} intelligence context does not require owner metadata."
+
     if environment != "prod" and rule_id in ENV_DOWNGRADES:
         return f"Downgraded because environment is {environment}."
     if single_broker and rule_id == "kafka.topic.replication_factor.low":

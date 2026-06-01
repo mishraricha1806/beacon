@@ -3,6 +3,7 @@ from beacon.scoring import (
     production_readiness_decision,
 )
 from beacon.correlations.root_cause import correlate_findings
+from beacon.intelligence.context import context_summary
 from beacon.kafka_report import build_kafka_report
 from beacon.readiness.interpretation import (
     build_business_categories,
@@ -22,8 +23,12 @@ DEFAULT_CATEGORIES = {
 }
 
 
-def calculate_readiness(findings, environment=None):
-    interpretation = interpret_findings(findings, environment=environment)
+def calculate_readiness(findings, environment=None, intelligence_context=None):
+    interpretation = interpret_findings(
+        findings,
+        environment=environment,
+        intelligence_context=intelligence_context,
+    )
     interpreted_findings = interpretation["findings"]
     score_findings = interpretation["score_findings"]
     risk_points = interpretation["risk_points"]
@@ -56,6 +61,8 @@ def calculate_readiness(findings, environment=None):
         "raw_error": raw_severity_counts["error"],
         "raw_info": raw_severity_counts["info"],
         "environment": interpretation["environment"],
+        "intelligence_context": context_summary(intelligence_context),
+        "interpreted_findings": sort_findings(interpreted_findings),
         "grouped_risks": interpretation["grouped_risks"],
         "business_categories": build_business_categories(
             score_findings, interpretation["grouped_risks"]

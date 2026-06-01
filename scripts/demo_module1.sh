@@ -14,6 +14,13 @@ python3 -m beacon.cli readiness all \
   --snapshot examples/supported/runtime/all-runtime.yaml \
   --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml \
   --schema-registry examples/supported/kafka/schema-registry.yaml \
+  --context examples/supported/intelligence/context.yaml \
+  --no-html \
+  --no-open-report
+
+section "Context-aware non-production interpretation"
+python3 -m beacon.cli readiness static examples/bad-infra \
+  --context examples/supported/intelligence/context.yaml \
   --no-html \
   --no-open-report
 

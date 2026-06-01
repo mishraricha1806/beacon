@@ -24,6 +24,14 @@ def print_readiness_summary(summary):
 
     if summary.get("environment"):
         console.print(f"[bold]Environment:[/bold] {summary['environment']}")
+    if (summary.get("intelligence_context") or {}).get("loaded"):
+        context = summary["intelligence_context"]
+        console.print(
+            "[bold]Intelligence Context:[/bold] "
+            f"{context.get('organization') or 'loaded'} "
+            f"(topic patterns: {context.get('topic_patterns', 0)}, "
+            f"rule overrides: {context.get('rule_overrides', 0)})"
+        )
     if summary.get("risk_points") is not None:
         console.print(
             "[bold]Weighted Risk Points:[/bold] "

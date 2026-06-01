@@ -61,6 +61,7 @@ Suggested UI checks:
 - Kafka trend analysis: upload `examples/supported/kafka/history.yaml`
 - OpenTelemetry: upload `examples/supported/opentelemetry/checkout-otel.yaml`
 - Schema Registry: upload `examples/supported/kafka/schema-registry.yaml`
+- Intelligence context: upload `examples/supported/intelligence/context.yaml`
 
 The UI returns the same readiness contract as the CLI: score, production
 decision, top reasons, next actions, root-cause hypotheses, findings, and a JSON

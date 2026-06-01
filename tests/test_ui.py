@@ -66,6 +66,7 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert 'id="environment"' in ui.HTML
     assert "Risk Points" in ui.HTML
     assert "Business Risk Categories" in ui.HTML
+    assert 'id="intelligence_context"' in ui.HTML
 
 
 def test_ui_e2e_static_config_upload_returns_backend_findings():
@@ -79,6 +80,45 @@ def test_ui_e2e_static_config_upload_returns_backend_findings():
     assert "kafka.topic.replication_factor.low" in rule_ids
     assert payload["readiness_summary"]["environment"] == "prod"
     assert payload["readiness_summary"]["production_decision"] == "NOT READY"
+
+
+def test_ui_returns_findings_in_severity_order(monkeypatch):
+    def fake_scan_path(_path):
+        return [
+            {
+                "rule_id": "low.rule",
+                "domain": "kafka",
+                "category": "operational_safety",
+                "severity": "LOW",
+                "title": "Low finding",
+                "impact": "impact",
+                "recommendation": "recommendation",
+                "file": "x",
+                "evidence": {},
+                "tags": [],
+            },
+            {
+                "rule_id": "critical.rule",
+                "domain": "kafka",
+                "category": "operational_safety",
+                "severity": "CRITICAL",
+                "title": "Critical finding",
+                "impact": "impact",
+                "recommendation": "recommendation",
+                "file": "x",
+                "evidence": {},
+                "tags": [],
+            },
+        ]
+
+    monkeypatch.setattr(ui, "scan_path", fake_scan_path)
+
+    payload = ui.run_beacon_check({"environment": "prod"}, {"static_config": "ignored"})
+
+    assert [finding["severity"] for finding in payload["findings"]] == [
+        "CRITICAL",
+        "LOW",
+    ]
 
 
 def test_ui_e2e_runtime_snapshot_upload_returns_root_cause_findings():

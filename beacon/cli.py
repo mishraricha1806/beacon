@@ -24,6 +24,7 @@ from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.engine import metadata_registry as rules_registry
 from rich.table import Table
+from beacon.intelligence.context import load_intelligence_context
 from beacon.policy import load_policy, apply_policy_to_findings
 
 
@@ -52,10 +53,20 @@ def apply_runtime_policy(findings):
 
 
 def emit_readiness(
-    findings, html=True, open_report=True, output="terminal", environment=None
+    findings,
+    html=True,
+    open_report=True,
+    output="terminal",
+    environment=None,
+    context_path=None,
 ):
     findings = apply_runtime_policy(findings)
-    readiness_summary = calculate_readiness(findings, environment=environment)
+    intelligence_context = load_intelligence_context(context_path)
+    readiness_summary = calculate_readiness(
+        findings,
+        environment=environment,
+        intelligence_context=intelligence_context,
+    )
 
     print_readiness_summary(readiness_summary)
     print_report(
@@ -571,6 +582,11 @@ def readiness_kafka(
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
     ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -593,7 +609,10 @@ def readiness_kafka(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings, environment=environment)
+    intelligence_context = load_intelligence_context(context_path)
+    readiness_summary = calculate_readiness(
+        findings, environment=environment, intelligence_context=intelligence_context
+    )
 
     print_readiness_summary(readiness_summary)
 
@@ -612,6 +631,11 @@ def readiness_kafka_acls(
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
     ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -624,6 +648,7 @@ def readiness_kafka_acls(
         open_report=open_report,
         output=output,
         environment=environment,
+        context_path=context_path,
     )
 
 
@@ -632,6 +657,11 @@ def readiness_kafka_history(
     path: str = typer.Argument(..., help="Path to Kafka runtime history YAML or JSON."),
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
     ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
@@ -645,6 +675,7 @@ def readiness_kafka_history(
         open_report=open_report,
         output=output,
         environment=environment,
+        context_path=context_path,
     )
 
 
@@ -704,6 +735,11 @@ def readiness_all(
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
     ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -744,6 +780,7 @@ def readiness_all(
         open_report=open_report,
         output=output,
         environment=environment,
+        context_path=context_path,
     )
 
 
@@ -752,6 +789,11 @@ def readiness_static(
     path: str,
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
     ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
@@ -763,7 +805,10 @@ def readiness_static(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings, environment=environment)
+    intelligence_context = load_intelligence_context(context_path)
+    readiness_summary = calculate_readiness(
+        findings, environment=environment, intelligence_context=intelligence_context
+    )
 
     print_readiness_summary(readiness_summary)
 
@@ -784,6 +829,11 @@ def readiness_kubernetes(
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
     ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -799,7 +849,10 @@ def readiness_kubernetes(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings, environment=environment)
+    intelligence_context = load_intelligence_context(context_path)
+    readiness_summary = calculate_readiness(
+        findings, environment=environment, intelligence_context=intelligence_context
+    )
 
     print_readiness_summary(readiness_summary)
 
@@ -818,6 +871,11 @@ def readiness_flow(
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
     ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -829,7 +887,10 @@ def readiness_flow(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings, environment=environment)
+    intelligence_context = load_intelligence_context(context_path)
+    readiness_summary = calculate_readiness(
+        findings, environment=environment, intelligence_context=intelligence_context
+    )
 
     print_readiness_summary(readiness_summary)
 
@@ -848,6 +909,11 @@ def readiness_snapshot(
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
     ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -859,7 +925,10 @@ def readiness_snapshot(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings, environment=environment)
+    intelligence_context = load_intelligence_context(context_path)
+    readiness_summary = calculate_readiness(
+        findings, environment=environment, intelligence_context=intelligence_context
+    )
 
     print_readiness_summary(readiness_summary)
 
@@ -879,6 +948,11 @@ def readiness_prometheus(
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
     ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -890,7 +964,10 @@ def readiness_prometheus(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings, environment=environment)
+    intelligence_context = load_intelligence_context(context_path)
+    readiness_summary = calculate_readiness(
+        findings, environment=environment, intelligence_context=intelligence_context
+    )
 
     print_readiness_summary(readiness_summary)
 
@@ -909,6 +986,11 @@ def readiness_opentelemetry(
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
     ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -920,7 +1002,10 @@ def readiness_opentelemetry(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings, environment=environment)
+    intelligence_context = load_intelligence_context(context_path)
+    readiness_summary = calculate_readiness(
+        findings, environment=environment, intelligence_context=intelligence_context
+    )
 
     print_readiness_summary(readiness_summary)
 
@@ -942,6 +1027,11 @@ def readiness_schema_registry(
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
     ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -953,7 +1043,10 @@ def readiness_schema_registry(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings, environment=environment)
+    intelligence_context = load_intelligence_context(context_path)
+    readiness_summary = calculate_readiness(
+        findings, environment=environment, intelligence_context=intelligence_context
+    )
 
     print_readiness_summary(readiness_summary)
 

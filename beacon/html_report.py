@@ -246,6 +246,14 @@ HTML_TEMPLATE = """
             <span class="pill">Low: {{ readiness_summary.low }}</span>
             <span class="pill">Environment: {{ readiness_summary.environment }}</span>
         </p>
+        {% if readiness_summary.intelligence_context.loaded %}
+        <p class="text-block">
+            <strong>Intelligence Context:</strong>
+            {{ readiness_summary.intelligence_context.organization or 'Loaded' }}
+            · topic patterns: {{ readiness_summary.intelligence_context.topic_patterns }}
+            · rule overrides: {{ readiness_summary.intelligence_context.rule_overrides }}
+        </p>
+        {% endif %}
         <p class="muted">Scoring model: {{ readiness_summary.score_formula }}</p>
     </div>
 

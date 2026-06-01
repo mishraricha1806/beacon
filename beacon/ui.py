@@ -15,7 +15,8 @@ from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.policy import apply_policy_to_findings, load_policy
 from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
-from beacon.readiness.interpretation import interpret_findings
+from beacon.intelligence.context import load_intelligence_context
+from beacon.readiness.interpretation import sort_findings
 from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.scanner import scan_path
 from beacon.schema_registry_connector import analyze_schema_registry_config
@@ -299,6 +300,10 @@ HTML = """<!doctype html>
         </select>
         <div class="hint">Prod keeps strict HA rules. Dev/test allows common non-production patterns such as single-broker Kafka.</div>
 
+        <label for="intelligence_context">Intelligence context</label>
+        <input id="intelligence_context" name="intelligence_context" type="file">
+        <div class="hint">Optional YAML/JSON profile with organization standards, environment policy, topic patterns, and approved exceptions.</div>
+
         <div class="domain-panel" data-domain-panel="static">
         <h2>Static Readiness</h2>
         <label for="static_config">Static config file</label>
@@ -556,6 +561,7 @@ HTML = """<!doctype html>
       const nextActions = summary.next_best_actions || [];
       const rootCauses = summary.root_cause_hypotheses || [];
       const groupedRisks = summary.grouped_risks || [];
+      const intelligenceContext = summary.intelligence_context || {};
       const summaryHtml = `
         <div class="result-actions">
           <button type="button" onclick="downloadReport()">Download JSON</button>
@@ -566,6 +572,7 @@ HTML = """<!doctype html>
           <div class="metric"><span>Risk Points</span><strong>${summary.risk_points ?? '-'}</strong></div>
           <div class="metric"><span>Environment</span><strong>${summary.environment || '-'}</strong></div>
         </div>
+        ${renderIntelligenceContext(intelligenceContext)}
         ${renderBusinessCategories(summary.business_categories || {})}
         ${renderGroupedRisks(groupedRisks)}
         ${renderInsightList('Top Reasons', topReasons)}
@@ -645,6 +652,19 @@ HTML = """<!doctype html>
           ' points · ' + escapeHtml(data.findings ?? 0) + ' grouped finding(s)</li>'
         ).join('') +
         '</ul></div>';
+    }
+
+    function renderIntelligenceContext(context) {
+      if (!context.loaded) {
+        return '';
+      }
+      const org = context.organization ? ` · ${context.organization}` : '';
+      return '<div class="insight-list"><h3>Intelligence Context</h3><ul><li>' +
+        'Loaded' + escapeHtml(org) +
+        ' · environment ' + escapeHtml(context.environment || '-') +
+        ' · ' + escapeHtml(context.topic_patterns || 0) + ' topic pattern(s)' +
+        ' · ' + escapeHtml(context.rule_overrides || 0) + ' rule override(s)' +
+        '</li></ul></div>';
     }
 
     function downloadReport() {
@@ -959,12 +979,15 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
 
     LOGGER.info("ui.policy.start id=%s findings=%s", request_id, len(findings))
     findings = apply_policy_to_findings(findings, load_policy())
+    intelligence_context = load_intelligence_context(files.get("intelligence_context"))
     readiness_summary = calculate_readiness(
-        findings, environment=value_or_none(fields.get("environment"))
+        findings,
+        environment=value_or_none(fields.get("environment")),
+        intelligence_context=intelligence_context,
     )
-    displayed_findings = interpret_findings(
-        findings, environment=readiness_summary.get("environment")
-    )["findings"]
+    displayed_findings = sort_findings(
+        readiness_summary.get("interpreted_findings", [])
+    )
     LOGGER.info(
         "ui.readiness.complete id=%s decision=%s score=%s",
         request_id,
