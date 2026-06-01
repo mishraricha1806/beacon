@@ -1,0 +1,39 @@
+organization:
+  name: Example Platform Team
+  environment: dev
+
+kafka_policy:
+  dev:
+    allow_single_broker: true
+    allow_replication_factor_one: true
+    require_owner_metadata: false
+  prod:
+    allow_single_broker: false
+    allow_replication_factor_one: false
+    require_owner_metadata: true
+
+topic_patterns:
+  "*.dlq":
+    low_partitions_allowed: true
+    severity: INFO
+    reason: DLQ topics are usually low-throughput and may preserve ordering.
+  "*.retry":
+    low_partitions_allowed: true
+    severity: INFO
+    reason: Retry topics may intentionally stay small for controlled replay.
+  "*.cdc.*":
+    low_partitions_allowed: true
+    severity: LOW
+    reason: CDC topics may require ordering-sensitive partition strategy.
+
+rule_overrides:
+  kafka.consumer_group.offsets.missing:
+    severity: INFO
+    reason: Missing offsets are treated as observational unless an owning team declares the group active.
+
+knowledge_documents:
+  - title: Kafka production standard
+    path: docs/internal/kafka-production-standard.md
+  - title: Event schema compatibility standard
+    path: docs/internal/schema-compatibility.md
+
