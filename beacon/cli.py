@@ -51,9 +51,11 @@ def apply_runtime_policy(findings):
     return apply_policy_to_findings(findings, policy)
 
 
-def emit_readiness(findings, html=True, open_report=True, output="terminal"):
+def emit_readiness(
+    findings, html=True, open_report=True, output="terminal", environment=None
+):
     findings = apply_runtime_policy(findings)
-    readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(findings, environment=environment)
 
     print_readiness_summary(readiness_summary)
     print_report(
@@ -566,6 +568,9 @@ def readiness_kafka(
     max_groups: int = typer.Option(20),
     churn_samples: int = typer.Option(1),
     churn_interval_seconds: float = typer.Option(0),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -588,7 +593,7 @@ def readiness_kafka(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(findings, environment=environment)
 
     print_readiness_summary(readiness_summary)
 
@@ -604,6 +609,9 @@ def readiness_kafka(
 @readiness_app.command("kafka-acls")
 def readiness_kafka_acls(
     path: str = typer.Argument(..., help="Path to Kafka ACL export YAML or JSON."),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -615,12 +623,16 @@ def readiness_kafka_acls(
         html=html,
         open_report=open_report,
         output=output,
+        environment=environment,
     )
 
 
 @readiness_app.command("kafka-history")
 def readiness_kafka_history(
     path: str = typer.Argument(..., help="Path to Kafka runtime history YAML or JSON."),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -632,6 +644,7 @@ def readiness_kafka_history(
         html=html,
         open_report=open_report,
         output=output,
+        environment=environment,
     )
 
 
@@ -688,6 +701,9 @@ def readiness_all(
     kubernetes_namespace: str = typer.Option(None),
     kubernetes_context: str = typer.Option(None),
     kubernetes_kubeconfig: str = typer.Option(None),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -722,12 +738,21 @@ def readiness_all(
         kubernetes_kubeconfig=kubernetes_kubeconfig,
     )
 
-    emit_readiness(findings, html=html, open_report=open_report, output=output)
+    emit_readiness(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        environment=environment,
+    )
 
 
 @readiness_app.command("static")
 def readiness_static(
     path: str,
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -738,7 +763,7 @@ def readiness_static(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(findings, environment=environment)
 
     print_readiness_summary(readiness_summary)
 
@@ -756,6 +781,9 @@ def readiness_kubernetes(
     namespace: str = typer.Option(None),
     context: str = typer.Option(None),
     kubeconfig: str = typer.Option(None),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -771,7 +799,7 @@ def readiness_kubernetes(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(findings, environment=environment)
 
     print_readiness_summary(readiness_summary)
 
@@ -787,6 +815,9 @@ def readiness_kubernetes(
 @readiness_app.command("flow")
 def readiness_flow(
     path: str = typer.Argument(..., help="Path to a flow runtime snapshot YAML."),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -798,7 +829,7 @@ def readiness_flow(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(findings, environment=environment)
 
     print_readiness_summary(readiness_summary)
 
@@ -814,6 +845,9 @@ def readiness_flow(
 @readiness_app.command("snapshot")
 def readiness_snapshot(
     path: str = typer.Argument(..., help="Path to a runtime snapshot YAML."),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -825,7 +859,7 @@ def readiness_snapshot(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(findings, environment=environment)
 
     print_readiness_summary(readiness_summary)
 
@@ -842,6 +876,9 @@ def readiness_snapshot(
 def readiness_prometheus(
     path: str = typer.Argument(..., help="Path to Prometheus collector config YAML."),
     timeout: int = typer.Option(5, help="Prometheus query timeout in seconds."),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -853,7 +890,7 @@ def readiness_prometheus(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(findings, environment=environment)
 
     print_readiness_summary(readiness_summary)
 
@@ -869,6 +906,9 @@ def readiness_prometheus(
 @readiness_app.command("opentelemetry")
 def readiness_opentelemetry(
     path: str = typer.Argument(..., help="Path to OpenTelemetry export YAML or JSON."),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -880,7 +920,7 @@ def readiness_opentelemetry(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(findings, environment=environment)
 
     print_readiness_summary(readiness_summary)
 
@@ -899,6 +939,9 @@ def readiness_schema_registry(
         ..., help="Path to Schema Registry collector config YAML."
     ),
     timeout: int = typer.Option(5, help="Schema Registry query timeout in seconds."),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -910,7 +953,7 @@ def readiness_schema_registry(
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
 
-    readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(findings, environment=environment)
 
     print_readiness_summary(readiness_summary)
 

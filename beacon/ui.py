@@ -289,6 +289,16 @@ HTML = """<!doctype html>
         </select>
         <div class="hint">Choose a focused domain, or keep all domains visible to combine multiple inputs into one report.</div>
 
+        <label for="environment">Environment profile</label>
+        <select id="environment" name="environment">
+          <option value="">Auto-detect</option>
+          <option value="dev">Dev</option>
+          <option value="test">Test</option>
+          <option value="staging">Staging</option>
+          <option value="prod">Prod</option>
+        </select>
+        <div class="hint">Prod keeps strict HA rules. Dev/test allows common non-production patterns such as single-broker Kafka.</div>
+
         <div class="domain-panel" data-domain-panel="static">
         <h2>Static Readiness</h2>
         <label for="static_config">Static config file</label>
@@ -553,9 +563,10 @@ HTML = """<!doctype html>
         <div class="summary">
           <div class="metric"><span>Score</span><strong>${data.score ?? summary.score ?? '-'}</strong></div>
           <div class="metric"><span>Decision</span><strong>${summary.production_decision || '-'}</strong></div>
-          <div class="metric"><span>Critical/High</span><strong>${counts.CRITICAL + counts.HIGH}</strong></div>
+          <div class="metric"><span>Risk Points</span><strong>${summary.risk_points ?? '-'}</strong></div>
           <div class="metric"><span>Environment</span><strong>${summary.environment || '-'}</strong></div>
         </div>
+        ${renderBusinessCategories(summary.business_categories || {})}
         ${renderGroupedRisks(groupedRisks)}
         ${renderInsightList('Top Reasons', topReasons)}
         ${renderInsightList('Next Actions', nextActions)}
@@ -615,9 +626,24 @@ HTML = """<!doctype html>
       return '<div class="insight-list"><h3>Grouped Root-Cause Risks</h3><ul>' +
         items.slice(0, 8).map((item) => {
           const affected = item.affected_count ? ` (${item.affected_count} affected)` : '';
+          const category = item.business_category ? ` [${item.business_category}]` : '';
+          const remediation = item.remediation_command ? '<br><span class="hint">' + escapeHtml(item.remediation_command) + '</span>' : '';
           return '<li><strong>' + escapeHtml(item.severity || '') + '</strong>: ' +
-            escapeHtml(item.title || '') + escapeHtml(affected) + '</li>';
+            escapeHtml(item.title || '') + escapeHtml(affected + category) + remediation + '</li>';
         }).join('') +
+        '</ul></div>';
+    }
+
+    function renderBusinessCategories(categories) {
+      const entries = Object.entries(categories);
+      if (!entries.length) {
+        return '';
+      }
+      return '<div class="insight-list"><h3>Business Risk Categories</h3><ul>' +
+        entries.map(([name, data]) => '<li><strong>' + escapeHtml(name) + '</strong>: ' +
+          escapeHtml(data.risk || '') + ' · ' + escapeHtml(data.risk_points ?? 0) +
+          ' points · ' + escapeHtml(data.findings ?? 0) + ' grouped finding(s)</li>'
+        ).join('') +
         '</ul></div>';
     }
 
@@ -933,7 +959,9 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
 
     LOGGER.info("ui.policy.start id=%s findings=%s", request_id, len(findings))
     findings = apply_policy_to_findings(findings, load_policy())
-    readiness_summary = calculate_readiness(findings)
+    readiness_summary = calculate_readiness(
+        findings, environment=value_or_none(fields.get("environment"))
+    )
     displayed_findings = interpret_findings(
         findings, environment=readiness_summary.get("environment")
     )["findings"]

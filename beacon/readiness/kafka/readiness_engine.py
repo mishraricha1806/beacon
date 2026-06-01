@@ -1,11 +1,15 @@
 from beacon.scoring import (
-    calculate_score,
     count_severities,
     production_readiness_decision,
 )
 from beacon.correlations.root_cause import correlate_findings
 from beacon.kafka_report import build_kafka_report
-from beacon.readiness.interpretation import interpret_findings, sort_findings
+from beacon.readiness.interpretation import (
+    build_business_categories,
+    interpret_findings,
+    readiness_score_from_points,
+    sort_findings,
+)
 
 
 DEFAULT_CATEGORIES = {
@@ -22,11 +26,22 @@ def calculate_readiness(findings, environment=None):
     interpretation = interpret_findings(findings, environment=environment)
     interpreted_findings = interpretation["findings"]
     score_findings = interpretation["score_findings"]
+    risk_points = interpretation["risk_points"]
     severity_counts = count_severities(interpreted_findings)
     raw_severity_counts = count_severities(findings)
 
     summary = {
-        "score": calculate_score(score_findings),
+        "score": readiness_score_from_points(risk_points),
+        "risk_points": risk_points,
+        "scoring_model": {
+            "CRITICAL": 100,
+            "HIGH": 50,
+            "MEDIUM": 20,
+            "LOW": 5,
+            "INFO": 0,
+            "ERROR": 100,
+        },
+        "score_formula": "100 - min(100, round(risk_points / 2)); any critical/error finding still blocks readiness",
         "score_status": "CALCULATED",
         "critical": severity_counts["critical"],
         "high": severity_counts["high"],
@@ -42,6 +57,9 @@ def calculate_readiness(findings, environment=None):
         "raw_info": raw_severity_counts["info"],
         "environment": interpretation["environment"],
         "grouped_risks": interpretation["grouped_risks"],
+        "business_categories": build_business_categories(
+            score_findings, interpretation["grouped_risks"]
+        ),
         "suppressed_duplicate_count": max(0, len(findings) - len(score_findings)),
         "survivability": "LOW RISK",
         "categories": {key: dict(value) for key, value in DEFAULT_CATEGORIES.items()},

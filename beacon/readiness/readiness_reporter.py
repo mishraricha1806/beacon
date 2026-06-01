@@ -24,6 +24,12 @@ def print_readiness_summary(summary):
 
     if summary.get("environment"):
         console.print(f"[bold]Environment:[/bold] {summary['environment']}")
+    if summary.get("risk_points") is not None:
+        console.print(
+            "[bold]Weighted Risk Points:[/bold] "
+            f"{summary['risk_points']} "
+            f"({summary.get('score_formula', 'weighted severity model')})"
+        )
     if summary.get("suppressed_duplicate_count"):
         console.print(
             "[bold]Grouped/Deduplicated Signals:[/bold] "
@@ -48,19 +54,40 @@ def print_readiness_summary(summary):
     if summary.get("grouped_risks"):
         grouped_table = Table(title="Grouped Root-Cause Risks")
         grouped_table.add_column("Severity")
+        grouped_table.add_column("Category")
         grouped_table.add_column("Risk")
         grouped_table.add_column("Affected")
+        grouped_table.add_column("Remediation")
         grouped_table.add_column("Examples")
 
         for risk in summary["grouped_risks"][:10]:
             grouped_table.add_row(
                 risk["severity"],
+                risk.get("business_category", ""),
                 risk["title"],
                 str(risk.get("affected_count", 0)),
+                risk.get("remediation_command") or risk.get("recommendation", ""),
                 ", ".join(risk.get("examples", [])[:3]),
             )
 
         console.print(grouped_table)
+
+    if summary.get("business_categories"):
+        business_table = Table(title="Business Risk Categories")
+        business_table.add_column("Category")
+        business_table.add_column("Risk")
+        business_table.add_column("Risk Points")
+        business_table.add_column("Grouped Findings")
+
+        for category, data in summary["business_categories"].items():
+            business_table.add_row(
+                category,
+                data["risk"],
+                str(data["risk_points"]),
+                str(data["findings"]),
+            )
+
+        console.print(business_table)
 
     table = Table(title="Production Readiness Categories")
     table.add_column("Category")

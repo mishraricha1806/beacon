@@ -227,6 +227,11 @@ HTML_TEMPLATE = """
             <div class="metric">{{ readiness_summary.primary_risk_area }}</div>
             <div class="label">Primary Risk Area</div>
         </div>
+
+        <div class="card">
+            <div class="metric">{{ readiness_summary.risk_points }}</div>
+            <div class="label">Weighted Risk Points</div>
+        </div>
     </div>
 
     <div class="card section">
@@ -239,8 +244,33 @@ HTML_TEMPLATE = """
             <span class="pill">High: {{ readiness_summary.high }}</span>
             <span class="pill">Medium: {{ readiness_summary.medium }}</span>
             <span class="pill">Low: {{ readiness_summary.low }}</span>
+            <span class="pill">Environment: {{ readiness_summary.environment }}</span>
         </p>
+        <p class="muted">Scoring model: {{ readiness_summary.score_formula }}</p>
     </div>
+
+    {% if readiness_summary.business_categories %}
+    <div class="card section">
+        <h2>Business Risk Categories</h2>
+        <table>
+            <tr>
+                <th>Category</th>
+                <th>Risk</th>
+                <th>Risk Points</th>
+                <th>Grouped Findings</th>
+            </tr>
+
+            {% for category, data in readiness_summary.business_categories.items() %}
+            <tr>
+                <td>{{ category }}</td>
+                <td class="{{ data.risk.replace(' ', '_') }}">{{ data.risk }}</td>
+                <td>{{ data.risk_points }}</td>
+                <td>{{ data.findings }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
 
     <div class="card section">
         <h2>Top Reasons</h2>
@@ -316,8 +346,12 @@ HTML_TEMPLATE = """
         <div class="finding {{ risk.severity }}">
             <div class="severity {{ risk.severity }}">{{ risk.severity }}</div>
             <div class="finding-title">{{ risk.title }}</div>
+            <p class="text-block"><strong>Category:</strong> {{ risk.business_category }}</p>
             <p class="text-block"><strong>Affected:</strong> {{ risk.affected_count }}</p>
             <p class="text-block"><strong>Recommendation:</strong> {{ risk.recommendation }}</p>
+            {% if risk.remediation_command %}
+            <p class="text-block"><strong>Remediation Command:</strong> <code>{{ risk.remediation_command }}</code></p>
+            {% endif %}
             {% if risk.examples %}
             <p class="muted"><strong>Examples:</strong> {{ risk.examples[:5] | join(', ') }}</p>
             {% endif %}

@@ -11,6 +11,24 @@ SEVERITY_ORDER = {
     "INFO": 5,
 }
 
+RISK_POINTS = {
+    "ERROR": 100,
+    "CRITICAL": 100,
+    "HIGH": 50,
+    "MEDIUM": 20,
+    "LOW": 5,
+    "INFO": 0,
+}
+
+BUSINESS_CATEGORIES = {
+    "resiliency": "Availability",
+    "runtime_stability": "Performance",
+    "scalability": "Performance",
+    "storage_sustainability": "Capacity",
+    "recovery_readiness": "Availability",
+    "operational_safety": "Security",
+}
+
 NONPROD_MARKERS = (
     "nonprod",
     "non-prod",
@@ -43,49 +61,65 @@ ROLLUP_RULES = {
         "key": "kafka.single_broker_cluster",
         "title": "Kafka cluster has a single broker",
         "category": "resiliency",
+        "business_category": "Availability",
         "recommendation": "Confirm this is intentional for the environment. Use at least 3 brokers for production high availability.",
+        "remediation_command": "Provision at least 3 Kafka brokers for production high availability.",
     },
     "kafka.topic.replication_factor.low": {
         "key": "kafka.topic_rf_low",
         "title": "Kafka topics have replication factor 1",
         "category": "resiliency",
+        "business_category": "Availability",
         "recommendation": "Treat this as a derivative of broker count when the cluster has one broker; otherwise raise topic replication factor.",
+        "remediation_command": "Use kafka-reassign-partitions with a reassignment JSON that places replicas across at least 3 brokers.",
     },
     "kafka.topic.partitions.low": {
         "key": "kafka.topic_low_partitions",
         "title": "Kafka topics have low partition count",
         "category": "scalability",
+        "business_category": "Performance",
         "recommendation": "Validate against ordering requirements, throughput, producer rate, and consumer lag before increasing partitions.",
+        "remediation_command": "kafka-topics --bootstrap-server <bootstrap> --alter --topic <topic> --partitions <target-partitions>",
     },
     "kafka.topic.owner.missing": {
         "key": "kafka.topic_owner_missing",
         "title": "Kafka topics are missing owner metadata",
         "category": "operational_safety",
+        "business_category": "Governance",
         "recommendation": "Add owner metadata for production governance, incident routing, and cleanup decisions.",
+        "remediation_command": "Add owner/team metadata in the topic catalog, Terraform, Helm values, or service ownership registry.",
     },
     "kafka.consumer_group.offsets.missing": {
         "key": "kafka.consumer_offsets_missing",
         "title": "Kafka consumer groups have no committed offsets",
         "category": "runtime_stability",
+        "business_category": "Performance",
         "recommendation": "Treat as an observation unless the group is expected to be active or has traffic/lag evidence.",
+        "remediation_command": "Verify the consumer is active and committing offsets; no Kafka mutation is recommended by default.",
     },
     "kafka.topic.max_message_bytes.large": {
         "key": "kafka.large_messages",
         "title": "Kafka topics allow messages larger than 1MB",
         "category": "storage_sustainability",
+        "business_category": "Capacity",
         "recommendation": "Review whether large payloads should move to object storage with references in Kafka.",
+        "remediation_command": "kafka-configs --bootstrap-server <bootstrap> --alter --entity-type topics --entity-name <topic> --add-config max.message.bytes=1048576",
     },
     "kafka.topic.retention_ms.unbounded": {
         "key": "kafka.unbounded_retention",
         "title": "Kafka topics have unbounded retention",
         "category": "storage_sustainability",
+        "business_category": "Capacity",
         "recommendation": "Set retention.ms or retention.bytes based on replay, compliance, and broker disk capacity.",
+        "remediation_command": "kafka-configs --bootstrap-server <bootstrap> --alter --entity-type topics --entity-name <topic> --add-config retention.ms=<approved-ms>",
     },
     "schema_registry.compatibility.global_unsafe": {
         "key": "schema_registry_global_compatibility",
         "title": "Schema Registry global compatibility is unsafe",
         "category": "operational_safety",
+        "business_category": "Governance",
         "recommendation": "Use BACKWARD, FULL, or an approved compatibility mode for production event schemas.",
+        "remediation_command": "curl -X PUT <schema-registry-url>/config -H 'Content-Type: application/vnd.schemaregistry.v1+json' -d '{\"compatibility\":\"BACKWARD\"}'",
     },
 }
 
@@ -139,6 +173,7 @@ def interpret_findings(findings, environment=None):
         "findings": interpreted,
         "grouped_risks": grouped_risks,
         "score_findings": score_findings,
+        "risk_points": calculate_risk_points(score_findings),
     }
 
 
@@ -209,8 +244,12 @@ def build_grouped_risks(findings, environment):
                 "title": title,
                 "affected_count": count,
                 "category": categories[key],
+                "business_category": group_def.get(
+                    "business_category", business_category_for(categories[key])
+                ),
                 "examples": [item for item in examples[key] if item],
                 "recommendation": group_def["recommendation"],
+                "remediation_command": group_def.get("remediation_command"),
                 "environment": environment,
             }
         )
@@ -224,6 +263,7 @@ def grouped_risks_to_findings(grouped_risks, interpreted_findings):
         {
             "severity": risk["severity"],
             "category": risk["category"],
+            "business_category": risk["business_category"],
             "rule_id": risk["key"],
             "title": risk["title"],
         }
@@ -267,6 +307,69 @@ def highest_severity(severities):
 
 def has_group(grouped, key):
     return key in grouped
+
+
+def calculate_risk_points(findings):
+    return sum(RISK_POINTS.get(finding.get("severity"), 0) for finding in findings)
+
+
+def readiness_score_from_points(risk_points):
+    return max(0, 100 - min(100, round(risk_points / 2)))
+
+
+def business_category_for(category):
+    return BUSINESS_CATEGORIES.get(category, "Governance")
+
+
+def build_business_categories(score_findings, grouped_risks):
+    categories = {
+        name: {"risk": "LOW RISK", "findings": 0, "risk_points": 0}
+        for name in (
+            "Availability",
+            "Security",
+            "Capacity",
+            "Governance",
+            "Performance",
+        )
+    }
+
+    grouped_keys = {risk["key"] for risk in grouped_risks}
+    for risk in grouped_risks:
+        category = risk["business_category"]
+        categories.setdefault(
+            category, {"risk": "LOW RISK", "findings": 0, "risk_points": 0}
+        )
+        categories[category]["findings"] += 1
+        categories[category]["risk_points"] += RISK_POINTS.get(risk["severity"], 0)
+
+    for finding in score_findings:
+        if finding.get("rule_id") in grouped_keys or finding.get("severity") == "INFO":
+            continue
+        category = finding.get("business_category") or business_category_for(
+            finding.get("category")
+        )
+        categories.setdefault(
+            category, {"risk": "LOW RISK", "findings": 0, "risk_points": 0}
+        )
+        categories[category]["findings"] += 1
+        categories[category]["risk_points"] += RISK_POINTS.get(
+            finding.get("severity"), 0
+        )
+
+    for data in categories.values():
+        data["risk"] = risk_from_points(data["risk_points"])
+
+    return categories
+
+
+def risk_from_points(points):
+    if points >= 100:
+        return "CRITICAL RISK"
+    if points >= 50:
+        return "HIGH RISK"
+    if points >= 20:
+        return "MEDIUM RISK"
+    return "LOW RISK"
 
 
 def extract_entity_name(finding):

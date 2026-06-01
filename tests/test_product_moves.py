@@ -83,6 +83,85 @@ def test_readiness_groups_repeated_kafka_topic_findings_for_nonprod():
     assert summary["suppressed_duplicate_count"] > 0
 
 
+def test_readiness_uses_weighted_group_scoring_and_business_categories():
+    findings = [
+        {
+            "rule_id": "kafka.topic.max_message_bytes.large",
+            "domain": "kafka",
+            "category": "storage_sustainability",
+            "severity": "HIGH",
+            "title": "Kafka topic 'claims.response' allows messages larger than 1MB",
+            "impact": "Large messages increase broker disk I/O.",
+            "recommendation": "Keep messages small.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "claims.response"},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.topic.max_message_bytes.large",
+            "domain": "kafka",
+            "category": "storage_sustainability",
+            "severity": "HIGH",
+            "title": "Kafka topic 'finance.feedback' allows messages larger than 1MB",
+            "impact": "Large messages increase broker disk I/O.",
+            "recommendation": "Keep messages small.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "finance.feedback"},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.topic.retention_ms.unbounded",
+            "domain": "kafka",
+            "category": "storage_sustainability",
+            "severity": "HIGH",
+            "title": "Kafka topic 'archive.complete' has unbounded retention",
+            "impact": "Unbounded retention can cause disk growth.",
+            "recommendation": "Set retention.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "archive.complete"},
+            "tags": [],
+        },
+    ]
+
+    summary = calculate_readiness(findings, environment="dev")
+
+    assert summary["environment"] == "dev"
+    assert summary["risk_points"] == 100
+    assert summary["score"] == 50
+    assert summary["business_categories"]["Capacity"]["risk_points"] == 100
+    assert summary["business_categories"]["Capacity"]["risk"] == "CRITICAL RISK"
+    assert any(
+        risk["key"] == "kafka.large_messages"
+        and risk["affected_count"] == 2
+        and risk["business_category"] == "Capacity"
+        and "kafka-configs" in risk["remediation_command"]
+        for risk in summary["grouped_risks"]
+    )
+
+
+def test_readiness_environment_profile_controls_kafka_ha_severity():
+    finding = {
+        "rule_id": "kafka.topic.replication_factor.low",
+        "domain": "kafka",
+        "category": "resiliency",
+        "severity": "CRITICAL",
+        "title": "Kafka topic 'claims.response' has replication factor 1",
+        "impact": "Broker failure can interrupt workflows.",
+        "recommendation": "Use replication_factor=3.",
+        "file": "runtime-kafka",
+        "evidence": {"topic": "claims.response"},
+        "tags": [],
+    }
+
+    dev_summary = calculate_readiness([finding], environment="dev")
+    prod_summary = calculate_readiness([finding], environment="prod")
+
+    assert dev_summary["critical"] == 0
+    assert dev_summary["info"] == 1
+    assert prod_summary["critical"] == 1
+    assert prod_summary["production_decision"] == "NOT READY"
+
+
 def test_readiness_top_reasons_follow_severity_order():
     findings = [
         {

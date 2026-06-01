@@ -63,17 +63,21 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert "Download JSON" in ui.HTML
     assert "Top Reasons" in ui.HTML
     assert "Root Cause Hypotheses" in ui.HTML
+    assert 'id="environment"' in ui.HTML
+    assert "Risk Points" in ui.HTML
+    assert "Business Risk Categories" in ui.HTML
 
 
 def test_ui_e2e_static_config_upload_returns_backend_findings():
     payload = run_multipart_ui_check(
-        fields={"mode": "direct"},
+        fields={"mode": "direct", "environment": "prod"},
         files={"static_config": "examples/bad-infra/kafka-topics.yaml"},
     )
 
     rule_ids = {finding["rule_id"] for finding in payload["findings"]}
 
     assert "kafka.topic.replication_factor.low" in rule_ids
+    assert payload["readiness_summary"]["environment"] == "prod"
     assert payload["readiness_summary"]["production_decision"] == "NOT READY"
 
 
