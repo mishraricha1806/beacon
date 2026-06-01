@@ -87,7 +87,7 @@ CORRELATION_PATTERNS = [
             "kafka.runtime.disk_usage.high",
             "kafka.runtime.disk_growth.high",
         },
-        "domains": {"storage", "database", "kafka"},
+        "domains": {"storage", "database"},
         "domain_terms": {"storage", "disk", "capacity", "i/o"},
     },
     {
@@ -223,9 +223,24 @@ def correlate_findings(findings, limit=5):
             }
         )
 
+    hypotheses = suppress_generic_hypotheses(hypotheses)
     hypotheses.sort(key=lambda item: item["score"], reverse=True)
 
     return hypotheses[:limit]
+
+
+def suppress_generic_hypotheses(hypotheses):
+    correlation_ids = {hypothesis["correlation_id"] for hypothesis in hypotheses}
+
+    if "correlation.root_cause.kafka_payload_storage_growth" in correlation_ids:
+        hypotheses = [
+            hypothesis
+            for hypothesis in hypotheses
+            if hypothesis["correlation_id"]
+            != "correlation.root_cause.storage_capacity_pressure"
+        ]
+
+    return hypotheses
 
 
 def match_pattern(pattern, findings):

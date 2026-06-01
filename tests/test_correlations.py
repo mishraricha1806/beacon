@@ -103,3 +103,27 @@ def test_kafka_schema_and_payload_risks_are_kafka_native():
 
     assert "correlation.root_cause.kafka_schema_governance" in correlation_ids
     assert "correlation.root_cause.kafka_payload_storage_growth" in correlation_ids
+
+
+def test_kafka_payload_risk_does_not_emit_generic_storage_hypothesis():
+    hypotheses = correlate_findings(
+        [
+            finding(
+                "kafka.topic.max_message_bytes.large",
+                "kafka",
+                "HIGH",
+                title="Kafka topic allows messages larger than 1MB",
+            ),
+            finding(
+                "kafka.topic.retention_ms.unbounded",
+                "kafka",
+                "HIGH",
+                title="Kafka topic has unbounded retention",
+            ),
+        ]
+    )
+
+    correlation_ids = {hypothesis["correlation_id"] for hypothesis in hypotheses}
+
+    assert "correlation.root_cause.kafka_payload_storage_growth" in correlation_ids
+    assert "correlation.root_cause.storage_capacity_pressure" not in correlation_ids
