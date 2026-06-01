@@ -56,6 +56,13 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert "Beacon Readiness Console" in ui.HTML
     assert "Run Beacon Readiness" in ui.HTML
     assert "/api/beacon" in ui.HTML
+    assert 'id="beacon-form"' in ui.HTML
+    assert 'value="static"' in ui.HTML
+    assert 'value="runtime"' in ui.HTML
+    assert 'value="flow"' in ui.HTML
+    assert "Download JSON" in ui.HTML
+    assert "Top Reasons" in ui.HTML
+    assert "Root Cause Hypotheses" in ui.HTML
 
 
 def test_ui_e2e_static_config_upload_returns_backend_findings():
@@ -346,6 +353,37 @@ def test_beacon_ui_combines_generic_domain_inputs(monkeypatch):
     assert ("prometheus", "/tmp/prometheus.yaml", 2) in calls
     assert ("acls", "/tmp/acls.yaml") in calls
     assert ("history", "/tmp/history.yaml") in calls
+
+
+def test_beacon_ui_passes_collector_timeouts(monkeypatch):
+    from beacon import ui
+
+    calls = []
+    monkeypatch.setattr(
+        ui,
+        "analyze_prometheus_config",
+        lambda path, timeout=5: calls.append(("prometheus", path, timeout)) or [],
+    )
+    monkeypatch.setattr(
+        ui,
+        "analyze_schema_registry_config",
+        lambda path, timeout=5: calls.append(("schema", path, timeout)) or [],
+    )
+
+    ui.run_beacon_check(
+        {
+            "mode": "direct",
+            "prometheus_timeout": "7",
+            "schema_registry_timeout": "9",
+        },
+        {
+            "prometheus_config": "/tmp/prometheus.yaml",
+            "schema_registry_config": "/tmp/schema-registry.yaml",
+        },
+    )
+
+    assert ("prometheus", "/tmp/prometheus.yaml", 7) in calls
+    assert ("schema", "/tmp/schema-registry.yaml", 9) in calls
 
 
 def test_beacon_ui_does_not_run_kafka_without_kafka_inputs(monkeypatch):

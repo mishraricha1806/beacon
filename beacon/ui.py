@@ -156,6 +156,21 @@ HTML = """<!doctype html>
       opacity: .65;
       cursor: wait;
     }
+    .result-actions {
+      display: flex;
+      gap: 10px;
+      margin: 0 0 14px;
+      flex-wrap: wrap;
+    }
+    .result-actions button {
+      width: auto;
+      margin-top: 0;
+      background: #eef3f6;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      font-weight: 700;
+    }
     .summary {
       display: grid;
       grid-template-columns: repeat(4, minmax(120px, 1fr));
@@ -196,6 +211,24 @@ HTML = """<!doctype html>
       font-weight: 750;
       margin-bottom: 6px;
     }
+    .insight-list {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      padding: 12px 14px;
+      margin-bottom: 14px;
+    }
+    .insight-list h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+    .insight-list ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
     .meta {
       color: var(--muted);
       font-size: 12px;
@@ -221,6 +254,7 @@ HTML = """<!doctype html>
     @media (max-width: 900px) {
       main { grid-template-columns: 1fr; }
       .summary { grid-template-columns: 1fr 1fr; }
+      .result-actions button { width: 100%; }
     }
   </style>
 </head>
@@ -235,11 +269,13 @@ HTML = """<!doctype html>
       <div class="readonly">
         Beacon collectors are read-only. Runtime checks query metadata, metrics, spans, configs, and offsets without producing, consuming, altering topics, resetting offsets, or changing infrastructure.
       </div>
-      <form id="kafka-form">
+      <form id="beacon-form">
         <label for="domain-select">Domain</label>
         <select id="domain-select" name="domain_select">
           <option value="all">All domains</option>
-          <option value="files">Static and runtime files</option>
+          <option value="static">Static readiness</option>
+          <option value="runtime">Runtime snapshot</option>
+          <option value="flow">Flow intelligence</option>
           <option value="kafka">Kafka</option>
           <option value="kubernetes">Kubernetes</option>
           <option value="schema">Schema Registry</option>
@@ -247,23 +283,33 @@ HTML = """<!doctype html>
         </select>
         <div class="hint">Choose a focused domain, or keep all domains visible to combine multiple inputs into one report.</div>
 
-        <div class="domain-panel" data-domain-panel="files">
-        <h2>Static & Runtime Files</h2>
+        <div class="domain-panel" data-domain-panel="static">
+        <h2>Static Readiness</h2>
         <label for="static_config">Static config file</label>
         <input id="static_config" name="static_config" type="file">
         <div class="hint">Optional. Upload Terraform, Kubernetes YAML, Kafka config, CI/CD, cloud inventory, or topology YAML.</div>
+        </div>
 
+        <div class="domain-panel" data-domain-panel="runtime">
+        <h2>Runtime Snapshot</h2>
         <label for="runtime_snapshot">Runtime snapshot</label>
         <input id="runtime_snapshot" name="runtime_snapshot" type="file">
+        <div class="hint">Optional. Upload API, database, storage, Kubernetes, Kafka, or combined runtime snapshots.</div>
+        </div>
 
+        <div class="domain-panel" data-domain-panel="flow">
+        <h2>Flow Intelligence</h2>
         <label for="flow_snapshot">Flow snapshot</label>
         <input id="flow_snapshot" name="flow_snapshot" type="file">
+        <div class="hint">Optional. Upload cross-system flow telemetry that links API, Kafka, consumers, databases, and deployments.</div>
         </div>
 
         <div class="domain-panel" data-domain-panel="telemetry">
         <h2>Telemetry Collectors</h2>
         <label for="prometheus_config">Prometheus collector config</label>
         <input id="prometheus_config" name="prometheus_config" type="file">
+        <label for="prometheus_timeout">Prometheus timeout seconds</label>
+        <input id="prometheus_timeout" name="prometheus_timeout" type="number" value="5" min="1" max="30">
 
         <label for="opentelemetry_file">OpenTelemetry export</label>
         <input id="opentelemetry_file" name="opentelemetry_file" type="file">
@@ -382,6 +428,8 @@ HTML = """<!doctype html>
             <input id="schema_registry_max_subjects" name="schema_registry_max_subjects" type="number" value="25" min="0">
           </div>
         </div>
+        <label for="schema_registry_timeout">Schema Registry timeout seconds</label>
+        <input id="schema_registry_timeout" name="schema_registry_timeout" type="number" value="5" min="1" max="30">
 
         <div id="schema-token-fields" class="hidden">
           <label for="schema_registry_token">Bearer token</label>
@@ -427,7 +475,7 @@ HTML = """<!doctype html>
     </section>
   </main>
   <script>
-    const form = document.getElementById('kafka-form');
+    const form = document.getElementById('beacon-form');
     const report = document.getElementById('report');
     const button = document.getElementById('run-button');
     const direct = document.getElementById('direct-fields');
@@ -436,6 +484,7 @@ HTML = """<!doctype html>
     const schemaTokenFields = document.getElementById('schema-token-fields');
     const schemaBasicFields = document.getElementById('schema-basic-fields');
     const domainSelect = document.getElementById('domain-select');
+    let latestReport = null;
 
     document.querySelectorAll('input[name="mode"]').forEach((input) => {
       input.addEventListener('change', () => {
@@ -457,6 +506,7 @@ HTML = """<!doctype html>
         panel.classList.toggle('hidden', selected !== 'all' && !domains.includes(selected));
       });
     });
+    domainSelect.dispatchEvent(new Event('change'));
 
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
@@ -471,6 +521,7 @@ HTML = """<!doctype html>
           body: new FormData(form)
         });
         const data = await response.json();
+        latestReport = data;
         renderReport(data);
       } catch (error) {
         report.className = 'finding ERROR';
@@ -485,13 +536,22 @@ HTML = """<!doctype html>
       const summary = data.readiness_summary || {};
       const findings = data.findings || [];
       const counts = countSeverities(findings);
+      const topReasons = summary.top_reasons || [];
+      const nextActions = summary.next_best_actions || [];
+      const rootCauses = summary.root_cause_hypotheses || [];
       const summaryHtml = `
+        <div class="result-actions">
+          <button type="button" onclick="downloadReport()">Download JSON</button>
+        </div>
         <div class="summary">
           <div class="metric"><span>Score</span><strong>${data.score ?? summary.score ?? '-'}</strong></div>
           <div class="metric"><span>Decision</span><strong>${summary.production_decision || '-'}</strong></div>
           <div class="metric"><span>Critical/High</span><strong>${counts.CRITICAL + counts.HIGH}</strong></div>
           <div class="metric"><span>Status</span><strong>${data.score_status || summary.score_status || '-'}</strong></div>
-        </div>`;
+        </div>
+        ${renderInsightList('Top Reasons', topReasons)}
+        ${renderInsightList('Next Actions', nextActions)}
+        ${renderRootCauses(rootCauses)}`;
 
       if (!findings.length) {
         report.className = '';
@@ -517,6 +577,42 @@ HTML = """<!doctype html>
         acc[finding.severity] = (acc[finding.severity] || 0) + 1;
         return acc;
       }, {CRITICAL: 0, HIGH: 0});
+    }
+
+    function renderInsightList(title, items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<div class="insight-list"><h3>' + escapeHtml(title) + '</h3><ul>' +
+        items.slice(0, 5).map((item) => '<li>' + escapeHtml(item) + '</li>').join('') +
+        '</ul></div>';
+    }
+
+    function renderRootCauses(items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<div class="insight-list"><h3>Root Cause Hypotheses</h3><ul>' +
+        items.slice(0, 5).map((item) => {
+          const label = typeof item === 'string' ? item : `${item.confidence || ''}: ${item.title || item.hypothesis || ''}`;
+          return '<li>' + escapeHtml(label) + '</li>';
+        }).join('') +
+        '</ul></div>';
+    }
+
+    function downloadReport() {
+      if (!latestReport) {
+        return;
+      }
+      const blob = new Blob([JSON.stringify(latestReport, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'beacon-readiness-report.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     }
 
     function escapeHtml(value) {
