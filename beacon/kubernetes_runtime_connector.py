@@ -1,10 +1,15 @@
 import json
+import logging
 import shutil
 import subprocess
+import time
 
 import beacon.rules.kubernetes_runtime_registered_rules  # noqa: F401
 from beacon.engine.evaluator import evaluate
 from beacon.engine.normalizer import normalize_kubernetes_runtime
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def finding(
@@ -40,6 +45,13 @@ def finding(
 
 
 def analyze_kubernetes_cluster(namespace=None, context=None, kubeconfig=None):
+    started = time.monotonic()
+    LOGGER.info(
+        "kubernetes.start namespace=%s context=%s kubeconfig=%s",
+        namespace,
+        context,
+        bool(kubeconfig),
+    )
     findings = [
         finding(
             "INFO",
@@ -55,6 +67,7 @@ def analyze_kubernetes_cluster(namespace=None, context=None, kubeconfig=None):
     kubectl = shutil.which("kubectl")
 
     if not kubectl:
+        LOGGER.warning("kubernetes.kubectl_missing")
         findings.append(
             finding(
                 "ERROR",
@@ -69,6 +82,7 @@ def analyze_kubernetes_cluster(namespace=None, context=None, kubeconfig=None):
         return findings
 
     try:
+        LOGGER.info("kubernetes.collect.start kubectl=%s", kubectl)
         snapshot = collect_kubernetes_snapshot(
             kubectl=kubectl,
             namespace=namespace,
@@ -76,6 +90,7 @@ def analyze_kubernetes_cluster(namespace=None, context=None, kubeconfig=None):
             kubeconfig=kubeconfig,
         )
     except Exception as error:
+        LOGGER.info("kubernetes.collect.failed error=%s", error, exc_info=True)
         findings.append(
             finding(
                 "ERROR",
@@ -94,6 +109,12 @@ def analyze_kubernetes_cluster(namespace=None, context=None, kubeconfig=None):
         )
         return findings
 
+    LOGGER.info(
+        "kubernetes.collect.complete nodes=%s pods=%s deployments=%s",
+        len(snapshot.get("nodes", [])),
+        len(snapshot.get("pods", [])),
+        len(snapshot.get("deployments", [])),
+    )
     findings.append(
         finding(
             "LOW",
@@ -113,8 +134,14 @@ def analyze_kubernetes_cluster(namespace=None, context=None, kubeconfig=None):
     )
 
     resources = normalize_kubernetes_runtime(snapshot, "runtime-kubernetes")
+    LOGGER.info("kubernetes.evaluate resources=%s", len(resources))
 
     findings.extend(evaluate(resources, context={"file": "runtime-kubernetes"}))
+    LOGGER.info(
+        "kubernetes.complete findings=%s elapsed=%.2fs",
+        len(findings),
+        time.monotonic() - started,
+    )
 
     return findings
 
@@ -160,14 +187,23 @@ def run_kubectl_json(kubectl, args, context=None, kubeconfig=None):
         command.extend(["--kubeconfig", kubeconfig])
 
     command.extend(args)
+    started = time.monotonic()
+    LOGGER.info("kubernetes.kubectl.start args=%s", " ".join(args))
 
-    result = subprocess.run(
-        command,
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=20,
-    )
+    try:
+        result = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    finally:
+        LOGGER.info(
+            "kubernetes.kubectl.elapsed args=%s seconds=%.2f",
+            " ".join(args),
+            time.monotonic() - started,
+        )
 
     return json.loads(result.stdout)
 

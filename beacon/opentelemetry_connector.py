@@ -1,21 +1,40 @@
 import json
+import logging
+import time
 
 import yaml
 
 from beacon.runtime_snapshot import analyze_runtime_snapshot
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 def analyze_opentelemetry_file(path):
+    started = time.monotonic()
+    LOGGER.info("opentelemetry.start path=%s", path)
     snapshot, collection_findings = collect_opentelemetry_snapshot(path)
     findings = list(collection_findings)
 
     if snapshot:
+        LOGGER.info(
+            "opentelemetry.snapshot_analyze path=%s sections=%s",
+            path,
+            sorted(snapshot.keys()),
+        )
         findings.extend(analyze_runtime_snapshot(snapshot, source=path))
 
+    LOGGER.info(
+        "opentelemetry.complete path=%s findings=%s elapsed=%.2fs",
+        path,
+        len(findings),
+        time.monotonic() - started,
+    )
     return findings
 
 
 def collect_opentelemetry_snapshot(path):
+    LOGGER.info("opentelemetry.load path=%s", path)
     with open(path, "r") as f:
         data = load_telemetry(f, path)
 
@@ -23,6 +42,13 @@ def collect_opentelemetry_snapshot(path):
     spans = telemetry.get("spans", []) or []
     metrics = telemetry.get("metrics", []) or []
     flow = telemetry.get("flow", {}) or {}
+    LOGGER.info(
+        "opentelemetry.loaded path=%s spans=%s metrics=%s flow=%s",
+        path,
+        len(spans),
+        len(metrics),
+        bool(flow),
+    )
 
     findings = [
         opentelemetry_finding(
@@ -41,18 +67,22 @@ def collect_opentelemetry_snapshot(path):
     api_services = build_api_runtime(spans)
     if api_services:
         snapshot["api_runtime"] = {"services": api_services}
+    LOGGER.info("opentelemetry.api_services count=%s", len(api_services))
 
     databases = build_database_runtime(spans, metrics)
     if databases:
         snapshot["database_runtime"] = {"databases": databases}
+    LOGGER.info("opentelemetry.databases count=%s", len(databases))
 
     storage_resources = build_storage_runtime(metrics)
     if storage_resources:
         snapshot["storage_runtime"] = {"resources": storage_resources}
+    LOGGER.info("opentelemetry.storage_resources count=%s", len(storage_resources))
 
     flow_runtime = build_flow_runtime(flow, spans, metrics)
     if flow_runtime:
         snapshot["flow_runtime"] = flow_runtime
+    LOGGER.info("opentelemetry.flow_runtime present=%s", bool(flow_runtime))
 
     if not snapshot:
         findings.append(

@@ -1,7 +1,9 @@
 import argparse
 import cgi
 import json
+import logging
 import tempfile
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from beacon.flow_runtime import analyze_flow_file
@@ -16,6 +18,9 @@ from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.scanner import scan_path
 from beacon.schema_registry_connector import analyze_schema_registry_config
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 HTML = """<!doctype html>
@@ -638,15 +643,38 @@ class BeaconUIHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
 
+        request_id = f"{int(time.time() * 1000)}"
+        started = time.monotonic()
+        LOGGER.info("ui.request.start id=%s path=%s", request_id, self.path)
         try:
+            LOGGER.info("ui.request.parse_multipart.start id=%s", request_id)
             fields, files = parse_multipart(self)
+            LOGGER.info(
+                "ui.request.parse_multipart.complete id=%s fields=%s files=%s",
+                request_id,
+                sorted(fields.keys()),
+                sorted(files.keys()),
+            )
             result = run_beacon_check(
                 fields,
                 files,
                 force_kafka=self.path == "/api/kafka",
+                request_id=request_id,
+            )
+            LOGGER.info(
+                "ui.request.complete id=%s findings=%s elapsed=%.2fs",
+                request_id,
+                len(result.get("findings", [])),
+                time.monotonic() - started,
             )
             self.respond_json(result)
         except Exception as error:
+            LOGGER.exception(
+                "ui.request.failed id=%s elapsed=%.2fs error=%s",
+                request_id,
+                time.monotonic() - started,
+                error,
+            )
             self.respond_json(
                 {
                     "score": 0,
@@ -738,39 +766,117 @@ def run_kafka_check(fields, files):
     return run_beacon_check(fields, files, force_kafka=True)
 
 
-def run_beacon_check(fields, files, force_kafka=False):
+def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
     findings = []
+    LOGGER.info(
+        "ui.run.start id=%s force_kafka=%s fields=%s files=%s",
+        request_id,
+        force_kafka,
+        sorted(fields.keys()),
+        sorted(files.keys()),
+    )
 
     if files.get("static_config"):
+        LOGGER.info("ui.static.start id=%s path=%s", request_id, files["static_config"])
         findings.extend(scan_path(files["static_config"]))
+        LOGGER.info("ui.static.complete id=%s findings=%s", request_id, len(findings))
 
     if files.get("runtime_snapshot"):
+        before = len(findings)
+        LOGGER.info(
+            "ui.runtime_snapshot.start id=%s path=%s",
+            request_id,
+            files["runtime_snapshot"],
+        )
         findings.extend(analyze_runtime_snapshot_file(files["runtime_snapshot"]))
+        LOGGER.info(
+            "ui.runtime_snapshot.complete id=%s added=%s",
+            request_id,
+            len(findings) - before,
+        )
 
     if files.get("flow_snapshot"):
+        before = len(findings)
+        LOGGER.info("ui.flow.start id=%s path=%s", request_id, files["flow_snapshot"])
         findings.extend(analyze_flow_file(files["flow_snapshot"]))
+        LOGGER.info(
+            "ui.flow.complete id=%s added=%s", request_id, len(findings) - before
+        )
 
     if files.get("prometheus_config"):
+        before = len(findings)
+        timeout = int(fields.get("prometheus_timeout") or 5)
+        LOGGER.info(
+            "ui.prometheus.start id=%s path=%s timeout=%s",
+            request_id,
+            files["prometheus_config"],
+            timeout,
+        )
         findings.extend(
             analyze_prometheus_config(
                 files["prometheus_config"],
-                timeout=int(fields.get("prometheus_timeout") or 5),
+                timeout=timeout,
             )
+        )
+        LOGGER.info(
+            "ui.prometheus.complete id=%s added=%s",
+            request_id,
+            len(findings) - before,
         )
 
     if files.get("opentelemetry_file"):
+        before = len(findings)
+        LOGGER.info(
+            "ui.opentelemetry.start id=%s path=%s",
+            request_id,
+            files["opentelemetry_file"],
+        )
         findings.extend(analyze_opentelemetry_file(files["opentelemetry_file"]))
+        LOGGER.info(
+            "ui.opentelemetry.complete id=%s added=%s",
+            request_id,
+            len(findings) - before,
+        )
 
     if force_kafka or has_kafka_input(fields, files):
+        before = len(findings)
+        LOGGER.info("ui.kafka.start id=%s", request_id)
         findings.extend(run_kafka_collector(fields, files))
+        LOGGER.info(
+            "ui.kafka.complete id=%s added=%s", request_id, len(findings) - before
+        )
 
     if files.get("kafka_acl_export"):
+        before = len(findings)
+        LOGGER.info(
+            "ui.kafka_acls.start id=%s path=%s",
+            request_id,
+            files["kafka_acl_export"],
+        )
         findings.extend(analyze_kafka_acl_file(files["kafka_acl_export"]))
+        LOGGER.info(
+            "ui.kafka_acls.complete id=%s added=%s",
+            request_id,
+            len(findings) - before,
+        )
 
     if files.get("kafka_history"):
+        before = len(findings)
+        LOGGER.info(
+            "ui.kafka_history.start id=%s path=%s",
+            request_id,
+            files["kafka_history"],
+        )
         findings.extend(analyze_kafka_history_file(files["kafka_history"]))
+        LOGGER.info(
+            "ui.kafka_history.complete id=%s added=%s",
+            request_id,
+            len(findings) - before,
+        )
 
     if fields.get("kubernetes_live") == "true":
+        before = len(findings)
+        LOGGER.info("ui.kubernetes.start id=%s", request_id)
         findings.extend(
             analyze_kubernetes_cluster(
                 namespace=value_or_none(fields.get("kubernetes_namespace")),
@@ -778,18 +884,46 @@ def run_beacon_check(fields, files, force_kafka=False):
                 kubeconfig=files.get("kubernetes_kubeconfig"),
             )
         )
+        LOGGER.info(
+            "ui.kubernetes.complete id=%s added=%s",
+            request_id,
+            len(findings) - before,
+        )
 
+    LOGGER.info("ui.schema_registry.resolve.start id=%s", request_id)
     schema_registry_config = resolve_schema_registry_config(fields, files)
     if schema_registry_config:
+        before = len(findings)
+        timeout = int(fields.get("schema_registry_timeout") or 5)
+        LOGGER.info(
+            "ui.schema_registry.start id=%s path=%s timeout=%s",
+            request_id,
+            schema_registry_config,
+            timeout,
+        )
         findings.extend(
             analyze_schema_registry_config(
                 schema_registry_config,
-                timeout=int(fields.get("schema_registry_timeout") or 5),
+                timeout=timeout,
             )
         )
+        LOGGER.info(
+            "ui.schema_registry.complete id=%s added=%s",
+            request_id,
+            len(findings) - before,
+        )
+    else:
+        LOGGER.info("ui.schema_registry.skipped id=%s", request_id)
 
+    LOGGER.info("ui.policy.start id=%s findings=%s", request_id, len(findings))
     findings = apply_policy_to_findings(findings, load_policy())
     readiness_summary = calculate_readiness(findings)
+    LOGGER.info(
+        "ui.readiness.complete id=%s decision=%s score=%s",
+        request_id,
+        readiness_summary.get("production_decision"),
+        readiness_summary.get("score"),
+    )
 
     return {
         "score": readiness_summary["score"],
@@ -926,6 +1060,10 @@ def value_or_none(value):
 
 
 def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
     parser = argparse.ArgumentParser(description="Run Beacon local Kafka UI.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)

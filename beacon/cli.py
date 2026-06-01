@@ -4,6 +4,9 @@
 # - list topic metadata
 # - describe topic configs
 # - describe cluster metadata
+import logging
+import time
+
 import typer
 
 from beacon.scanner import scan_path
@@ -26,6 +29,8 @@ from beacon.policy import load_policy, apply_policy_to_findings
 
 from beacon.readiness.readiness_reporter import print_readiness_summary
 
+
+LOGGER = logging.getLogger(__name__)
 
 app = typer.Typer(help="Beacon - Operational intelligence for modern infrastructure.")
 
@@ -102,62 +107,116 @@ def collect_all_domain_findings(
     findings = []
 
     if static_path:
-        findings.extend(scan_path(static_path))
+        findings.extend(
+            collect_domain_findings("static", lambda: scan_path(static_path))
+        )
 
     if snapshot_path:
-        findings.extend(analyze_runtime_snapshot_file(snapshot_path))
+        findings.extend(
+            collect_domain_findings(
+                "runtime_snapshot", lambda: analyze_runtime_snapshot_file(snapshot_path)
+            )
+        )
 
     if flow_path:
-        findings.extend(analyze_flow_file(flow_path))
+        findings.extend(
+            collect_domain_findings("flow", lambda: analyze_flow_file(flow_path))
+        )
 
     if prometheus_path:
         findings.extend(
-            analyze_prometheus_config(prometheus_path, timeout=prometheus_timeout)
+            collect_domain_findings(
+                "prometheus",
+                lambda: analyze_prometheus_config(
+                    prometheus_path, timeout=prometheus_timeout
+                ),
+            )
         )
 
     if opentelemetry_path:
-        findings.extend(analyze_opentelemetry_file(opentelemetry_path))
+        findings.extend(
+            collect_domain_findings(
+                "opentelemetry", lambda: analyze_opentelemetry_file(opentelemetry_path)
+            )
+        )
 
     if schema_registry_path:
         findings.extend(
-            analyze_schema_registry_config(
-                schema_registry_path, timeout=schema_registry_timeout
+            collect_domain_findings(
+                "schema_registry",
+                lambda: analyze_schema_registry_config(
+                    schema_registry_path, timeout=schema_registry_timeout
+                ),
             )
         )
 
     if kafka_acl_path:
-        findings.extend(analyze_kafka_acl_file(kafka_acl_path))
+        findings.extend(
+            collect_domain_findings(
+                "kafka_acls", lambda: analyze_kafka_acl_file(kafka_acl_path)
+            )
+        )
 
     if kafka_history_path:
-        findings.extend(analyze_kafka_history_file(kafka_history_path))
+        findings.extend(
+            collect_domain_findings(
+                "kafka_history", lambda: analyze_kafka_history_file(kafka_history_path)
+            )
+        )
 
     if kafka_bootstrap_server:
         findings.extend(
-            analyze_kafka_cluster(
-                bootstrap_server=kafka_bootstrap_server,
-                security_protocol=kafka_security_protocol,
-                ca_cert=kafka_ca_cert,
-                client_cert=kafka_client_cert,
-                client_key=kafka_client_key,
-                max_topics=kafka_max_topics,
-                topic=kafka_topic,
-                consumer_group=kafka_consumer_group,
-                max_groups=kafka_max_groups,
-                churn_samples=kafka_churn_samples,
-                churn_interval_seconds=kafka_churn_interval_seconds,
+            collect_domain_findings(
+                "kafka_live",
+                lambda: analyze_kafka_cluster(
+                    bootstrap_server=kafka_bootstrap_server,
+                    security_protocol=kafka_security_protocol,
+                    ca_cert=kafka_ca_cert,
+                    client_cert=kafka_client_cert,
+                    client_key=kafka_client_key,
+                    max_topics=kafka_max_topics,
+                    topic=kafka_topic,
+                    consumer_group=kafka_consumer_group,
+                    max_groups=kafka_max_groups,
+                    churn_samples=kafka_churn_samples,
+                    churn_interval_seconds=kafka_churn_interval_seconds,
+                ),
             )
         )
 
     if kubernetes_live:
         findings.extend(
-            analyze_kubernetes_cluster(
-                namespace=kubernetes_namespace,
-                context=kubernetes_context,
-                kubeconfig=kubernetes_kubeconfig,
+            collect_domain_findings(
+                "kubernetes_live",
+                lambda: analyze_kubernetes_cluster(
+                    namespace=kubernetes_namespace,
+                    context=kubernetes_context,
+                    kubeconfig=kubernetes_kubeconfig,
+                ),
             )
         )
 
     return findings
+
+
+def collect_domain_findings(domain, collect):
+    started = time.monotonic()
+    LOGGER.info("cli.domain.start domain=%s", domain)
+    findings = collect()
+    LOGGER.info(
+        "cli.domain.complete domain=%s findings=%s elapsed=%.2fs",
+        domain,
+        len(findings),
+        time.monotonic() - started,
+    )
+    return findings
+
+
+def configure_logging():
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
 
 
 @rules_app.command("list")
@@ -865,4 +924,5 @@ def readiness_schema_registry(
 
 
 if __name__ == "__main__":
+    configure_logging()
     app()

@@ -1,3 +1,6 @@
+import logging
+import time
+
 from confluent_kafka import TopicPartition, ConsumerGroupTopicPartitions
 from confluent_kafka.admin import (
     AdminClient,
@@ -5,7 +8,6 @@ from confluent_kafka.admin import (
     ResourceType,
     OffsetSpec,
 )
-import time
 
 import beacon.rules.kafka_registered_rules  # noqa: F401
 from beacon.diagnose.kafka.access_config import (
@@ -15,6 +17,9 @@ from beacon.diagnose.kafka.access_config import (
 from beacon.diagnose.kafka.server_config import KafkaServerConfig
 from beacon.engine.evaluator import evaluate
 from beacon.engine.normalizer import normalize_kafka_config
+
+
+LOGGER = logging.getLogger(__name__)
 
 
 def finding(
@@ -119,14 +124,29 @@ def analyze_kafka_cluster(
     churn_samples=1,
     churn_interval_seconds=0,
 ):
+    started = time.monotonic()
+    LOGGER.info(
+        "kafka.start bootstrap_server=%s security_protocol=%s access_config=%s topic=%s consumer_group=%s max_topics=%s max_groups=%s",
+        bootstrap_server,
+        security_protocol,
+        bool(access_config),
+        topic,
+        consumer_group,
+        max_topics,
+        max_groups,
+    )
     findings = []
     access_resolver = None
     cluster_profile = None
 
     if access_config:
+        LOGGER.info("kafka.access_config.load path=%s", access_config)
         access_resolver = load_kafka_access_config(access_config)
 
         if not access_resolver.valid:
+            LOGGER.warning(
+                "kafka.access_config.invalid errors=%s", access_resolver.errors
+            )
             findings.append(
                 access_profile_finding(
                     "kafka.runtime.access.invalid",
@@ -140,10 +160,16 @@ def analyze_kafka_cluster(
             return findings
 
         findings.extend(access_posture_findings(access_resolver.posture_issues()))
+        LOGGER.info(
+            "kafka.access_config.loaded profiles=%s posture_findings=%s",
+            len(access_resolver.profiles),
+            len(findings),
+        )
 
         cluster_profile = access_resolver.profile_for("list_topics")
 
         if not cluster_profile:
+            LOGGER.warning("kafka.access_config.cluster_profile_missing")
             findings.append(
                 access_profile_finding(
                     "kafka.runtime.access.cluster_profile.missing",
@@ -195,6 +221,7 @@ def analyze_kafka_cluster(
     validation_errors = server_config.validation_errors()
 
     if validation_errors:
+        LOGGER.warning("kafka.server_config.invalid errors=%s", validation_errors)
         findings.append(
             finding(
                 "ERROR",
@@ -212,6 +239,7 @@ def analyze_kafka_cluster(
         return findings
 
     try:
+        LOGGER.info("kafka.admin_config.build profile=%s", bool(cluster_profile))
         if cluster_profile:
             config = admin_config_from_profile(cluster_profile)
         else:
@@ -223,8 +251,15 @@ def analyze_kafka_cluster(
                 client_key=client_key,
             )
 
+        LOGGER.info("kafka.admin_client.create")
         admin_client = AdminClient(config)
+        LOGGER.info("kafka.metadata.list_topics.start timeout=3")
+        metadata_started = time.monotonic()
         metadata = admin_client.list_topics(timeout=3)
+        LOGGER.info(
+            "kafka.metadata.list_topics.complete elapsed=%.2fs",
+            time.monotonic() - metadata_started,
+        )
 
         broker_count = len(metadata.brokers)
 
@@ -240,6 +275,12 @@ def analyze_kafka_cluster(
             ]
 
         topic_count = len(user_topics)
+        LOGGER.info(
+            "kafka.metadata.loaded brokers=%s topics=%s selected_filter_topic=%s",
+            broker_count,
+            topic_count,
+            topic,
+        )
 
         findings.append(
             finding(
@@ -289,6 +330,7 @@ def analyze_kafka_cluster(
                 )
             )
 
+        before = len(findings)
         findings.extend(
             build_partition_health_findings(
                 metadata=metadata,
@@ -296,8 +338,13 @@ def analyze_kafka_cluster(
                 broker_count=broker_count,
             )
         )
+        LOGGER.info(
+            "kafka.partition_health.complete added=%s",
+            len(findings) - before,
+        )
 
         selected_topics = user_topics[:max_topics]
+        LOGGER.info("kafka.topic_models.start selected_topics=%s", len(selected_topics))
 
         live_topic_models = build_live_topic_models_with_access(
             admin_client=admin_client,
@@ -306,36 +353,51 @@ def analyze_kafka_cluster(
             access_resolver=access_resolver,
             findings=findings,
         )
+        LOGGER.info("kafka.topic_models.complete models=%s", len(live_topic_models))
 
         if live_topic_models:
             kafka_config_payload = {"topics": live_topic_models}
             resources = normalize_kafka_config(kafka_config_payload, "runtime-kafka")
 
+            before = len(findings)
+            LOGGER.info("kafka.topic_rules.evaluate resources=%s", len(resources))
             findings.extend(
                 evaluate(
                     resources,
                     context={"file": "runtime-kafka"},
                 )
             )
+            LOGGER.info("kafka.topic_rules.complete added=%s", len(findings) - before)
 
+        LOGGER.info("kafka.broker_models.start")
         live_broker_models = build_live_broker_models(
             admin_client=admin_client,
             metadata=metadata,
         )
+        LOGGER.info("kafka.broker_models.complete models=%s", len(live_broker_models))
 
+        before = len(findings)
         findings.extend(build_live_quota_findings(live_broker_models))
+        LOGGER.info("kafka.quotas.complete added=%s", len(findings) - before)
+
+        before = len(findings)
+        LOGGER.info("kafka.acls.start")
         findings.extend(analyze_acl_posture(admin_client))
+        LOGGER.info("kafka.acls.complete added=%s", len(findings) - before)
 
         if live_broker_models:
             kafka_config_payload = {"brokers": live_broker_models}
             resources = normalize_kafka_config(kafka_config_payload, "runtime-kafka")
 
+            before = len(findings)
+            LOGGER.info("kafka.broker_rules.evaluate resources=%s", len(resources))
             findings.extend(
                 evaluate(
                     resources,
                     context={"file": "runtime-kafka"},
                 )
             )
+            LOGGER.info("kafka.broker_rules.complete added=%s", len(findings) - before)
 
         if topic_count > max_topics:
             findings.append(
@@ -354,6 +416,7 @@ def analyze_kafka_cluster(
             )
 
     except Exception as e:
+        LOGGER.info("kafka.connection.failed error=%s", e, exc_info=True)
         findings.append(
             finding(
                 "ERROR",
@@ -369,9 +432,15 @@ def analyze_kafka_cluster(
             )
         )
         # If we failed to build or connect the AdminClient, return early.
+        LOGGER.info(
+            "kafka.complete findings=%s elapsed=%.2fs",
+            len(findings),
+            time.monotonic() - started,
+        )
         return findings
     # Only analyze consumer groups when admin client was created successfully
     if "admin_client" in locals() and admin_client is not None:
+        LOGGER.info("kafka.consumer_groups.start")
         consumer_group_admin_client = admin_client
         if access_resolver and consumer_group:
             group_profile = access_resolver.profile_for(
@@ -405,6 +474,7 @@ def analyze_kafka_cluster(
                         {"consumer_group": consumer_group},
                     )
                 )
+        before = len(findings)
         findings.extend(
             analyze_consumer_group_lag(
                 admin_client=consumer_group_admin_client,
@@ -414,7 +484,13 @@ def analyze_kafka_cluster(
                 churn_interval_seconds=churn_interval_seconds,
             )
         )
+        LOGGER.info("kafka.consumer_groups.complete added=%s", len(findings) - before)
 
+    LOGGER.info(
+        "kafka.complete findings=%s elapsed=%.2fs",
+        len(findings),
+        time.monotonic() - started,
+    )
     return findings
 
 

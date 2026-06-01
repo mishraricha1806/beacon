@@ -1,3 +1,6 @@
+import logging
+import time
+
 import yaml
 
 import beacon.rules.flow_registered_rules  # noqa: F401
@@ -5,11 +8,29 @@ from beacon.engine.evaluator import evaluate
 from beacon.engine.normalizer import normalize_flow_runtime
 
 
+LOGGER = logging.getLogger(__name__)
+
+
 def analyze_flow_file(path):
+    started = time.monotonic()
+    LOGGER.info("flow_runtime.start path=%s", path)
     with open(path, "r") as f:
         data = yaml.safe_load(f) or {}
 
     flow_data = data.get("flow_runtime", data)
+    LOGGER.info(
+        "flow_runtime.normalize path=%s flow=%s",
+        path,
+        flow_data.get("name") if isinstance(flow_data, dict) else "unknown",
+    )
     resources = normalize_flow_runtime(flow_data, path)
+    LOGGER.info("flow_runtime.evaluate path=%s resources=%s", path, len(resources))
 
-    return evaluate(resources, context={"file": path})
+    findings = evaluate(resources, context={"file": path})
+    LOGGER.info(
+        "flow_runtime.complete path=%s findings=%s elapsed=%.2fs",
+        path,
+        len(findings),
+        time.monotonic() - started,
+    )
+    return findings

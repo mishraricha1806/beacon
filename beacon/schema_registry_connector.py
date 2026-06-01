@@ -1,6 +1,8 @@
 import base64
 import json
+import logging
 import ssl
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -9,16 +11,33 @@ import yaml
 
 
 UNSAFE_COMPATIBILITY = {"NONE", "DISABLED"}
+LOGGER = logging.getLogger(__name__)
 
 
 def analyze_schema_registry_config(path, timeout=5):
+    started = time.monotonic()
+    LOGGER.info(
+        "schema_registry.start path=%s timeout=%ss",
+        path,
+        timeout,
+    )
+
     with open(path, "r") as f:
         config = yaml.safe_load(f) or {}
 
     registry = config.get("schema_registry", config)
     base_url = registry.get("url")
+    max_subjects = registry.get("max_subjects", 50)
+    LOGGER.info(
+        "schema_registry.config_loaded base_url=%s max_subjects=%s auth_type=%s tls=%s",
+        safe_base_url(base_url),
+        max_subjects,
+        (registry.get("auth") or {}).get("type") or "none",
+        bool(registry.get("tls") or {}),
+    )
 
     if not base_url:
+        LOGGER.warning("schema_registry.missing_url path=%s", path)
         return [
             schema_registry_finding(
                 "schema_registry.config.url.missing",
@@ -46,10 +65,16 @@ def analyze_schema_registry_config(path, timeout=5):
     try:
         subjects = query_schema_registry(base_url, "/subjects", registry, timeout)
     except Exception as error:
+        LOGGER.info(
+            "schema_registry.subjects_failed error=%s",
+            error,
+            exc_info=True,
+        )
         findings.append(query_failed(path, "/subjects", error))
         return findings
 
     subject_set = set(subjects or [])
+    LOGGER.info("schema_registry.subjects_loaded count=%s", len(subject_set))
     findings.extend(check_expected_topic_subjects(registry, subject_set, path))
 
     try:
@@ -68,17 +93,30 @@ def analyze_schema_registry_config(path, timeout=5):
                 )
             )
     except Exception as error:
+        LOGGER.info(
+            "schema_registry.global_config_failed error=%s",
+            error,
+            exc_info=True,
+        )
         findings.append(query_failed(path, "/config", error))
 
-    for subject in selected_subjects(subjects, registry.get("max_subjects", 50)):
+    selected = selected_subjects(subjects, max_subjects)
+    LOGGER.info("schema_registry.subject_analysis count=%s", len(selected))
+    for subject in selected:
         findings.extend(analyze_subject(base_url, registry, subject, path, timeout))
 
+    LOGGER.info(
+        "schema_registry.complete findings=%s elapsed=%.2fs",
+        len(findings),
+        time.monotonic() - started,
+    )
     return findings
 
 
 def analyze_subject(base_url, registry, subject, source, timeout):
     findings = []
     encoded_subject = urllib.parse.quote(subject, safe="")
+    LOGGER.info("schema_registry.subject.start subject=%s", subject)
 
     try:
         config = query_schema_registry(
@@ -99,8 +137,20 @@ def analyze_subject(base_url, registry, subject, source, timeout):
             )
     except urllib.error.HTTPError as error:
         if error.code != 404:
+            LOGGER.info(
+                "schema_registry.subject_config_failed subject=%s error=%s",
+                subject,
+                error,
+                exc_info=True,
+            )
             findings.append(query_failed(source, f"/config/{encoded_subject}", error))
     except Exception as error:
+        LOGGER.info(
+            "schema_registry.subject_config_failed subject=%s error=%s",
+            subject,
+            error,
+            exc_info=True,
+        )
         findings.append(query_failed(source, f"/config/{encoded_subject}", error))
 
     try:
@@ -132,6 +182,12 @@ def analyze_subject(base_url, registry, subject, source, timeout):
                 )
             )
     except Exception as error:
+        LOGGER.info(
+            "schema_registry.subject_latest_failed subject=%s error=%s",
+            subject,
+            error,
+            exc_info=True,
+        )
         findings.append(
             schema_registry_finding(
                 "schema_registry.subject.latest_version.unavailable",
@@ -144,6 +200,11 @@ def analyze_subject(base_url, registry, subject, source, timeout):
             )
         )
 
+    LOGGER.info(
+        "schema_registry.subject.complete subject=%s findings=%s",
+        subject,
+        len(findings),
+    )
     return findings
 
 
@@ -190,20 +251,41 @@ def normalize_compatibility(config):
 def query_schema_registry(base_url, path, registry, timeout=5):
     url = f"{base_url.rstrip('/')}{path}"
     request = urllib.request.Request(url)
+    started = time.monotonic()
+    LOGGER.info(
+        "schema_registry.query.start endpoint=%s url=%s timeout=%ss",
+        path,
+        safe_url(url),
+        timeout,
+    )
 
     for key, value in auth_headers(registry).items():
         request.add_header(key, value)
 
     context = build_ssl_context(registry)
-    if context:
-        response_handle = urllib.request.urlopen(
-            request, timeout=timeout, context=context
-        )
-    else:
-        response_handle = urllib.request.urlopen(request, timeout=timeout)
+    try:
+        if context:
+            response_handle = urllib.request.urlopen(
+                request, timeout=timeout, context=context
+            )
+        else:
+            response_handle = urllib.request.urlopen(request, timeout=timeout)
 
-    with response_handle as response:
-        return json.loads(response.read().decode("utf-8"))
+        with response_handle as response:
+            payload = json.loads(response.read().decode("utf-8"))
+            LOGGER.info(
+                "schema_registry.query.complete endpoint=%s elapsed=%.2fs",
+                path,
+                time.monotonic() - started,
+            )
+            return payload
+    except Exception:
+        LOGGER.info(
+            "schema_registry.query.failed endpoint=%s elapsed=%.2fs",
+            path,
+            time.monotonic() - started,
+        )
+        raise
 
 
 def build_ssl_context(registry):
@@ -220,6 +302,12 @@ def build_ssl_context(registry):
     if not any([ca_cert, client_cert, client_key]):
         return None
 
+    LOGGER.info(
+        "schema_registry.tls_context ca_cert=%s client_cert=%s client_key=%s",
+        bool(ca_cert),
+        bool(client_cert),
+        bool(client_key),
+    )
     context = ssl.create_default_context(cafile=ca_cert)
     if client_cert:
         context.load_cert_chain(certfile=client_cert, keyfile=client_key)
@@ -243,6 +331,20 @@ def auth_headers(registry):
         return {"Authorization": f"Basic {encoded}"}
 
     return {}
+
+
+def safe_url(url):
+    parsed = urllib.parse.urlsplit(url or "")
+    if not parsed.scheme or not parsed.netloc:
+        return url
+    return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+
+
+def safe_base_url(url):
+    parsed = urllib.parse.urlsplit(url or "")
+    if not parsed.scheme or not parsed.netloc:
+        return url
+    return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
 
 
 def query_failed(source, endpoint, error):
