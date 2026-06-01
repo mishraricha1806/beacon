@@ -303,6 +303,28 @@ HTML_TEMPLATE = """
         {% endfor %}
     </div>
     {% endif %}
+
+    {% if readiness_summary.grouped_risks %}
+    <div class="card section">
+        <h2>Grouped Root-Cause Risks</h2>
+        <p class="text-block">
+            Beacon groups repeated derivative findings so the report shows the highest-signal operational risks first.
+            Environment: <strong>{{ readiness_summary.environment }}</strong>.
+        </p>
+
+        {% for risk in readiness_summary.grouped_risks %}
+        <div class="finding {{ risk.severity }}">
+            <div class="severity {{ risk.severity }}">{{ risk.severity }}</div>
+            <div class="finding-title">{{ risk.title }}</div>
+            <p class="text-block"><strong>Affected:</strong> {{ risk.affected_count }}</p>
+            <p class="text-block"><strong>Recommendation:</strong> {{ risk.recommendation }}</p>
+            {% if risk.examples %}
+            <p class="muted"><strong>Examples:</strong> {{ risk.examples[:5] | join(', ') }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% else %}
     <div class="grid">
         <div class="card">

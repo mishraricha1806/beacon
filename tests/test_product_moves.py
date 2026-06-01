@@ -24,6 +24,112 @@ def test_readiness_handles_runtime_stability_category():
     assert summary["high"] == 1
 
 
+def test_readiness_groups_repeated_kafka_topic_findings_for_nonprod():
+    findings = [
+        {
+            "rule_id": "kafka.cluster.broker_count.low",
+            "domain": "kafka",
+            "category": "resiliency",
+            "severity": "HIGH",
+            "title": "Kafka cluster has only 1 broker(s)",
+            "impact": "Low broker count.",
+            "recommendation": "Use more brokers.",
+            "file": "runtime-kafka",
+            "evidence": {"cluster": "cirrus-kafka-nonprod-gcp"},
+            "tags": [],
+        }
+    ]
+
+    for topic in ("claims.response", "finance.feedback", "member.events"):
+        findings.extend(
+            [
+                {
+                    "rule_id": "kafka.topic.replication_factor.low",
+                    "domain": "kafka",
+                    "category": "resiliency",
+                    "severity": "CRITICAL",
+                    "title": f"Kafka topic '{topic}' has replication factor 1",
+                    "impact": "Broker failure can interrupt workflows.",
+                    "recommendation": "Use replication_factor=3.",
+                    "file": "runtime-kafka",
+                    "evidence": {"topic": topic},
+                    "tags": [],
+                },
+                {
+                    "rule_id": "kafka.topic.partitions.low",
+                    "domain": "kafka",
+                    "category": "scalability",
+                    "severity": "HIGH",
+                    "title": f"Kafka topic '{topic}' has low partition count",
+                    "impact": "Low partitions can limit parallelism.",
+                    "recommendation": "Use more partitions.",
+                    "file": "runtime-kafka",
+                    "evidence": {"topic": topic},
+                    "tags": [],
+                },
+            ]
+        )
+
+    summary = calculate_readiness(findings)
+
+    assert summary["environment"] == "nonprod"
+    assert summary["critical"] == 0
+    assert summary["raw_critical"] == 3
+    assert summary["grouped_risks"][0]["severity"] in {"LOW", "INFO"}
+    assert any(
+        risk["key"] == "kafka.topic_rf_low" and risk["affected_count"] == 3
+        for risk in summary["grouped_risks"]
+    )
+    assert summary["suppressed_duplicate_count"] > 0
+
+
+def test_readiness_top_reasons_follow_severity_order():
+    findings = [
+        {
+            "rule_id": "low.rule",
+            "domain": "kafka",
+            "category": "operational_safety",
+            "severity": "LOW",
+            "title": "Low item",
+            "impact": "impact",
+            "recommendation": "recommendation",
+            "file": "x",
+            "evidence": {},
+            "tags": [],
+        },
+        {
+            "rule_id": "critical.rule",
+            "domain": "kafka",
+            "category": "operational_safety",
+            "severity": "CRITICAL",
+            "title": "Critical item",
+            "impact": "impact",
+            "recommendation": "recommendation",
+            "file": "x",
+            "evidence": {},
+            "tags": [],
+        },
+        {
+            "rule_id": "high.rule",
+            "domain": "kafka",
+            "category": "operational_safety",
+            "severity": "HIGH",
+            "title": "High item",
+            "impact": "impact",
+            "recommendation": "recommendation",
+            "file": "x",
+            "evidence": {},
+            "tags": [],
+        },
+    ]
+
+    summary = calculate_readiness(findings)
+
+    assert summary["top_reasons"][0].startswith("CRITICAL")
+    assert summary["top_reasons"][1].startswith("HIGH")
+    assert summary["top_reasons"][2].startswith("LOW")
+
+
 def test_runtime_findings_include_evidence_and_confidence():
     findings = evaluate_kafka_runtime(
         {

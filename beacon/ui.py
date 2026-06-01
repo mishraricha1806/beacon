@@ -15,6 +15,7 @@ from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.policy import apply_policy_to_findings, load_policy
 from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
+from beacon.readiness.interpretation import interpret_findings
 from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.scanner import scan_path
 from beacon.schema_registry_connector import analyze_schema_registry_config
@@ -544,6 +545,7 @@ HTML = """<!doctype html>
       const topReasons = summary.top_reasons || [];
       const nextActions = summary.next_best_actions || [];
       const rootCauses = summary.root_cause_hypotheses || [];
+      const groupedRisks = summary.grouped_risks || [];
       const summaryHtml = `
         <div class="result-actions">
           <button type="button" onclick="downloadReport()">Download JSON</button>
@@ -552,8 +554,9 @@ HTML = """<!doctype html>
           <div class="metric"><span>Score</span><strong>${data.score ?? summary.score ?? '-'}</strong></div>
           <div class="metric"><span>Decision</span><strong>${summary.production_decision || '-'}</strong></div>
           <div class="metric"><span>Critical/High</span><strong>${counts.CRITICAL + counts.HIGH}</strong></div>
-          <div class="metric"><span>Status</span><strong>${data.score_status || summary.score_status || '-'}</strong></div>
+          <div class="metric"><span>Environment</span><strong>${summary.environment || '-'}</strong></div>
         </div>
+        ${renderGroupedRisks(groupedRisks)}
         ${renderInsightList('Top Reasons', topReasons)}
         ${renderInsightList('Next Actions', nextActions)}
         ${renderRootCauses(rootCauses)}`;
@@ -601,6 +604,19 @@ HTML = """<!doctype html>
         items.slice(0, 5).map((item) => {
           const label = typeof item === 'string' ? item : `${item.confidence || ''}: ${item.title || item.hypothesis || ''}`;
           return '<li>' + escapeHtml(label) + '</li>';
+        }).join('') +
+        '</ul></div>';
+    }
+
+    function renderGroupedRisks(items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<div class="insight-list"><h3>Grouped Root-Cause Risks</h3><ul>' +
+        items.slice(0, 8).map((item) => {
+          const affected = item.affected_count ? ` (${item.affected_count} affected)` : '';
+          return '<li><strong>' + escapeHtml(item.severity || '') + '</strong>: ' +
+            escapeHtml(item.title || '') + escapeHtml(affected) + '</li>';
         }).join('') +
         '</ul></div>';
     }
@@ -918,6 +934,9 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
     LOGGER.info("ui.policy.start id=%s findings=%s", request_id, len(findings))
     findings = apply_policy_to_findings(findings, load_policy())
     readiness_summary = calculate_readiness(findings)
+    displayed_findings = interpret_findings(
+        findings, environment=readiness_summary.get("environment")
+    )["findings"]
     LOGGER.info(
         "ui.readiness.complete id=%s decision=%s score=%s",
         request_id,
@@ -929,7 +948,7 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
         "score": readiness_summary["score"],
         "score_status": readiness_summary["score_status"],
         "readiness_summary": readiness_summary,
-        "findings": findings,
+        "findings": displayed_findings,
     }
 
 

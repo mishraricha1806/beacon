@@ -4,6 +4,7 @@ from rich.console import Console
 from rich.table import Table
 
 from beacon.html_report import generate_html_report
+from beacon.readiness.interpretation import interpret_findings, sort_findings
 from beacon.scoring import calculate_score
 
 console = Console()
@@ -17,7 +18,15 @@ def print_report(
     readiness_summary: optional dict produced by readiness engines. When provided,
     the JSON and HTML outputs will include it for richer reports.
     """
-    score = calculate_score(findings)
+    if readiness_summary:
+        score = readiness_summary.get("score", calculate_score(findings))
+        display_findings = interpret_findings(
+            findings, environment=readiness_summary.get("environment")
+        )["findings"]
+    else:
+        score = calculate_score(findings)
+        display_findings = sort_findings(findings)
+
     score_status = (
         readiness_summary.get("score_status") if readiness_summary else "CALCULATED"
     )
@@ -27,7 +36,7 @@ def print_report(
             "score": score,
             "score_status": score_status,
             "readiness_summary": readiness_summary,
-            "findings": findings,
+            "findings": display_findings,
         }
 
         console.print(json.dumps(payload, indent=2))
@@ -42,12 +51,12 @@ def print_report(
             f"\n[bold cyan]Beacon Production Readiness Score:[/bold cyan] {score}/100\n"
         )
 
-    if not findings:
+    if not display_findings:
         console.print("[green]No major production risks found.[/green]")
 
         if html:
             generate_html_report(
-                findings,
+                display_findings,
                 score,
                 open_report=open_report,
                 readiness_summary=readiness_summary,
@@ -63,7 +72,7 @@ def print_report(
     table.add_column("Recommendation")
     table.add_column("File")
 
-    for f in findings:
+    for f in display_findings:
         table.add_row(
             f["severity"], f["title"], f["impact"], f["recommendation"], f["file"]
         )
@@ -72,7 +81,7 @@ def print_report(
 
     if html:
         generate_html_report(
-            findings,
+            display_findings,
             score,
             open_report=open_report,
             readiness_summary=readiness_summary,

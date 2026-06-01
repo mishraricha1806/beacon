@@ -22,6 +22,20 @@ def print_readiness_summary(summary):
     console.print(f"[bold]Business Summary:[/bold] {summary['business_summary']}")
     console.print(f"[bold]Recommended Action:[/bold] {summary['recommended_action']}\n")
 
+    if summary.get("environment"):
+        console.print(f"[bold]Environment:[/bold] {summary['environment']}")
+    if summary.get("suppressed_duplicate_count"):
+        console.print(
+            "[bold]Grouped/Deduplicated Signals:[/bold] "
+            f"{summary['suppressed_duplicate_count']} repeated derivative finding(s)"
+        )
+    if summary.get("raw_critical") is not None:
+        console.print(
+            "[bold]Raw Critical/High Before Interpretation:[/bold] "
+            f"{summary['raw_critical']}/{summary['raw_high']}"
+        )
+    console.print()
+
     console.print(f"[bold]Critical Findings:[/bold] {summary['critical']}")
     console.print(f"[bold]High Findings:[/bold] {summary['high']}")
     console.print(f"[bold]Medium Findings:[/bold] {summary['medium']}")
@@ -30,6 +44,23 @@ def print_readiness_summary(summary):
         console.print(f"[bold]Error Findings:[/bold] {summary['error']}")
     console.print(f"[bold]Production Decision:[/bold] {summary['production_decision']}")
     console.print(f"[bold]Primary Risk Area:[/bold] {summary['primary_risk_area']}\n")
+
+    if summary.get("grouped_risks"):
+        grouped_table = Table(title="Grouped Root-Cause Risks")
+        grouped_table.add_column("Severity")
+        grouped_table.add_column("Risk")
+        grouped_table.add_column("Affected")
+        grouped_table.add_column("Examples")
+
+        for risk in summary["grouped_risks"][:10]:
+            grouped_table.add_row(
+                risk["severity"],
+                risk["title"],
+                str(risk.get("affected_count", 0)),
+                ", ".join(risk.get("examples", [])[:3]),
+            )
+
+        console.print(grouped_table)
 
     table = Table(title="Production Readiness Categories")
     table.add_column("Category")

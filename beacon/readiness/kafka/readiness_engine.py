@@ -5,6 +5,7 @@ from beacon.scoring import (
 )
 from beacon.correlations.root_cause import correlate_findings
 from beacon.kafka_report import build_kafka_report
+from beacon.readiness.interpretation import interpret_findings, sort_findings
 
 
 DEFAULT_CATEGORIES = {
@@ -17,11 +18,15 @@ DEFAULT_CATEGORIES = {
 }
 
 
-def calculate_readiness(findings):
-    severity_counts = count_severities(findings)
+def calculate_readiness(findings, environment=None):
+    interpretation = interpret_findings(findings, environment=environment)
+    interpreted_findings = interpretation["findings"]
+    score_findings = interpretation["score_findings"]
+    severity_counts = count_severities(interpreted_findings)
+    raw_severity_counts = count_severities(findings)
 
     summary = {
-        "score": calculate_score(findings),
+        "score": calculate_score(score_findings),
         "score_status": "CALCULATED",
         "critical": severity_counts["critical"],
         "high": severity_counts["high"],
@@ -29,6 +34,15 @@ def calculate_readiness(findings):
         "low": severity_counts["low"],
         "error": severity_counts["error"],
         "info": severity_counts["info"],
+        "raw_critical": raw_severity_counts["critical"],
+        "raw_high": raw_severity_counts["high"],
+        "raw_medium": raw_severity_counts["medium"],
+        "raw_low": raw_severity_counts["low"],
+        "raw_error": raw_severity_counts["error"],
+        "raw_info": raw_severity_counts["info"],
+        "environment": interpretation["environment"],
+        "grouped_risks": interpretation["grouped_risks"],
+        "suppressed_duplicate_count": max(0, len(findings) - len(score_findings)),
         "survivability": "LOW RISK",
         "categories": {key: dict(value) for key, value in DEFAULT_CATEGORIES.items()},
         "business_summary": "",
@@ -41,7 +55,7 @@ def calculate_readiness(findings):
         "kafka_report": None,
     }
 
-    for finding in findings:
+    for finding in score_findings:
         if finding.get("severity") == "INFO":
             continue
 
@@ -67,10 +81,12 @@ def calculate_readiness(findings):
     summary["recommended_action"] = build_recommended_action(summary)
     summary["primary_risk_area"] = determine_primary_risk_area(summary)
     summary["production_decision"] = determine_production_decision(summary)
-    summary["top_reasons"] = build_top_reasons(findings)
+    summary["top_reasons"] = build_top_reasons(
+        interpreted_findings, summary["grouped_risks"]
+    )
     summary["next_best_actions"] = build_next_best_actions(summary)
-    summary["root_cause_hypotheses"] = correlate_findings(findings)
-    summary["kafka_report"] = build_kafka_report(findings)
+    summary["root_cause_hypotheses"] = correlate_findings(interpreted_findings)
+    summary["kafka_report"] = build_kafka_report(sort_findings(interpreted_findings))
     return summary
 
 
@@ -161,6 +177,12 @@ def build_business_summary(summary):
     if summary["error"] > 0:
         return "Beacon could not complete a production-readiness decision because one or more analysis errors must be resolved."
 
+    if summary.get("environment") != "prod" and summary.get("grouped_risks"):
+        return (
+            f"Beacon detected risks in a {summary['environment']} environment. "
+            "Readiness is based on grouped root-cause signals, with repeated derivative findings de-emphasized."
+        )
+
     risk = summary["survivability"]
 
     if risk == "LOW RISK":
@@ -215,12 +237,25 @@ def determine_production_decision(summary):
     return production_readiness_decision(findings, summary["score"])
 
 
-def build_top_reasons(findings):
-    priority = {"ERROR": 0, "CRITICAL": 1, "HIGH": 2, "MEDIUM": 3, "LOW": 4, "INFO": 5}
+def build_top_reasons(findings, grouped_risks=None):
+    reasons = []
 
-    sorted_findings = sorted(findings, key=lambda f: priority.get(f["severity"], 99))
+    for risk in grouped_risks or []:
+        affected = risk.get("affected_count", 0)
+        suffix = f" ({affected} affected)" if affected else ""
+        reasons.append(f"{risk['severity']}: {risk['title']}{suffix}")
 
-    return [f"{f['severity']}: {f['title']}" for f in sorted_findings[:5]]
+    grouped_titles = {risk["title"] for risk in grouped_risks or []}
+    for finding in sort_findings(findings):
+        reason = f"{finding['severity']}: {finding['title']}"
+        if finding.get("title") in grouped_titles:
+            continue
+        if reason not in reasons:
+            reasons.append(reason)
+        if len(reasons) >= 5:
+            break
+
+    return reasons[:5]
 
 
 def build_next_best_actions(summary):
