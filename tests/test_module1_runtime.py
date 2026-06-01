@@ -8,8 +8,7 @@ Covers:
 - Operational recommendation generation
 """
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from beacon.runtime_advisor import analyze_runtime_file
 
 
 class TestRuntimeKafkaCollection:
@@ -17,11 +16,11 @@ class TestRuntimeKafkaCollection:
 
     def test_broker_metadata_collection(self):
         """Test collection of broker metadata."""
-        # This would test the Kafka connector's ability to:
-        # - Connect to broker
-        # - Retrieve broker list
-        # - Get topic metadata
-        pass
+        findings = analyze_runtime_file("./examples/runtime/kafka-runtime.yaml")
+        rule_ids = {finding["rule_id"] for finding in findings}
+
+        assert "kafka.runtime.disk_usage.high" in rule_ids
+        assert "kafka.runtime.decision.workload_investigation" in rule_ids
 
     def test_consumer_lag_calculation(self):
         """Test consumer lag calculation."""

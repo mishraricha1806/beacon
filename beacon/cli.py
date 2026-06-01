@@ -213,7 +213,7 @@ def runtime(
     open_report: bool = typer.Option(True, help="Open HTML report in browser."),
     output: str = typer.Option("terminal", help="Output format: terminal or json."),
 ):
-    """Analyze legacy Kafka runtime snapshot YAML."""
+    """Analyze Kafka runtime snapshot YAML."""
     findings = analyze_runtime_file(path)
     policy = load_policy()
     findings = apply_policy_to_findings(findings, policy)
