@@ -456,6 +456,174 @@ def test_live_kafka_topics_use_normalized_evaluator(monkeypatch):
     assert captured["context"] == {"file": "runtime-kafka"}
 
 
+def test_live_kafka_consumer_group_filter_limits_topic_diagnostics(monkeypatch):
+    from beacon import kafka_runtime_connector
+
+    captured = {"topic_names": []}
+
+    class FakePartition:
+        replicas = [1, 2, 3]
+
+    class FakeTopic:
+        partitions = {0: FakePartition()}
+
+    class FakeMetadata:
+        brokers = {1: object(), 2: object(), 3: object()}
+        topics = {
+            "payments": FakeTopic(),
+            "unrelated": FakeTopic(),
+        }
+
+    class FakeTopicPartition:
+        topic = "payments"
+        partition = 0
+        offset = 10
+
+    class FakeOffsetsResult:
+        topic_partitions = [FakeTopicPartition()]
+
+    class FakeFuture:
+        def __init__(self, value=None):
+            self.value = value or {}
+
+        def result(self, timeout=None):
+            return self.value
+
+    class FakeAdminClient:
+        def __init__(self, config):
+            self.config = config
+
+        def list_topics(self, timeout=None):
+            return FakeMetadata()
+
+        def describe_configs(self, resources):
+            captured["topic_names"].extend(resource.name for resource in resources)
+            return {resource: FakeFuture({}) for resource in resources}
+
+        def list_consumer_group_offsets(self, requests, request_timeout=None):
+            return {"payments-consumer": FakeFuture(FakeOffsetsResult())}
+
+        def list_offsets(self, requests, request_timeout=None):
+            return {
+                topic_partition: FakeFuture(type("Offset", (), {"offset": 10})())
+                for topic_partition in requests
+            }
+
+    monkeypatch.setattr(kafka_runtime_connector, "AdminClient", FakeAdminClient)
+    monkeypatch.setattr(
+        kafka_runtime_connector, "evaluate", lambda resources, context=None: []
+    )
+    monkeypatch.setattr(
+        kafka_runtime_connector, "analyze_acl_posture", lambda admin_client: []
+    )
+    monkeypatch.setattr(
+        kafka_runtime_connector,
+        "describe_consumer_group_stability",
+        lambda admin_client, group_ids: [],
+    )
+    monkeypatch.setattr(
+        kafka_runtime_connector,
+        "analyze_consumer_group_churn",
+        lambda admin_client, group_ids, samples=1, interval_seconds=0: [],
+    )
+
+    findings = kafka_runtime_connector.analyze_kafka_cluster(
+        "localhost:9092",
+        consumer_group="payments-consumer",
+    )
+
+    assert "payments" in captured["topic_names"]
+    assert "unrelated" not in captured["topic_names"]
+    connection = next(
+        finding
+        for finding in findings
+        if finding["rule_id"] == "kafka.runtime.connection.success"
+    )
+    assert connection["evidence"]["topic_scope"] == "consumer_group_committed_topics"
+    assert connection["evidence"]["analyzed_topic_count"] == 1
+
+
+def test_live_kafka_consumer_group_without_offsets_skips_cluster_topic_diagnostics(
+    monkeypatch,
+):
+    from beacon import kafka_runtime_connector
+
+    captured = {"topic_names": []}
+
+    class FakePartition:
+        replicas = [1, 2, 3]
+
+    class FakeTopic:
+        partitions = {0: FakePartition()}
+
+    class FakeMetadata:
+        brokers = {1: object(), 2: object(), 3: object()}
+        topics = {"payments": FakeTopic(), "unrelated": FakeTopic()}
+
+    class FakeOffsetsResult:
+        topic_partitions = []
+
+    class FakeFuture:
+        def __init__(self, value=None):
+            self.value = value or {}
+
+        def result(self, timeout=None):
+            return self.value
+
+    class FakeAdminClient:
+        def __init__(self, config):
+            self.config = config
+
+        def list_topics(self, timeout=None):
+            return FakeMetadata()
+
+        def describe_configs(self, resources):
+            captured["topic_names"].extend(resource.name for resource in resources)
+            return {}
+
+        def list_consumer_group_offsets(self, requests, request_timeout=None):
+            return {"payments-consumer": FakeFuture(FakeOffsetsResult())}
+
+    monkeypatch.setattr(kafka_runtime_connector, "AdminClient", FakeAdminClient)
+    monkeypatch.setattr(
+        kafka_runtime_connector, "evaluate", lambda resources, context=None: []
+    )
+    monkeypatch.setattr(
+        kafka_runtime_connector, "analyze_acl_posture", lambda admin_client: []
+    )
+    monkeypatch.setattr(
+        kafka_runtime_connector,
+        "describe_consumer_group_stability",
+        lambda admin_client, group_ids: [],
+    )
+    monkeypatch.setattr(
+        kafka_runtime_connector,
+        "analyze_consumer_group_churn",
+        lambda admin_client, group_ids, samples=1, interval_seconds=0: [],
+    )
+
+    findings = kafka_runtime_connector.analyze_kafka_cluster(
+        "localhost:9092",
+        consumer_group="payments-consumer",
+    )
+
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "payments" not in captured["topic_names"]
+    assert "unrelated" not in captured["topic_names"]
+    assert "kafka.runtime.topic_scope.no_committed_offsets" in rule_ids
+    connection = next(
+        finding
+        for finding in findings
+        if finding["rule_id"] == "kafka.runtime.connection.success"
+    )
+    assert (
+        connection["evidence"]["topic_scope"]
+        == "consumer_group_only_no_committed_topics"
+    )
+    assert connection["evidence"]["analyzed_topic_count"] == 0
+
+
 def test_live_kafka_partition_health_detects_replication_and_leader_risk():
     from types import SimpleNamespace
 

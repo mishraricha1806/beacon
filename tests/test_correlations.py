@@ -56,3 +56,50 @@ def test_readiness_summary_includes_root_cause_hypotheses():
         summary["root_cause_hypotheses"][0]["correlation_id"]
         == "correlation.root_cause.retry_cascade"
     )
+
+
+def test_kafka_only_consumer_side_does_not_infer_database_bottleneck():
+    hypotheses = correlate_findings(
+        [
+            finding("kafka.consumer_group.decision.consumer_side", "kafka"),
+            finding("kafka.consumer_group.lag.high", "kafka"),
+        ]
+    )
+
+    correlation_ids = {hypothesis["correlation_id"] for hypothesis in hypotheses}
+
+    assert (
+        "correlation.root_cause.downstream_database_bottleneck" not in correlation_ids
+    )
+    assert "correlation.root_cause.kafka_consumer_observation" in correlation_ids
+
+
+def test_kafka_single_broker_gets_kafka_native_hypothesis():
+    hypotheses = correlate_findings(
+        [
+            finding("kafka.cluster.broker_count.low", "kafka"),
+            finding("kafka.topic.replication_factor.low", "kafka", "CRITICAL"),
+            finding("kafka.cluster.under_min_isr_partitions", "kafka", "CRITICAL"),
+        ]
+    )
+
+    assert hypotheses
+    assert (
+        hypotheses[0]["correlation_id"]
+        == "correlation.root_cause.kafka_single_broker_topology"
+    )
+
+
+def test_kafka_schema_and_payload_risks_are_kafka_native():
+    hypotheses = correlate_findings(
+        [
+            finding("schema_registry.compatibility.global_unsafe", "kafka", "HIGH"),
+            finding("kafka.topic.max_message_bytes.large", "kafka", "HIGH"),
+            finding("kafka.topic.retention_ms.unbounded", "kafka", "HIGH"),
+        ]
+    )
+
+    correlation_ids = [hypothesis["correlation_id"] for hypothesis in hypotheses]
+
+    assert "correlation.root_cause.kafka_schema_governance" in correlation_ids
+    assert "correlation.root_cause.kafka_payload_storage_growth" in correlation_ids

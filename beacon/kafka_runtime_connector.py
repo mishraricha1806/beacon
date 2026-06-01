@@ -263,23 +263,44 @@ def analyze_kafka_cluster(
 
         broker_count = len(metadata.brokers)
 
-        user_topics = [
+        all_user_topics = [
             topic_name
             for topic_name in metadata.topics.keys()
             if not topic_name.startswith("__")
         ]
+        user_topics = list(all_user_topics)
+        topic_scope = "cluster"
 
         if topic:
             user_topics = [
                 topic_name for topic_name in user_topics if topic_name == topic
             ]
+            topic_scope = "topic"
+        elif consumer_group:
+            group_topics = discover_topics_for_consumer_group(
+                admin_client=admin_client,
+                consumer_group=consumer_group,
+            )
+            if group_topics:
+                user_topics = [
+                    topic_name
+                    for topic_name in user_topics
+                    if topic_name in group_topics
+                ]
+                topic_scope = "consumer_group_committed_topics"
+            else:
+                user_topics = []
+                topic_scope = "consumer_group_only_no_committed_topics"
 
         topic_count = len(user_topics)
         LOGGER.info(
-            "kafka.metadata.loaded brokers=%s topics=%s selected_filter_topic=%s",
+            "kafka.metadata.loaded brokers=%s cluster_topics=%s analyzed_topics=%s topic_scope=%s selected_filter_topic=%s consumer_group=%s",
             broker_count,
+            len(all_user_topics),
             topic_count,
+            topic_scope,
             topic,
+            consumer_group,
         )
 
         findings.append(
@@ -292,11 +313,31 @@ def analyze_kafka_cluster(
                 evidence={
                     **connection_evidence(server_config, cluster_profile),
                     "broker_count": broker_count,
-                    "topic_count": topic_count,
+                    "cluster_topic_count": len(all_user_topics),
+                    "analyzed_topic_count": topic_count,
+                    "topic_scope": topic_scope,
+                    "topic_filter": topic,
+                    "consumer_group_filter": consumer_group,
                 },
                 confidence="HIGH",
             )
         )
+
+        if topic_scope == "consumer_group_only_no_committed_topics":
+            findings.append(
+                finding(
+                    "INFO",
+                    f"Kafka topic diagnostics narrowed to consumer group '{consumer_group}' but no committed topic offsets were found",
+                    "Beacon did not run broad topic readiness checks because a consumer group filter was provided and the group had no committed topic offsets.",
+                    "Provide a topic filter for topic readiness, or verify whether the consumer group is active and committing offsets.",
+                    rule_id="kafka.runtime.topic_scope.no_committed_offsets",
+                    evidence={
+                        "consumer_group": consumer_group,
+                        "topic_scope": topic_scope,
+                    },
+                    confidence="HIGH",
+                )
+            )
 
         if broker_count < 3:
             findings.append(
@@ -314,7 +355,7 @@ def analyze_kafka_cluster(
                 )
             )
 
-        if topic_count > 200:
+        if topic_scope == "cluster" and topic_count > 200:
             findings.append(
                 finding(
                     "MEDIUM",
@@ -1052,6 +1093,36 @@ def discover_consumer_groups(admin_client, consumer_group=None, max_groups=20):
 
     except Exception:
         return []
+
+
+def discover_topics_for_consumer_group(admin_client, consumer_group):
+    if not consumer_group:
+        return set()
+
+    try:
+        committed_partitions = fetch_committed_offsets(
+            admin_client=admin_client,
+            group_id=consumer_group,
+        )
+    except Exception:
+        LOGGER.info(
+            "kafka.consumer_group.topic_scope.failed consumer_group=%s",
+            consumer_group,
+            exc_info=True,
+        )
+        return set()
+
+    topics = {
+        partition.topic
+        for partition in committed_partitions
+        if partition.topic and not partition.topic.startswith("__")
+    }
+    LOGGER.info(
+        "kafka.consumer_group.topic_scope.complete consumer_group=%s topics=%s",
+        consumer_group,
+        len(topics),
+    )
+    return topics
 
 
 def calculate_group_lag_admin_only(admin_client, group_id):
