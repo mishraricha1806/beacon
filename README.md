@@ -6,13 +6,22 @@ Beacon detects risky infrastructure configurations, operational anti-patterns, a
 
 Beacon combines infrastructure analysis with runtime operational diagnostics to help engineers understand WHY systems become unstable — not just WHAT metric changed.
 
+Beacon is organized by release module:
+
+* **Module 1: Production Readiness RC** - deterministic readiness analysis before rollout.
+* **Module 2: Runtime Diagnostics** - Kafka-first live/snapshot diagnosis for degradation.
+* **Module 3: Flow Intelligence** - cross-system bottleneck correlation across services, Kafka, databases, APIs, Kubernetes, and deployments.
+* **Module 4: AI/RAG Explanation Layer** - future explanation layer downstream of deterministic findings.
+
 Module 1's release boundary is documented in [docs/MODULE_1_RELEASE.md](docs/MODULE_1_RELEASE.md).
+Module 2's runtime diagnostics design is documented in [docs/MODULE_2_RUNTIME_DIAGNOSTICS.md](docs/MODULE_2_RUNTIME_DIAGNOSTICS.md).
 
-The release gate is codified in `scripts/module1_release_check.py` and `.github/workflows/module1-release.yml`.
+The Module 1 release gate is codified in `scripts/module1_release_check.py` and `.github/workflows/module1-release.yml`.
+The Module 2 diagnostic gate is codified in `scripts/module2_diagnostic_check.py`.
 
-## Module 1 Release Scope
+## Release Scope
 
-Stable:
+### Module 1: Stable
 
 * static production readiness
 * Kafka configuration readiness
@@ -22,13 +31,22 @@ Stable:
 * object storage, IAM, cloud inventory, CI/CD, and topology risk detection
 * JSON and HTML readiness reports
 
-Experimental:
+### Module 2: Kafka-First Runtime Diagnostics
 
 * live Kafka diagnostics
-* live Kubernetes diagnostics
-* Flow Intelligence and runtime root-cause hypotheses
-* Prometheus and OpenTelemetry signal mapping
 * Schema Registry diagnostics
+* Kafka ACL/history diagnostics
+* consumer-group lag diagnosis
+* hot partition and consumer instability diagnosis
+* deterministic runtime playbooks and root-cause hypotheses
+
+### Future Platform Expansion
+
+* live Kubernetes diagnostics
+* Flow Intelligence across service paths
+* Prometheus and OpenTelemetry signal mapping
+* deployment event correlation
+* AI/RAG explanations downstream of deterministic findings
 
 ---
 
@@ -79,11 +97,11 @@ Beacon analyzes infrastructure configurations and detects:
 
 ---
 
-### Runtime Intelligence
+### Runtime Diagnostics
 
-Beacon runtime intelligence is multi-domain. Kafka remains the first deep wedge, Kubernetes is the second live runtime surface, and Flow Intelligence connects the signals across systems.
+Beacon runtime diagnostics are Kafka-first. Kafka is the deep wedge where Beacon proves operational depth; other domains provide supporting evidence without turning Beacon into a generic observability platform.
 
-Beacon can connect directly to Kafka and Kubernetes in:
+Beacon can connect directly to Kafka in:
 
 **read-only diagnostic mode**
 
@@ -122,7 +140,9 @@ Beacon can generate operational recommendations such as:
 * investigate rebalance instability
 * review producer throughput growth
 
-Flow Intelligence can analyze runtime snapshots across:
+Module 2 also emits focused Kafka consumer-group diagnosis when lag or offset findings exist. The diagnosis includes the consumer group, lag status, hot partitions, committed-offset status, likely cause, confidence, evidence used, evidence still missing, and first actions.
+
+Flow Intelligence is the Module 3 direction. Today it can analyze runtime snapshots across:
 
 * API latency and timeout signals
 * Kafka consumer lag
@@ -133,7 +153,7 @@ Flow Intelligence can analyze runtime snapshots across:
 
 Beacon uses those signals to explain cross-system degradation, such as a likely downstream database bottleneck, deployment-triggered degradation, or cascading latency across API, Kafka, consumers, and the database.
 
-Beacon readiness reports now include deterministic root-cause hypotheses when multiple runtime findings point to the same operational failure mode. These hypotheses rank likely causes such as retry cascades, downstream database bottlenecks, deployment regressions, storage pressure, or Kubernetes workload instability.
+Beacon diagnostic reports include deterministic root-cause hypotheses when multiple runtime findings point to the same operational failure mode. These hypotheses rank likely causes such as retry cascades, downstream database bottlenecks, deployment regressions, storage pressure, or Kubernetes workload instability.
 
 Beacon also supports standalone runtime snapshots for:
 
@@ -141,7 +161,7 @@ Beacon also supports standalone runtime snapshots for:
 * database latency, connection pool pressure, replication lag, lock contention, and storage saturation
 * storage/cloud capacity, growth rate, I/O saturation, and backup freshness
 
-Prometheus collector configs can also map Kafka JMX exporter metrics into Beacon's Kafka runtime advisor, including broker disk skew, ISR/offline partition health, controller churn, request queue saturation, throttling, and Schema Registry availability.
+Prometheus collector configs can map Kafka JMX exporter metrics into Beacon's Kafka runtime advisor, including broker disk skew, ISR/offline partition health, controller churn, request queue saturation, throttling, and Schema Registry availability.
 
 ---
 

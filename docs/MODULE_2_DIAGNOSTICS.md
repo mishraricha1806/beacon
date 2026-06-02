@@ -2,6 +2,10 @@
 
 Module 2 is Beacon's runtime operational diagnostics layer.
 
+The product scope and non-goals are defined in
+[MODULE_2_RUNTIME_DIAGNOSTICS.md](MODULE_2_RUNTIME_DIAGNOSTICS.md). This file
+documents the current diagnostic output contract and release gate.
+
 It answers:
 
 - why the system is degrading
