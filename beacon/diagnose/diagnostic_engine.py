@@ -350,6 +350,7 @@ def build_diagnostic_summary(findings):
         "evidence_summary": evidence_summary(material, hypotheses),
         "telemetry_gaps": telemetry_gaps(sorted_items, hypotheses),
         "diagnostic_playbooks": diagnostic_playbooks(sorted_items, hypotheses),
+        "consumer_group_diagnoses": consumer_group_diagnoses(sorted_items, hypotheses),
         "scope": diagnostic_scope(sorted_items),
     }
 
@@ -550,6 +551,328 @@ def diagnostic_scope(findings):
         "domains": sorted({finding.get("domain", "unknown") for finding in findings}),
         "rule_count": len({finding.get("rule_id") for finding in findings}),
     }
+
+
+def consumer_group_diagnoses(findings, hypotheses):
+    groups = defaultdict(list)
+
+    for finding in findings:
+        group = consumer_group_from_finding(finding)
+        if group:
+            groups[group].append(finding)
+
+    return [
+        build_consumer_group_diagnosis(group, group_findings, findings, hypotheses)
+        for group, group_findings in sorted(groups.items())
+    ]
+
+
+def consumer_group_from_finding(finding):
+    evidence = finding.get("evidence") or {}
+    group = evidence.get("consumer_group") or evidence.get("group_id")
+    if group:
+        return str(group)
+    return None
+
+
+def build_consumer_group_diagnosis(group, group_findings, all_findings, hypotheses):
+    rule_ids = {finding.get("rule_id") for finding in group_findings}
+    all_rule_ids = {finding.get("rule_id") for finding in all_findings}
+    domains = {finding.get("domain") for finding in all_findings}
+    lag_finding = first_matching(
+        group_findings,
+        {
+            "kafka.consumer_group.lag.high",
+            "kafka.consumer_group.lag.moderate",
+            "kafka.consumer_group.lag.low",
+        },
+    )
+    hot_partition_finding = first_matching(
+        group_findings, {"kafka.consumer_group.hot_partition"}
+    )
+    state_finding = first_matching(
+        group_findings,
+        {
+            "kafka.consumer_group.rebalancing",
+            "kafka.consumer_group.empty",
+            "kafka.runtime.consumer_group.unstable",
+            "kafka.runtime.consumer_group.no_active_members",
+            "kafka.runtime.consumer_group.member_shortfall",
+        },
+    )
+    churn_finding = first_matching(
+        group_findings,
+        {
+            "kafka.consumer_group.member_churn.high",
+            "kafka.history.consumer_group.member_churn",
+        },
+    )
+
+    lag_evidence = (lag_finding or {}).get("evidence") or {}
+    hot_evidence = (hot_partition_finding or {}).get("evidence") or {}
+    state_evidence = (state_finding or {}).get("evidence") or {}
+
+    likely_cause = consumer_group_likely_cause(
+        rule_ids, all_rule_ids, domains, hypotheses
+    )
+    evidence_missing = consumer_group_evidence_missing(rule_ids, all_rule_ids, domains)
+
+    return {
+        "consumer_group": group,
+        "status": consumer_group_status(rule_ids, lag_evidence, state_evidence),
+        "total_lag": lag_evidence.get("total_lag") or lag_evidence.get("lag"),
+        "partition_count": lag_evidence.get("partition_count"),
+        "max_partition_lag": lag_evidence.get("max_partition_lag")
+        or hot_evidence.get("max_partition_lag"),
+        "hot_partitions": hot_evidence.get("hot_partitions", []),
+        "affected_topics": affected_topics_for_group(group_findings),
+        "group_state": state_evidence.get("state"),
+        "member_count": state_evidence.get("member_count"),
+        "committed_offsets_status": committed_offsets_status(rule_ids),
+        "primary_likely_cause": likely_cause["cause"],
+        "confidence": likely_cause["confidence"],
+        "evidence_used": consumer_group_evidence_used(group_findings, hypotheses),
+        "evidence_missing": evidence_missing,
+        "first_actions": consumer_group_first_actions(
+            likely_cause["cause"], group_findings, evidence_missing
+        ),
+        "matched_rule_ids": sorted(rule_ids),
+    }
+
+
+def first_matching(findings, rule_ids):
+    for finding in findings:
+        if finding.get("rule_id") in rule_ids:
+            return finding
+    return None
+
+
+def consumer_group_status(rule_ids, lag_evidence, state_evidence):
+    if "kafka.consumer_group.offsets.missing" in rule_ids:
+        return "OFFSETS_MISSING"
+    if "kafka.consumer_group.rebalancing" in rule_ids:
+        return "REBALANCING"
+    if "kafka.consumer_group.empty" in rule_ids:
+        return "EMPTY"
+    if "kafka.consumer_group.lag.high" in rule_ids:
+        return "HIGH_LAG"
+    if "kafka.consumer_group.lag.moderate" in rule_ids:
+        return "MODERATE_LAG"
+    if "kafka.consumer_group.lag.low" in rule_ids:
+        return "LOW_LAG"
+    return state_evidence.get("state") or lag_evidence.get("status") or "OBSERVED"
+
+
+def committed_offsets_status(rule_ids):
+    if "kafka.consumer_group.offsets.missing" in rule_ids:
+        return "MISSING"
+    if any(rule_id.startswith("kafka.consumer_group.lag.") for rule_id in rule_ids):
+        return "FOUND"
+    return "UNKNOWN"
+
+
+def consumer_group_likely_cause(rule_ids, all_rule_ids, domains, hypotheses):
+    correlation_ids = {hypothesis.get("correlation_id") for hypothesis in hypotheses}
+
+    if "kafka.consumer_group.offsets.missing" in rule_ids:
+        return {
+            "cause": "offsets_missing_or_group_inactive",
+            "confidence": "MEDIUM",
+        }
+
+    if rule_ids.intersection(
+        {
+            "kafka.consumer_group.rebalancing",
+            "kafka.consumer_group.empty",
+            "kafka.consumer_group.member_churn.high",
+            "kafka.history.consumer_group.member_churn",
+            "kafka.runtime.consumer_group.unstable",
+            "kafka.runtime.consumer_group.no_active_members",
+            "kafka.runtime.consumer_group.member_shortfall",
+        }
+    ):
+        return {"cause": "consumer_group_instability", "confidence": "HIGH"}
+
+    if rule_ids.intersection(
+        {
+            "kafka.consumer_group.hot_partition",
+            "kafka.consumer_group.decision.partition_skew",
+        }
+    ):
+        return {"cause": "partition_skew_or_hot_key", "confidence": "HIGH"}
+
+    if "kafka.consumer_group.decision.partition_parallelism" in rule_ids:
+        return {"cause": "partition_parallelism_limit", "confidence": "HIGH"}
+
+    if (
+        "correlation.root_cause.downstream_database_bottleneck" in correlation_ids
+        or "flow.runtime.downstream_db_bottleneck" in all_rule_ids
+        or domains.intersection({"database", "flow", "api"})
+        and "kafka.consumer_group.lag.high" in rule_ids
+    ):
+        return {
+            "cause": "downstream_dependency_or_consumer_bottleneck",
+            "confidence": "HIGH",
+        }
+
+    if "kafka.consumer_group.decision.consumer_side" in rule_ids:
+        return {"cause": "consumer_side_processing_bottleneck", "confidence": "MEDIUM"}
+
+    if "kafka.consumer_group.lag.high" in rule_ids:
+        return {"cause": "lag_requires_more_evidence", "confidence": "MEDIUM"}
+
+    if "kafka.consumer_group.lag.moderate" in rule_ids:
+        return {"cause": "moderate_lag_monitor_trend", "confidence": "MEDIUM"}
+
+    return {"cause": "no_urgent_consumer_lag_action", "confidence": "HIGH"}
+
+
+def consumer_group_evidence_missing(rule_ids, all_rule_ids, domains):
+    missing = []
+
+    if "kafka.consumer_group.offsets.missing" in rule_ids:
+        missing.extend(
+            ["expected group activity", "producer rate", "deployment history"]
+        )
+
+    if any(rule_id.startswith("kafka.consumer_group.lag.") for rule_id in rule_ids):
+        if not {"flow", "database", "api"}.intersection(domains):
+            missing.append("downstream API/database latency")
+        if not all_rule_ids.intersection(
+            {
+                "kafka.runtime.producer_rate.increased_under_pressure",
+                "kafka.runtime.producer_error_rate.high",
+            }
+        ):
+            missing.append("producer throughput/error trend")
+        if not all_rule_ids.intersection(
+            {
+                "kafka.runtime.request_latency.high",
+                "kafka.runtime.request_queue_saturation.high",
+                "kafka.runtime.network_saturation.high",
+                "kafka.runtime.under_replicated_partitions",
+            }
+        ):
+            missing.append("broker request/network/replication health")
+
+    if rule_ids.intersection(
+        {
+            "kafka.consumer_group.hot_partition",
+            "kafka.consumer_group.decision.partition_skew",
+        }
+    ):
+        missing.append("producer partition-key distribution")
+
+    if rule_ids.intersection(
+        {"kafka.consumer_group.rebalancing", "kafka.consumer_group.member_churn.high"}
+    ):
+        missing.append("deployment and member churn timeline")
+
+    return dedupe(missing)[:6]
+
+
+def consumer_group_evidence_used(findings, hypotheses):
+    evidence = [
+        {
+            "rule_id": finding.get("rule_id"),
+            "severity": finding.get("severity"),
+            "title": finding.get("title"),
+            "evidence": finding.get("evidence", {}),
+        }
+        for finding in findings[:6]
+    ]
+
+    for hypothesis in hypotheses[:3]:
+        if any(
+            rule_id in hypothesis.get("matched_rule_ids", [])
+            for rule_id in {finding.get("rule_id") for finding in findings}
+        ):
+            evidence.append(
+                {
+                    "correlation_id": hypothesis.get("correlation_id"),
+                    "confidence": hypothesis.get("confidence"),
+                    "title": hypothesis.get("title"),
+                }
+            )
+
+    return evidence[:8]
+
+
+def consumer_group_first_actions(cause, findings, evidence_missing):
+    actions_by_cause = {
+        "offsets_missing_or_group_inactive": [
+            "Confirm whether the consumer group is expected to be active and committing offsets.",
+            "Check consumer deployment health before treating this as lag.",
+        ],
+        "consumer_group_instability": [
+            "Inspect rolling deployments, consumer crashes, heartbeat/session timeout, and max.poll settings.",
+            "Stabilize membership before scaling consumers.",
+        ],
+        "partition_skew_or_hot_key": [
+            "Review producer partition key distribution and recent keying changes.",
+            "Do not scale consumers blindly until hot partitions are understood.",
+        ],
+        "partition_parallelism_limit": [
+            "Compare consumer concurrency with partition count and ordering requirements.",
+            "Increase partitions only after validating keying and replay impact.",
+        ],
+        "downstream_dependency_or_consumer_bottleneck": [
+            "Investigate downstream database/API latency and consumer processing time before scaling Kafka.",
+            "Check retry amplification and poison-message behavior.",
+        ],
+        "consumer_side_processing_bottleneck": [
+            "Check consumer processing time, thread pools, retries, DB/API calls, and recent deployments.",
+            "Compare producer rate with consumer drain rate.",
+        ],
+        "lag_requires_more_evidence": [
+            "Collect producer rate, broker health, and downstream dependency telemetry.",
+            "Check lag by partition before choosing a scaling action.",
+        ],
+        "moderate_lag_monitor_trend": [
+            "Monitor lag trend and compare against producer throughput.",
+            "Investigate if lag continues to grow across the next time window.",
+        ],
+        "no_urgent_consumer_lag_action": [
+            "Continue monitoring lag trend.",
+            "Rerun diagnosis if lag grows or consumer group state changes.",
+        ],
+    }
+
+    actions = list(actions_by_cause.get(cause, []))
+    for finding in findings:
+        recommendation = finding.get("recommendation")
+        if recommendation and recommendation not in actions:
+            actions.append(recommendation)
+
+    if evidence_missing:
+        actions.append(
+            "Collect missing evidence: " + ", ".join(evidence_missing[:3]) + "."
+        )
+
+    return actions[:5]
+
+
+def affected_topics_for_group(findings):
+    topics = []
+    for finding in findings:
+        evidence = finding.get("evidence") or {}
+        if evidence.get("topic"):
+            topics.append(evidence["topic"])
+        for partition in evidence.get("hot_partitions", []) or []:
+            if partition.get("topic"):
+                topics.append(partition["topic"])
+    return dedupe(topics)
+
+
+def dedupe(items):
+    seen = set()
+    result = []
+    for item in items:
+        if item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result
 
 
 def executive_summary(summary):

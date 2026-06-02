@@ -644,8 +644,30 @@ HTML = """<!doctype html>
         '<li><strong>Summary:</strong> ' + escapeHtml(summary.executive_summary || '') + '</li>' +
         hypothesis +
         renderNestedList('First actions', summary.first_actions || []) +
+        renderConsumerGroupDiagnoses(summary.consumer_group_diagnoses || []) +
         renderNestedList('Telemetry gaps', summary.telemetry_gaps || []) +
         '</ul></div>';
+    }
+
+    function renderConsumerGroupDiagnoses(items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<li><strong>Kafka consumer group diagnosis:</strong><ul>' +
+        items.slice(0, 5).map((item) => {
+          const lag = item.total_lag === null || item.total_lag === undefined ? 'unknown' : item.total_lag;
+          const missing = (item.evidence_missing || []).length ?
+            ' · missing: ' + (item.evidence_missing || []).slice(0, 3).map(escapeHtml).join(', ') :
+            '';
+          return '<li>' + escapeHtml(item.consumer_group || '') +
+            ' · ' + escapeHtml(item.status || '') +
+            ' · ' + escapeHtml(item.primary_likely_cause || '') +
+            ' · confidence ' + escapeHtml(item.confidence || '') +
+            ' · lag ' + escapeHtml(String(lag)) +
+            missing +
+            '</li>';
+        }).join('') +
+        '</ul></li>';
     }
 
     function renderArchitectAssessment(assessment) {

@@ -66,6 +66,19 @@ def check_kafka_lag_does_not_invent_db_bottleneck():
         "Kafka lag playbook was not matched",
     )
     require(
+        summary["consumer_group_diagnoses"],
+        "Kafka lag diagnosis did not include consumer_group_diagnoses",
+    )
+    diagnosis = summary["consumer_group_diagnoses"][0]
+    require(
+        diagnosis["consumer_group"] == "checkout-consumer",
+        "Kafka lag diagnosis did not preserve the consumer group",
+    )
+    require(
+        diagnosis["primary_likely_cause"] == "lag_requires_more_evidence",
+        "Kafka lag-only diagnosis should require more evidence before naming a cause",
+    )
+    require(
         any("Kafka lag needs downstream" in gap for gap in summary["telemetry_gaps"]),
         "Kafka lag-only diagnosis did not report downstream telemetry gap",
     )
@@ -184,6 +197,10 @@ def check_cli_json_contract():
         "diagnose JSON output did not include diagnostic playbooks",
     )
     require(
+        "consumer_group_diagnoses" in payload["diagnostic_summary"],
+        "diagnose JSON output did not include consumer_group_diagnoses",
+    )
+    require(
         payload["diagnostic_summary"]["primary_hypothesis"],
         "diagnose JSON output did not include a primary hypothesis",
     )
@@ -195,6 +212,11 @@ def check_html_contract():
     findings = [
         finding("flow.runtime.cascading_latency", "flow", severity="CRITICAL"),
         finding("api.runtime.retry_amplification", "api"),
+        finding(
+            "kafka.consumer_group.lag.high",
+            "kafka",
+            evidence={"consumer_group": "checkout-consumer", "total_lag": 100000},
+        ),
     ]
     summary = build_diagnostic_summary(findings)
     generate_html_report(
@@ -210,6 +232,10 @@ def check_html_contract():
     require(
         "Matched Diagnostic Playbooks" in html,
         "HTML report missing diagnostic playbooks",
+    )
+    require(
+        "Kafka Consumer Group Diagnosis" in html,
+        "HTML report missing Kafka consumer group diagnosis",
     )
 
     print("diagnose HTML contract ok")

@@ -20,6 +20,7 @@ Module 2 does not replace Module 1 readiness scoring. It uses runtime findings a
 - `primary_hypothesis`
 - `root_cause_hypotheses`
 - `diagnostic_playbooks`
+- `consumer_group_diagnoses`
 - `affected_domains`
 - `material_findings`
 - `first_actions`
@@ -113,3 +114,30 @@ The gate verifies:
   Kubernetes instability, and platform capacity pressure.
 - `diagnose` JSON output is valid and includes `diagnostic_summary`.
 - HTML output renders Runtime Diagnosis and matched diagnostic playbooks.
+
+## Kafka Consumer Group Diagnosis
+
+When Kafka consumer-group findings are present, Beacon emits
+`consumer_group_diagnoses`.
+
+Each diagnosis includes:
+
+- `consumer_group`
+- `status`
+- `total_lag`
+- `partition_count`
+- `max_partition_lag`
+- `hot_partitions`
+- `group_state`
+- `member_count`
+- `committed_offsets_status`
+- `primary_likely_cause`
+- `confidence`
+- `evidence_used`
+- `evidence_missing`
+- `first_actions`
+
+The first release behavior is intentionally conservative. Kafka lag alone should
+produce `lag_requires_more_evidence`, not a downstream database conclusion. Flow,
+database, API, broker, producer, and history evidence can raise confidence and
+narrow the likely cause.

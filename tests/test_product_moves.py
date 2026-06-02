@@ -661,6 +661,91 @@ def test_module2_diagnostic_summary_reports_telemetry_gap_for_kafka_lag_only():
         "downstream database/API latency"
         in summary["diagnostic_playbooks"][0]["evidence_needed"]
     )
+    diagnosis = summary["consumer_group_diagnoses"][0]
+    assert diagnosis["consumer_group"] == "claims-service"
+    assert diagnosis["status"] == "HIGH_LAG"
+    assert diagnosis["primary_likely_cause"] == "lag_requires_more_evidence"
+    assert diagnosis["total_lag"] == 10000
+    assert "downstream API/database latency" in diagnosis["evidence_missing"]
+
+
+def test_module2_consumer_group_diagnosis_detects_partition_skew():
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    summary = build_diagnostic_summary(
+        [
+            {
+                "rule_id": "kafka.consumer_group.lag.high",
+                "domain": "kafka",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "High Kafka consumer lag detected for group 'claims-service'",
+                "impact": "Consumers are behind.",
+                "recommendation": "Investigate consumers.",
+                "file": "runtime-kafka",
+                "evidence": {
+                    "consumer_group": "claims-service",
+                    "total_lag": 120000,
+                    "partition_count": 12,
+                    "max_partition_lag": 90000,
+                },
+                "tags": [],
+            },
+            {
+                "rule_id": "kafka.consumer_group.hot_partition",
+                "domain": "kafka",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "Potential hot partition behavior detected",
+                "impact": "Lag is skewed.",
+                "recommendation": "Review partition keys.",
+                "file": "runtime-kafka",
+                "evidence": {
+                    "consumer_group": "claims-service",
+                    "max_partition_lag": 90000,
+                    "hot_partitions": [
+                        {"topic": "claims.events", "partition": 3, "lag": 90000}
+                    ],
+                },
+                "tags": [],
+            },
+        ]
+    )
+
+    diagnosis = summary["consumer_group_diagnoses"][0]
+    assert diagnosis["primary_likely_cause"] == "partition_skew_or_hot_key"
+    assert diagnosis["confidence"] == "HIGH"
+    assert diagnosis["affected_topics"] == ["claims.events"]
+    assert diagnosis["hot_partitions"][0]["partition"] == 3
+
+
+def test_module2_consumer_group_diagnosis_handles_missing_offsets():
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    summary = build_diagnostic_summary(
+        [
+            {
+                "rule_id": "kafka.consumer_group.offsets.missing",
+                "domain": "kafka",
+                "category": "runtime_stability",
+                "severity": "LOW",
+                "title": "No committed offsets found",
+                "impact": "Beacon could not calculate lag.",
+                "recommendation": "Verify whether the group is active.",
+                "file": "runtime-kafka",
+                "evidence": {
+                    "consumer_group": "claims-service",
+                    "status": "NO_OFFSETS",
+                },
+                "tags": [],
+            }
+        ]
+    )
+
+    diagnosis = summary["consumer_group_diagnoses"][0]
+    assert diagnosis["status"] == "OFFSETS_MISSING"
+    assert diagnosis["committed_offsets_status"] == "MISSING"
+    assert diagnosis["primary_likely_cause"] == "offsets_missing_or_group_inactive"
 
 
 def test_diagnose_terminal_uses_runtime_diagnosis_language(capsys):

@@ -68,6 +68,7 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert "Business Risk Categories" in ui.HTML
     assert 'id="intelligence_context"' in ui.HTML
     assert "Runtime Diagnosis" in ui.HTML
+    assert "Kafka consumer group diagnosis" in ui.HTML
 
 
 def test_ui_e2e_static_config_upload_returns_backend_findings():

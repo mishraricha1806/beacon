@@ -475,6 +475,30 @@ HTML_TEMPLATE = """
         </table>
         {% endif %}
 
+        {% if diagnostic_summary.consumer_group_diagnoses %}
+        <h3>Kafka Consumer Group Diagnosis</h3>
+        <table>
+            <tr>
+                <th>Consumer Group</th>
+                <th>Status</th>
+                <th>Likely Cause</th>
+                <th>Confidence</th>
+                <th>Total Lag</th>
+                <th>Evidence Missing</th>
+            </tr>
+            {% for diagnosis in diagnostic_summary.consumer_group_diagnoses %}
+            <tr>
+                <td>{{ diagnosis.consumer_group }}</td>
+                <td>{{ diagnosis.status }}</td>
+                <td>{{ diagnosis.primary_likely_cause }}</td>
+                <td>{{ diagnosis.confidence }}</td>
+                <td>{{ diagnosis.total_lag or 'unknown' }}</td>
+                <td>{{ diagnosis.evidence_missing | join(', ') if diagnosis.evidence_missing else 'None' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+
         {% if diagnostic_summary.telemetry_gaps %}
         <h3>Telemetry Gaps</h3>
         <ul>

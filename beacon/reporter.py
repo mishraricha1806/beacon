@@ -151,6 +151,25 @@ def print_diagnostic_summary(summary):
             )
         console.print(table)
 
+    if summary.get("consumer_group_diagnoses"):
+        table = Table(title="Kafka Consumer Group Diagnosis")
+        table.add_column("Consumer Group")
+        table.add_column("Status")
+        table.add_column("Likely Cause")
+        table.add_column("Confidence")
+        table.add_column("Lag")
+        table.add_column("Evidence Missing")
+        for diagnosis in summary["consumer_group_diagnoses"]:
+            table.add_row(
+                diagnosis["consumer_group"],
+                diagnosis["status"],
+                diagnosis["primary_likely_cause"],
+                diagnosis["confidence"],
+                str(diagnosis.get("total_lag") or "unknown"),
+                ", ".join(diagnosis.get("evidence_missing") or ["None"]),
+            )
+        console.print(table)
+
     console.print("\n[bold]Telemetry Gaps:[/bold]")
     for gap in summary.get("telemetry_gaps", [])[:5]:
         console.print(f"- {gap}")
