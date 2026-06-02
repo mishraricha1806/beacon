@@ -59,6 +59,24 @@ def print_readiness_summary(summary):
     console.print(f"[bold]Production Decision:[/bold] {summary['production_decision']}")
     console.print(f"[bold]Primary Risk Area:[/bold] {summary['primary_risk_area']}\n")
 
+    if summary.get("architect_assessment"):
+        assessment = summary["architect_assessment"]
+        console.print("[bold]Architect Assessment:[/bold]")
+        console.print(f"- Verdict: {assessment['verdict']}")
+        console.print(f"- Confidence: {assessment['confidence']}")
+        console.print(f"- Context: {assessment['environment_context']}")
+        console.print(f"- Score: {assessment['score_explanation']}")
+
+        if assessment.get("material_risks"):
+            console.print("- Material risks:")
+            for risk in assessment["material_risks"][:3]:
+                affected = risk.get("affected_count", 0)
+                console.print(
+                    f"  - {risk['severity']}: {risk['title']} " f"({affected} affected)"
+                )
+
+        console.print()
+
     if summary.get("grouped_risks"):
         grouped_table = Table(title="Grouped Root-Cause Risks")
         grouped_table.add_column("Severity")

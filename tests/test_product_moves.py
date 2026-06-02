@@ -137,6 +137,10 @@ def test_readiness_uses_weighted_group_scoring_and_business_categories():
         and "kafka-configs" in risk["remediation_command"]
         for risk in summary["grouped_risks"]
     )
+    assert summary["architect_assessment"]["material_risks"][0]["title"].startswith(
+        "Kafka topics allow messages larger than 1MB"
+    )
+    assert "Raw critical/high" in summary["architect_assessment"]["score_explanation"]
 
 
 def test_readiness_environment_profile_controls_kafka_ha_severity():
@@ -160,6 +164,43 @@ def test_readiness_environment_profile_controls_kafka_ha_severity():
     assert dev_summary["info"] == 1
     assert prod_summary["critical"] == 1
     assert prod_summary["production_decision"] == "NOT READY"
+
+
+def test_architect_assessment_separates_material_and_deemphasized_risks():
+    findings = [
+        {
+            "rule_id": "kafka.topic.max_message_bytes.large",
+            "domain": "kafka",
+            "category": "storage_sustainability",
+            "severity": "HIGH",
+            "title": "Kafka topic 'claims.response' allows messages larger than 1MB",
+            "impact": "Large messages increase broker disk I/O.",
+            "recommendation": "Keep messages small.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "claims.response"},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.topic.owner.missing",
+            "domain": "kafka",
+            "category": "operational_safety",
+            "severity": "LOW",
+            "title": "Kafka topic 'claims.response' has no owner metadata",
+            "impact": "Ownership missing.",
+            "recommendation": "Add owner.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "claims.response"},
+            "tags": [],
+        },
+    ]
+
+    summary = calculate_readiness(findings, environment="dev")
+    assessment = summary["architect_assessment"]
+
+    assert assessment["confidence"] == "MEDIUM"
+    assert assessment["material_risks"][0]["category"] == "Capacity"
+    assert assessment["deemphasized_signals"][0]["category"] == "Governance"
+    assert assessment["first_actions"]
 
 
 def test_readiness_top_reasons_follow_severity_order():

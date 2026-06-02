@@ -76,6 +76,7 @@ def calculate_readiness(findings, environment=None, intelligence_context=None):
         "primary_risk_area": "",
         "top_reasons": [],
         "next_best_actions": [],
+        "architect_assessment": None,
         "root_cause_hypotheses": [],
         "kafka_report": None,
     }
@@ -110,6 +111,7 @@ def calculate_readiness(findings, environment=None, intelligence_context=None):
         interpreted_findings, summary["grouped_risks"]
     )
     summary["next_best_actions"] = build_next_best_actions(summary)
+    summary["architect_assessment"] = build_architect_assessment(summary)
     summary["root_cause_hypotheses"] = correlate_findings(interpreted_findings)
     summary["kafka_report"] = build_kafka_report(sort_findings(interpreted_findings))
     return summary
@@ -322,3 +324,109 @@ def build_next_best_actions(summary):
         actions.append("Continue with standard production approval and monitoring.")
 
     return actions[:5]
+
+
+def build_architect_assessment(summary):
+    grouped_risks = summary.get("grouped_risks") or []
+    material_risks = [
+        risk
+        for risk in grouped_risks
+        if risk.get("severity") in {"ERROR", "CRITICAL", "HIGH", "MEDIUM"}
+    ]
+    informational_risks = [
+        risk for risk in grouped_risks if risk.get("severity") in {"LOW", "INFO"}
+    ]
+
+    verdict = build_architect_verdict(summary, material_risks)
+
+    return {
+        "verdict": verdict,
+        "confidence": architect_confidence(summary, material_risks),
+        "environment_context": build_environment_context(summary),
+        "material_risks": [architect_risk_item(risk) for risk in material_risks[:5]],
+        "deemphasized_signals": [
+            architect_risk_item(risk) for risk in informational_risks[:5]
+        ],
+        "first_actions": build_first_actions(summary, material_risks),
+        "score_explanation": build_score_explanation(summary),
+    }
+
+
+def build_architect_verdict(summary, material_risks):
+    if summary["error"] > 0:
+        return "Beacon could not complete a reliable readiness assessment because one or more collectors failed."
+
+    if not material_risks:
+        if summary.get("environment") != "prod" and summary.get("grouped_risks"):
+            return (
+                "No material production blockers were found after applying the "
+                f"{summary['environment']} context. Remaining signals are mostly governance or observation items."
+            )
+        return "No material production-readiness blockers were found in the analyzed inputs."
+
+    top = material_risks[0]
+    affected = top.get("affected_count", 0)
+    affected_text = f" affecting {affected} resource(s)" if affected else ""
+    return (
+        f"The leading risk is {top['title']}{affected_text}. "
+        "Treat the final decision as context-dependent until the environment profile and accepted exceptions are confirmed."
+    )
+
+
+def architect_confidence(summary, material_risks):
+    if summary["error"] > 0:
+        return "LOW"
+    if summary.get("intelligence_context", {}).get("loaded") and material_risks:
+        return "HIGH"
+    if summary.get("environment") != "prod":
+        return "MEDIUM"
+    return "HIGH" if material_risks else "MEDIUM"
+
+
+def build_environment_context(summary):
+    environment = summary.get("environment") or "unknown"
+    if environment == "prod":
+        return "Production profile is strict: HA, durability, ownership, and compatibility findings remain release-significant."
+
+    return (
+        f"{environment} profile is context-aware: dev/test patterns such as single-broker Kafka or RF=1 can be informational "
+        "when explicitly accepted, while capacity, schema, security, and data-loss risks remain material."
+    )
+
+
+def architect_risk_item(risk):
+    return {
+        "severity": risk.get("severity"),
+        "category": risk.get("business_category") or risk.get("category"),
+        "title": risk.get("title"),
+        "affected_count": risk.get("affected_count", 0),
+        "recommendation": risk.get("recommendation"),
+        "remediation_command": risk.get("remediation_command"),
+        "examples": risk.get("examples", [])[:3],
+    }
+
+
+def build_first_actions(summary, material_risks):
+    if summary["error"] > 0:
+        return ["Fix collector/configuration errors and rerun Beacon."]
+
+    actions = []
+    for risk in material_risks[:3]:
+        action = risk.get("remediation_command") or risk.get("recommendation")
+        if action and action not in actions:
+            actions.append(action)
+
+    for action in summary.get("next_best_actions", []):
+        if action not in actions:
+            actions.append(action)
+
+    return actions[:5] or ["Continue with standard production review and monitoring."]
+
+
+def build_score_explanation(summary):
+    return (
+        f"Beacon scored grouped, interpreted signals rather than every repeated raw finding. "
+        f"Raw critical/high was {summary.get('raw_critical', 0)}/{summary.get('raw_high', 0)}; "
+        f"interpreted critical/high is {summary.get('critical', 0)}/{summary.get('high', 0)}; "
+        f"suppressed duplicate derivative signals: {summary.get('suppressed_duplicate_count', 0)}."
+    )

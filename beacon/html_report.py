@@ -280,6 +280,34 @@ HTML_TEMPLATE = """
     </div>
     {% endif %}
 
+    {% if readiness_summary.architect_assessment %}
+    <div class="card section">
+        <h2>Architect Assessment</h2>
+        <p class="text-block"><strong>Verdict:</strong> {{ readiness_summary.architect_assessment.verdict }}</p>
+        <p class="text-block"><strong>Confidence:</strong> {{ readiness_summary.architect_assessment.confidence }}</p>
+        <p class="text-block"><strong>Context:</strong> {{ readiness_summary.architect_assessment.environment_context }}</p>
+        <p class="text-block"><strong>Score:</strong> {{ readiness_summary.architect_assessment.score_explanation }}</p>
+
+        {% if readiness_summary.architect_assessment.material_risks %}
+        <h3>Material Risks</h3>
+        <ul>
+            {% for risk in readiness_summary.architect_assessment.material_risks %}
+            <li><strong>{{ risk.severity }}</strong>: {{ risk.title }} ({{ risk.affected_count }} affected)</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if readiness_summary.architect_assessment.deemphasized_signals %}
+        <h3>De-emphasized Signals</h3>
+        <ul>
+            {% for risk in readiness_summary.architect_assessment.deemphasized_signals %}
+            <li><strong>{{ risk.severity }}</strong>: {{ risk.title }} ({{ risk.affected_count }} affected)</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="card section">
         <h2>Top Reasons</h2>
         <ul>

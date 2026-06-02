@@ -562,6 +562,7 @@ HTML = """<!doctype html>
       const rootCauses = summary.root_cause_hypotheses || [];
       const groupedRisks = summary.grouped_risks || [];
       const intelligenceContext = summary.intelligence_context || {};
+      const architectAssessment = summary.architect_assessment || null;
       const summaryHtml = `
         <div class="result-actions">
           <button type="button" onclick="downloadReport()">Download JSON</button>
@@ -572,6 +573,7 @@ HTML = """<!doctype html>
           <div class="metric"><span>Risk Points</span><strong>${summary.risk_points ?? '-'}</strong></div>
           <div class="metric"><span>Environment</span><strong>${summary.environment || '-'}</strong></div>
         </div>
+        ${renderArchitectAssessment(architectAssessment)}
         ${renderIntelligenceContext(intelligenceContext)}
         ${renderBusinessCategories(summary.business_categories || {})}
         ${renderGroupedRisks(groupedRisks)}
@@ -623,6 +625,25 @@ HTML = """<!doctype html>
           const label = typeof item === 'string' ? item : `${item.confidence || ''}: ${item.title || item.hypothesis || ''}`;
           return '<li>' + escapeHtml(label) + '</li>';
         }).join('') +
+        '</ul></div>';
+    }
+
+    function renderArchitectAssessment(assessment) {
+      if (!assessment) {
+        return '';
+      }
+      const material = assessment.material_risks || [];
+      const risks = material.slice(0, 4).map((risk) => {
+        const affected = risk.affected_count ? ` (${risk.affected_count} affected)` : '';
+        return '<li><strong>' + escapeHtml(risk.severity || '') + '</strong>: ' +
+          escapeHtml(risk.title || '') + escapeHtml(affected) + '</li>';
+      }).join('');
+      return '<div class="insight-list"><h3>Architect Assessment</h3><ul>' +
+        '<li><strong>Verdict:</strong> ' + escapeHtml(assessment.verdict || '') + '</li>' +
+        '<li><strong>Confidence:</strong> ' + escapeHtml(assessment.confidence || '') + '</li>' +
+        '<li><strong>Context:</strong> ' + escapeHtml(assessment.environment_context || '') + '</li>' +
+        '<li><strong>Score:</strong> ' + escapeHtml(assessment.score_explanation || '') + '</li>' +
+        (risks ? '<li><strong>Material risks:</strong><ul>' + risks + '</ul></li>' : '') +
         '</ul></div>';
     }
 
