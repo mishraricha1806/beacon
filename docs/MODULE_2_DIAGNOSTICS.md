@@ -30,6 +30,8 @@ Module 2 does not replace Module 1 readiness scoring. It uses runtime findings a
 ## Example Commands
 
 ```bash
+python3 scripts/module2_diagnostic_check.py
+
 python3 -m beacon.cli diagnose snapshot examples/supported/runtime/all-runtime.yaml \
   --no-html \
   --no-open-report \
@@ -93,3 +95,21 @@ Each playbook includes:
 This keeps Module 2 deterministic. Beacon should not claim a downstream database
 bottleneck from Kafka lag alone; it should require flow/database evidence or state
 the missing telemetry explicitly.
+
+## Release Gate
+
+Run:
+
+```bash
+python3 scripts/module2_diagnostic_check.py
+```
+
+The gate verifies:
+
+- Kafka lag alone does not create a downstream database bottleneck hypothesis.
+- Flow plus database evidence ranks downstream database bottleneck.
+- Retry cascade outranks generic storage pressure when timeout/retry evidence is present.
+- Operational playbooks are emitted for Kafka health, replay, schema, auth/quota,
+  Kubernetes instability, and platform capacity pressure.
+- `diagnose` JSON output is valid and includes `diagnostic_summary`.
+- HTML output renders Runtime Diagnosis and matched diagnostic playbooks.

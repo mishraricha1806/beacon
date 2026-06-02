@@ -61,3 +61,6 @@ python3 -m beacon.cli readiness schema-registry examples/supported/kafka/schema-
 
 section "Rule metadata catalog"
 python3 -m beacon.cli rules list --output json
+
+section "Module 2 diagnostic release gate"
+python3 scripts/module2_diagnostic_check.py
