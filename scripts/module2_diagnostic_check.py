@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.html_report import generate_html_report
 from beacon.kafka_history import analyze_kafka_history_file
+import beacon.prometheus_connector as prometheus_connector
 
 
 def fail(message):
@@ -194,6 +195,88 @@ def check_kafka_history_trend_contract():
     print("kafka history trend contract ok")
 
 
+def check_prometheus_kafka_jmx_contract():
+    values = {
+        "log_size_bytes": 88,
+        "underminisr": 2,
+        "underreplicated": 2,
+        "offlinepartitionscount": 1,
+        "preferredreplicaimbalancecount": 55,
+        "activecontrollercount": 2,
+        "leaderelectionrateandtimems": 4,
+        "reassigningpartitions": 2,
+        "replicafetchermanager_maxlag": 15000,
+        "failedproducerequests": 7,
+        "histogram_quantile": 700,
+        "requestqueuepercent": 86,
+        "bytesin_total": 92,
+        'throttle_timems{request="Produce"}': 140,
+        'throttle_timems{request=~"FetchConsumer|Fetch"}': 160,
+        "schema-registry": 0,
+        "incompatible_schema": 1,
+        "kafka_consumergroup_lag": 1000000,
+        "records_consumed": 100,
+        "messagesin_total": 50,
+    }
+
+    original_query = prometheus_connector.query_prometheus
+    original_map = prometheus_connector.query_prometheus_map
+
+    def fake_query(_base_url, query, timeout=5):
+        normalized = query.lower()
+        for key, value in values.items():
+            if key.lower() in normalized:
+                return value
+        raise AssertionError(query)
+
+    def fake_map(_base_url, query, label, timeout=5):
+        if "log_size_bytes" in query.lower():
+            return {"1": 94, "2": 62, "3": 60}
+        raise AssertionError(query)
+
+    prometheus_connector.query_prometheus = fake_query
+    prometheus_connector.query_prometheus_map = fake_map
+    try:
+        findings = prometheus_connector.analyze_prometheus_config(
+            str(
+                ROOT
+                / "examples"
+                / "supported"
+                / "prometheus"
+                / "kafka-jmx-prometheus.yaml"
+            )
+        )
+    finally:
+        prometheus_connector.query_prometheus = original_query
+        prometheus_connector.query_prometheus_map = original_map
+
+    rule_ids = {finding["rule_id"] for finding in findings}
+    expected = {
+        "kafka.runtime.broker_disk_skew.critical",
+        "kafka.runtime.under_min_isr_partitions",
+        "kafka.runtime.under_replicated_partitions",
+        "kafka.runtime.offline_partitions",
+        "kafka.runtime.controller_count.invalid",
+        "kafka.runtime.controller_churn.high",
+        "kafka.runtime.replication_fetcher_lag.high",
+        "kafka.runtime.request_latency.high",
+        "kafka.runtime.request_queue_saturation.high",
+        "kafka.runtime.network_saturation.high",
+        "kafka.runtime.producer_throttle.high",
+        "kafka.runtime.fetch_throttle.high",
+        "kafka.runtime.schema_registry.unavailable",
+        "kafka.runtime.schema_incompatible_changes",
+        "kafka.runtime.replay.time_exceeds_target",
+        "kafka.runtime.replay.retention_window_insufficient",
+    }
+    require(
+        expected <= rule_ids,
+        f"Prometheus Kafka JMX contract missing findings: {sorted(expected - rule_ids)}",
+    )
+
+    print("prometheus kafka jmx contract ok")
+
+
 def check_cli_json_contract():
     command = [
         sys.executable,
@@ -276,6 +359,7 @@ def main():
         check_retry_cascade_beats_generic_storage()
         check_operational_playbook_coverage()
         check_kafka_history_trend_contract()
+        check_prometheus_kafka_jmx_contract()
         check_cli_json_contract()
         check_html_contract()
     except AssertionError as error:

@@ -117,6 +117,7 @@ Beacon may inspect:
 - runtime snapshots
 - Prometheus/OpenTelemetry-derived metrics
 - Schema Registry metadata and compatibility settings
+- Kafka JMX metrics exposed through Prometheus
 
 ## CLI Contract
 
@@ -206,6 +207,8 @@ The gate verifies:
 - Retry cascade outranks generic storage pressure when timeout/retry evidence is present.
 - Operational playbooks are emitted for Kafka health, replay, schema, auth/quota,
   Kubernetes instability, and platform capacity pressure.
+- Prometheus Kafka JMX mappings produce broker health, ISR, controller, queue,
+  network, throttling, schema, and replay findings.
 - `diagnose` JSON output is valid and includes `diagnostic_summary`.
 - HTML output renders Runtime Diagnosis, matched diagnostic playbooks, and Kafka
   consumer group diagnosis.
@@ -230,8 +233,7 @@ deterministic runtime diagnosis.
 
 1. Improve time-window trend modeling for lag, rebalance churn, disk growth,
    producer rate, and deployment correlation.
-2. Add richer Kafka JMX/Prometheus mappings for request latency, request queue,
-   network saturation, broker disk, controller changes, and throttling.
-3. Add deployment event input for runtime correlation.
-4. Improve the web UI around focused Kafka consumer-group diagnosis.
-5. Add more examples for live-like Kafka incident scenarios.
+2. Add deployment event input for runtime correlation.
+3. Improve the web UI around focused Kafka consumer-group diagnosis.
+4. Add more examples for live-like Kafka incident scenarios.
+5. Add richer broker/client attribution for Kafka JMX findings.

@@ -148,34 +148,60 @@ prometheus:
     broker_count: 3
     partition_count: 200
     replication_factor: 3
+    replay_target_hours: 2
+    retention_remaining_hours: 4
     queries:
       broker_disk_usage_percent: kafka_disk_usage
       broker_disk_usage_by_broker:
         query: kafka_disk_by_broker
         type: map
         label: broker
+      under_min_isr_partitions: kafka_under_min_isr
       under_replicated_partitions: kafka_under_replicated
       offline_partitions: kafka_offline
+      leader_imbalance_percent: kafka_leader_imbalance
       active_controller_count: kafka_active_controllers
+      controller_change_count_15m: kafka_controller_changes
+      partition_reassignment_count: kafka_reassignments
+      replication_fetcher_lag: kafka_replication_fetcher_lag
+      producer_error_rate_percent: kafka_producer_errors
+      request_latency_p95_ms: kafka_request_latency
       request_queue_utilization_percent: kafka_request_queue
+      network_io_utilization_percent: kafka_network
       produce_throttle_time_ms: kafka_produce_throttle
       fetch_throttle_time_ms: kafka_fetch_throttle
       schema_registry_available:
         query: schema_registry_up
         type: bool
+      schema_incompatible_changes_24h: schema_incompatible
+      backlog_messages: kafka_backlog
+      consumer_throughput_messages_per_sec: kafka_consumer_rate
+      producer_rate_messages_per_sec: kafka_producer_rate
 """
     path = tmp_path / "kafka-prometheus.yaml"
     path.write_text(config)
 
     values = {
         "kafka_disk_usage": 88,
+        "kafka_under_min_isr": 2,
         "kafka_under_replicated": 2,
         "kafka_offline": 1,
+        "kafka_leader_imbalance": 55,
         "kafka_active_controllers": 2,
+        "kafka_controller_changes": 4,
+        "kafka_reassignments": 2,
+        "kafka_replication_fetcher_lag": 15000,
+        "kafka_producer_errors": 7,
+        "kafka_request_latency": 700,
         "kafka_request_queue": 86,
+        "kafka_network": 92,
         "kafka_produce_throttle": 140,
         "kafka_fetch_throttle": 160,
         "schema_registry_up": 0,
+        "schema_incompatible": 1,
+        "kafka_backlog": 1000000,
+        "kafka_consumer_rate": 100,
+        "kafka_producer_rate": 50,
     }
 
     def fake_urlopen(url, timeout=None):
@@ -194,8 +220,20 @@ prometheus:
     assert "prometheus.runtime.read_only_mode" in rule_ids
     assert "kafka.runtime.broker_disk_skew.critical" in rule_ids
     assert "kafka.runtime.offline_partitions" in rule_ids
+    assert "kafka.runtime.under_min_isr_partitions" in rule_ids
+    assert "kafka.runtime.under_replicated_partitions" in rule_ids
+    assert "kafka.runtime.leader_imbalance.high" in rule_ids
     assert "kafka.runtime.controller_count.invalid" in rule_ids
+    assert "kafka.runtime.controller_churn.high" in rule_ids
+    assert "kafka.runtime.partition_reassignment.active" in rule_ids
+    assert "kafka.runtime.replication_fetcher_lag.high" in rule_ids
+    assert "kafka.runtime.producer_error_rate.high" in rule_ids
+    assert "kafka.runtime.request_latency.high" in rule_ids
     assert "kafka.runtime.request_queue_saturation.high" in rule_ids
+    assert "kafka.runtime.network_saturation.high" in rule_ids
     assert "kafka.runtime.producer_throttle.high" in rule_ids
     assert "kafka.runtime.fetch_throttle.high" in rule_ids
     assert "kafka.runtime.schema_registry.unavailable" in rule_ids
+    assert "kafka.runtime.schema_incompatible_changes" in rule_ids
+    assert "kafka.runtime.replay.time_exceeds_target" in rule_ids
+    assert "kafka.runtime.replay.retention_window_insufficient" in rule_ids

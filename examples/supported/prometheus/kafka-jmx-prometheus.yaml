@@ -5,6 +5,8 @@ prometheus:
     broker_count: 3
     partition_count: 200
     replication_factor: 3
+    replay_target_hours: 2
+    retention_remaining_hours: 4
     queries:
       broker_disk_usage_percent: >-
         max(kafka_log_log_size_bytes / kafka_log_log_capacity_bytes * 100)
@@ -21,6 +23,9 @@ prometheus:
       controller_change_count_15m: increase(kafka_controller_controllerstats_leaderelectionrateandtimems_count[15m])
       partition_reassignment_count: sum(kafka_server_replicamanager_reassigningpartitions)
       replication_fetcher_lag: max(kafka_server_replicafetchermanager_maxlag)
+      producer_error_rate_percent: >-
+        sum(rate(kafka_server_brokertopicmetrics_failedproducerequests_total[5m]))
+        / clamp_min(sum(rate(kafka_server_brokertopicmetrics_totalproducerequests_total[5m])), 1) * 100
       request_latency_p95_ms: >-
         histogram_quantile(0.95, sum(rate(kafka_network_requestmetrics_totaltimems_bucket[5m])) by (le))
       request_queue_utilization_percent: max(kafka_network_processor_requestqueuepercent)
