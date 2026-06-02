@@ -75,6 +75,16 @@ def print_readiness_summary(summary):
                     f"  - {risk['severity']}: {risk['title']} " f"({affected} affected)"
                 )
 
+        if assessment.get("context_gaps"):
+            console.print("- Context gaps:")
+            for gap in assessment["context_gaps"][:3]:
+                console.print(f"  - {gap}")
+
+        if assessment.get("accepted_assumptions"):
+            console.print("- Accepted assumptions:")
+            for assumption in assessment["accepted_assumptions"][:3]:
+                console.print(f"  - {assumption}")
+
         console.print()
 
     if summary.get("grouped_risks"):

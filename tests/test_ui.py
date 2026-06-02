@@ -67,6 +67,7 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert "Risk Points" in ui.HTML
     assert "Business Risk Categories" in ui.HTML
     assert 'id="intelligence_context"' in ui.HTML
+    assert "Runtime Diagnosis" in ui.HTML
 
 
 def test_ui_e2e_static_config_upload_returns_backend_findings():
@@ -132,6 +133,9 @@ def test_ui_e2e_runtime_snapshot_upload_returns_root_cause_findings():
     assert "flow.runtime.cascading_latency" in rule_ids
     assert "database.runtime.connection_pool.exhaustion" in rule_ids
     assert payload["readiness_summary"]["root_cause_hypotheses"]
+    assert payload["diagnostic_summary"]["diagnostic_status"] == (
+        "ROOT_CAUSE_CANDIDATES_FOUND"
+    )
 
 
 def test_kafka_ui_run_check_uses_existing_report_contract(monkeypatch):

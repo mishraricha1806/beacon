@@ -14,6 +14,7 @@ from beacon.kubernetes_runtime_connector import analyze_kubernetes_cluster
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.policy import apply_policy_to_findings, load_policy
 from beacon.prometheus_connector import analyze_prometheus_config
+from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.intelligence.context import load_intelligence_context
 from beacon.readiness.interpretation import sort_findings
@@ -563,6 +564,7 @@ HTML = """<!doctype html>
       const groupedRisks = summary.grouped_risks || [];
       const intelligenceContext = summary.intelligence_context || {};
       const architectAssessment = summary.architect_assessment || null;
+      const diagnosticSummary = data.diagnostic_summary || null;
       const summaryHtml = `
         <div class="result-actions">
           <button type="button" onclick="downloadReport()">Download JSON</button>
@@ -573,6 +575,7 @@ HTML = """<!doctype html>
           <div class="metric"><span>Risk Points</span><strong>${summary.risk_points ?? '-'}</strong></div>
           <div class="metric"><span>Environment</span><strong>${summary.environment || '-'}</strong></div>
         </div>
+        ${renderDiagnosticSummary(diagnosticSummary)}
         ${renderArchitectAssessment(architectAssessment)}
         ${renderIntelligenceContext(intelligenceContext)}
         ${renderBusinessCategories(summary.business_categories || {})}
@@ -628,6 +631,23 @@ HTML = """<!doctype html>
         '</ul></div>';
     }
 
+    function renderDiagnosticSummary(summary) {
+      if (!summary) {
+        return '';
+      }
+      const primary = summary.primary_hypothesis || {};
+      const hypothesis = primary.title ?
+        '<li><strong>Primary hypothesis:</strong> ' + escapeHtml(primary.confidence || '') + ' - ' + escapeHtml(primary.title || '') + '</li>' :
+        '';
+      return '<div class="insight-list"><h3>Runtime Diagnosis</h3><ul>' +
+        '<li><strong>Status:</strong> ' + escapeHtml(summary.diagnostic_status || '') + '</li>' +
+        '<li><strong>Summary:</strong> ' + escapeHtml(summary.executive_summary || '') + '</li>' +
+        hypothesis +
+        renderNestedList('First actions', summary.first_actions || []) +
+        renderNestedList('Telemetry gaps', summary.telemetry_gaps || []) +
+        '</ul></div>';
+    }
+
     function renderArchitectAssessment(assessment) {
       if (!assessment) {
         return '';
@@ -638,13 +658,32 @@ HTML = """<!doctype html>
         return '<li><strong>' + escapeHtml(risk.severity || '') + '</strong>: ' +
           escapeHtml(risk.title || '') + escapeHtml(affected) + '</li>';
       }).join('');
+      const contextGaps = renderNestedList('Context gaps', assessment.context_gaps || []);
+      const assumptions = renderNestedList('Accepted assumptions', assessment.accepted_assumptions || []);
+      const investigate = (assessment.investigate_now || []).slice(0, 4).map((risk) => {
+        const affected = risk.affected_count ? ` (${risk.affected_count} affected)` : '';
+        return '<li><strong>' + escapeHtml(risk.severity || '') + '</strong>: ' +
+          escapeHtml(risk.title || '') + escapeHtml(affected) + '</li>';
+      }).join('');
       return '<div class="insight-list"><h3>Architect Assessment</h3><ul>' +
         '<li><strong>Verdict:</strong> ' + escapeHtml(assessment.verdict || '') + '</li>' +
         '<li><strong>Confidence:</strong> ' + escapeHtml(assessment.confidence || '') + '</li>' +
         '<li><strong>Context:</strong> ' + escapeHtml(assessment.environment_context || '') + '</li>' +
         '<li><strong>Score:</strong> ' + escapeHtml(assessment.score_explanation || '') + '</li>' +
         (risks ? '<li><strong>Material risks:</strong><ul>' + risks + '</ul></li>' : '') +
+        (investigate ? '<li><strong>Investigate now:</strong><ul>' + investigate + '</ul></li>' : '') +
+        contextGaps +
+        assumptions +
         '</ul></div>';
+    }
+
+    function renderNestedList(title, items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<li><strong>' + escapeHtml(title) + ':</strong><ul>' +
+        items.slice(0, 4).map((item) => '<li>' + escapeHtml(item) + '</li>').join('') +
+        '</ul></li>';
     }
 
     function renderGroupedRisks(items) {
@@ -1020,8 +1059,26 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
         "score": readiness_summary["score"],
         "score_status": readiness_summary["score_status"],
         "readiness_summary": readiness_summary,
+        "diagnostic_summary": (
+            build_diagnostic_summary(displayed_findings)
+            if has_runtime_diagnostic_signal(displayed_findings)
+            else None
+        ),
         "findings": displayed_findings,
     }
+
+
+def has_runtime_diagnostic_signal(findings):
+    runtime_domains = {"api", "database", "storage", "flow", "kubernetes", "kafka"}
+    return any(
+        finding.get("domain") in runtime_domains
+        and (
+            ".runtime." in str(finding.get("rule_id", ""))
+            or str(finding.get("file", "")).startswith("runtime")
+            or "runtime" in str(finding.get("category", ""))
+        )
+        for finding in findings
+    )
 
 
 def has_kafka_input(fields, files):

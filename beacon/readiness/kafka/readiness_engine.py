@@ -343,10 +343,13 @@ def build_architect_assessment(summary):
         "verdict": verdict,
         "confidence": architect_confidence(summary, material_risks),
         "environment_context": build_environment_context(summary),
+        "accepted_assumptions": build_accepted_assumptions(summary),
+        "context_gaps": build_context_gaps(summary, material_risks),
         "material_risks": [architect_risk_item(risk) for risk in material_risks[:5]],
         "deemphasized_signals": [
             architect_risk_item(risk) for risk in informational_risks[:5]
         ],
+        "investigate_now": build_investigate_now(material_risks),
         "first_actions": build_first_actions(summary, material_risks),
         "score_explanation": build_score_explanation(summary),
     }
@@ -394,6 +397,67 @@ def build_environment_context(summary):
     )
 
 
+def build_accepted_assumptions(summary):
+    assumptions = []
+    environment = summary.get("environment")
+    context_loaded = (summary.get("intelligence_context") or {}).get("loaded")
+
+    if environment and environment != "prod":
+        assumptions.append(
+            f"Beacon is interpreting this as {environment}, so HA-only production rules may be downgraded when they look intentional."
+        )
+
+    if context_loaded:
+        assumptions.append(
+            "Organization intelligence context was loaded and used for deterministic severity interpretation."
+        )
+
+    for risk in summary.get("grouped_risks", []):
+        if risk.get("severity") in {"LOW", "INFO"}:
+            assumptions.append(
+                f"{risk['title']} is currently treated as {risk['severity']} rather than a primary blocker."
+            )
+        if len(assumptions) >= 5:
+            break
+
+    return assumptions
+
+
+def build_context_gaps(summary, material_risks):
+    gaps = []
+    risk_keys = {risk.get("key") for risk in summary.get("grouped_risks", [])}
+
+    if not (summary.get("intelligence_context") or {}).get("loaded"):
+        gaps.append(
+            "No organization intelligence context was loaded, so Beacon cannot know accepted dev/test exceptions, topic ownership standards, or approved topic-pattern exceptions."
+        )
+
+    if (
+        summary.get("environment") != "prod"
+        and "kafka.single_broker_cluster" in risk_keys
+    ):
+        gaps.append(
+            "Confirm whether this Kafka cluster is intentionally single-broker for non-production use."
+        )
+
+    if "kafka.topic_low_partitions" in risk_keys:
+        gaps.append(
+            "Low partition findings need throughput, ordering, producer rate, and consumer lag context before recommending partition increases."
+        )
+
+    if "kafka.consumer_offsets_missing" in risk_keys:
+        gaps.append(
+            "Missing consumer offsets need owner confirmation: inactive/new groups should not be treated like failing consumers."
+        )
+
+    if material_risks and not summary.get("root_cause_hypotheses"):
+        gaps.append(
+            "No cross-system correlation evidence was available, so Beacon cannot yet distinguish Kafka-native pressure from downstream service or database pressure."
+        )
+
+    return gaps[:5]
+
+
 def architect_risk_item(risk):
     return {
         "severity": risk.get("severity"),
@@ -404,6 +468,19 @@ def architect_risk_item(risk):
         "remediation_command": risk.get("remediation_command"),
         "examples": risk.get("examples", [])[:3],
     }
+
+
+def build_investigate_now(material_risks):
+    investigate = []
+    for risk in material_risks:
+        if risk.get("key") in {
+            "schema_registry_global_compatibility",
+            "kafka.unbounded_retention",
+            "kafka.large_messages",
+        }:
+            investigate.append(architect_risk_item(risk))
+
+    return investigate[:5]
 
 
 def build_first_actions(summary, material_risks):

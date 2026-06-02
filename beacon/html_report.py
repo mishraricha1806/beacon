@@ -297,6 +297,33 @@ HTML_TEMPLATE = """
         </ul>
         {% endif %}
 
+        {% if readiness_summary.architect_assessment.investigate_now %}
+        <h3>Investigate Now</h3>
+        <ul>
+            {% for risk in readiness_summary.architect_assessment.investigate_now %}
+            <li><strong>{{ risk.severity }}</strong>: {{ risk.title }} ({{ risk.affected_count }} affected)</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if readiness_summary.architect_assessment.context_gaps %}
+        <h3>Context Gaps</h3>
+        <ul>
+            {% for gap in readiness_summary.architect_assessment.context_gaps %}
+            <li>{{ gap }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if readiness_summary.architect_assessment.accepted_assumptions %}
+        <h3>Accepted Assumptions</h3>
+        <ul>
+            {% for assumption in readiness_summary.architect_assessment.accepted_assumptions %}
+            <li>{{ assumption }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
         {% if readiness_summary.architect_assessment.deemphasized_signals %}
         <h3>De-emphasized Signals</h3>
         <ul>
@@ -395,12 +422,85 @@ HTML_TEMPLATE = """
         {% endfor %}
     </div>
     {% endif %}
-    {% else %}
+    {% elif not diagnostic_summary %}
     <div class="grid">
         <div class="card">
             <div class="metric">{{ score }}/100</div>
             <div class="label">Beacon Score</div>
         </div>
+    </div>
+    {% endif %}
+
+    {% if diagnostic_summary %}
+    <div class="card section">
+        <h2>Runtime Diagnosis</h2>
+        <p class="text-block"><strong>Status:</strong> {{ diagnostic_summary.diagnostic_status }}</p>
+        <p class="text-block"><strong>Summary:</strong> {{ diagnostic_summary.executive_summary }}</p>
+
+        {% if diagnostic_summary.primary_hypothesis %}
+        <p class="text-block">
+            <strong>Primary Hypothesis:</strong>
+            {{ diagnostic_summary.primary_hypothesis.confidence }} -
+            {{ diagnostic_summary.primary_hypothesis.title }}
+        </p>
+        <p class="text-block"><strong>Recommendation:</strong> {{ diagnostic_summary.primary_hypothesis.recommendation }}</p>
+        {% endif %}
+
+        {% if diagnostic_summary.first_actions %}
+        <h3>First Actions</h3>
+        <ul>
+            {% for action in diagnostic_summary.first_actions %}
+            <li>{{ action }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if diagnostic_summary.diagnostic_playbooks %}
+        <h3>Matched Diagnostic Playbooks</h3>
+        <table>
+            <tr>
+                <th>Module</th>
+                <th>Use Case</th>
+                <th>Confidence</th>
+                <th>Evidence Still Needed</th>
+            </tr>
+            {% for playbook in diagnostic_summary.diagnostic_playbooks %}
+            <tr>
+                <td>{{ playbook.module }}</td>
+                <td>{{ playbook.title }}</td>
+                <td>{{ playbook.confidence }}</td>
+                <td>{{ playbook.evidence_needed | join(', ') if playbook.evidence_needed else 'None' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
+
+        {% if diagnostic_summary.telemetry_gaps %}
+        <h3>Telemetry Gaps</h3>
+        <ul>
+            {% for gap in diagnostic_summary.telemetry_gaps %}
+            <li>{{ gap }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if diagnostic_summary.affected_domains %}
+        <h3>Affected Domains</h3>
+        <table>
+            <tr>
+                <th>Domain</th>
+                <th>Max Severity</th>
+                <th>Findings</th>
+            </tr>
+            {% for domain in diagnostic_summary.affected_domains %}
+            <tr>
+                <td>{{ domain.domain }}</td>
+                <td>{{ domain.max_severity }}</td>
+                <td>{{ domain.findings }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endif %}
     </div>
     {% endif %}
 
@@ -461,7 +561,13 @@ HTML_TEMPLATE = """
 """
 
 
-def generate_html_report(findings, score, open_report=True, readiness_summary=None):
+def generate_html_report(
+    findings,
+    score,
+    open_report=True,
+    readiness_summary=None,
+    diagnostic_summary=None,
+):
     os.makedirs("reports", exist_ok=True)
 
     template = Template(HTML_TEMPLATE)
@@ -481,7 +587,10 @@ def generate_html_report(findings, score, open_report=True, readiness_summary=No
         enriched.append(nf)
 
     html_content = template.render(
-        findings=enriched, score=score, readiness_summary=readiness_summary
+        findings=enriched,
+        score=score,
+        readiness_summary=readiness_summary,
+        diagnostic_summary=diagnostic_summary,
     )
 
     output_path = "reports/report.html"

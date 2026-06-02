@@ -5,6 +5,7 @@
 # - describe topic configs
 # - describe cluster metadata
 import logging
+import os
 import time
 
 import typer
@@ -24,6 +25,7 @@ from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.engine import metadata_registry as rules_registry
 from rich.table import Table
+from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.intelligence.context import load_intelligence_context
 from beacon.policy import load_policy, apply_policy_to_findings
 
@@ -68,7 +70,19 @@ def emit_readiness(
         intelligence_context=intelligence_context,
     )
 
-    print_readiness_summary(readiness_summary)
+    emit_readiness_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        readiness_summary=readiness_summary,
+    )
+
+
+def emit_readiness_report(findings, html, open_report, output, readiness_summary):
+    if output != "json":
+        print_readiness_summary(readiness_summary)
+
     print_report(
         findings,
         html=html,
@@ -80,7 +94,14 @@ def emit_readiness(
 
 def emit_diagnostics(findings, html=True, open_report=True, output="terminal"):
     findings = apply_runtime_policy(findings)
-    print_report(findings, html=html, open_report=open_report, output=output)
+    diagnostic_summary = build_diagnostic_summary(findings)
+    print_report(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        diagnostic_summary=diagnostic_summary,
+    )
 
 
 def collect_all_domain_findings(
@@ -226,8 +247,9 @@ def collect_domain_findings(domain, collect):
 
 
 def configure_logging():
+    level_name = os.environ.get("BEACON_LOG_LEVEL", "WARNING").upper()
     logging.basicConfig(
-        level=logging.INFO,
+        level=getattr(logging, level_name, logging.WARNING),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
 
@@ -303,10 +325,7 @@ def diagnose_snapshot(
     """Diagnose API, database, storage, flow, or Kubernetes runtime snapshots."""
 
     findings = analyze_runtime_snapshot_file(path)
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    print_report(findings, html=html, open_report=open_report, output=output)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
 
 
 @diagnose_app.command("prometheus")
@@ -320,10 +339,7 @@ def diagnose_prometheus(
     """Diagnose runtime signals from Prometheus."""
 
     findings = analyze_prometheus_config(path, timeout=timeout)
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    print_report(findings, html=html, open_report=open_report, output=output)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
 
 
 @diagnose_app.command("opentelemetry")
@@ -336,10 +352,7 @@ def diagnose_opentelemetry(
     """Diagnose runtime signals from OpenTelemetry exports."""
 
     findings = analyze_opentelemetry_file(path)
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    print_report(findings, html=html, open_report=open_report, output=output)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
 
 
 @diagnose_app.command("schema-registry")
@@ -355,10 +368,7 @@ def diagnose_schema_registry(
     """Diagnose Kafka Schema Registry readiness."""
 
     findings = analyze_schema_registry_config(path, timeout=timeout)
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    print_report(findings, html=html, open_report=open_report, output=output)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
 
 
 @diagnose_app.command("kafka")
@@ -403,10 +413,7 @@ def diagnose_kafka(
         churn_samples=churn_samples,
         churn_interval_seconds=churn_interval_seconds,
     )
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    print_report(findings, html=html, open_report=open_report, output=output)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
 
 
 @diagnose_app.command("kafka-acls")
@@ -445,10 +452,7 @@ def diagnose_flow(
     """Diagnose cross-system runtime flow degradation."""
 
     findings = analyze_flow_file(path)
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    print_report(findings, html=html, open_report=open_report, output=output)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
 
 
 @diagnose_app.command("kubernetes")
@@ -469,10 +473,7 @@ def diagnose_kubernetes(
         context=context,
         kubeconfig=kubeconfig,
     )
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    print_report(findings, html=html, open_report=open_report, output=output)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
 
 
 @diagnose_app.command("all")
@@ -614,9 +615,7 @@ def readiness_kafka(
         findings, environment=environment, intelligence_context=intelligence_context
     )
 
-    print_readiness_summary(readiness_summary)
-
-    print_report(
+    emit_readiness_report(
         findings,
         html=html,
         open_report=open_report,
@@ -810,9 +809,7 @@ def readiness_static(
         findings, environment=environment, intelligence_context=intelligence_context
     )
 
-    print_readiness_summary(readiness_summary)
-
-    print_report(
+    emit_readiness_report(
         findings,
         html=html,
         open_report=open_report,
@@ -854,9 +851,7 @@ def readiness_kubernetes(
         findings, environment=environment, intelligence_context=intelligence_context
     )
 
-    print_readiness_summary(readiness_summary)
-
-    print_report(
+    emit_readiness_report(
         findings,
         html=html,
         open_report=open_report,
@@ -892,9 +887,7 @@ def readiness_flow(
         findings, environment=environment, intelligence_context=intelligence_context
     )
 
-    print_readiness_summary(readiness_summary)
-
-    print_report(
+    emit_readiness_report(
         findings,
         html=html,
         open_report=open_report,
@@ -930,9 +923,7 @@ def readiness_snapshot(
         findings, environment=environment, intelligence_context=intelligence_context
     )
 
-    print_readiness_summary(readiness_summary)
-
-    print_report(
+    emit_readiness_report(
         findings,
         html=html,
         open_report=open_report,
@@ -969,9 +960,7 @@ def readiness_prometheus(
         findings, environment=environment, intelligence_context=intelligence_context
     )
 
-    print_readiness_summary(readiness_summary)
-
-    print_report(
+    emit_readiness_report(
         findings,
         html=html,
         open_report=open_report,
@@ -1007,9 +996,7 @@ def readiness_opentelemetry(
         findings, environment=environment, intelligence_context=intelligence_context
     )
 
-    print_readiness_summary(readiness_summary)
-
-    print_report(
+    emit_readiness_report(
         findings,
         html=html,
         open_report=open_report,
@@ -1048,9 +1035,7 @@ def readiness_schema_registry(
         findings, environment=environment, intelligence_context=intelligence_context
     )
 
-    print_readiness_summary(readiness_summary)
-
-    print_report(
+    emit_readiness_report(
         findings,
         html=html,
         open_report=open_report,

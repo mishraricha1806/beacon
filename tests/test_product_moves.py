@@ -203,6 +203,59 @@ def test_architect_assessment_separates_material_and_deemphasized_risks():
     assert assessment["first_actions"]
 
 
+def test_architect_assessment_surfaces_context_gaps_and_assumptions():
+    findings = [
+        {
+            "rule_id": "kafka.cluster.broker_count.low",
+            "domain": "kafka",
+            "category": "resiliency",
+            "severity": "HIGH",
+            "title": "Kafka cluster has only 1 broker(s)",
+            "impact": "Low broker count.",
+            "recommendation": "Use more brokers.",
+            "file": "runtime-kafka",
+            "evidence": {"cluster": "cirrus-kafka-nonprod-gcp"},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.topic.partitions.low",
+            "domain": "kafka",
+            "category": "scalability",
+            "severity": "HIGH",
+            "title": "Kafka topic 'claims.retry' has low partition count",
+            "impact": "Low partitions can limit parallelism.",
+            "recommendation": "Use more partitions.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "claims.retry"},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.consumer_group.offsets.missing",
+            "domain": "kafka",
+            "category": "runtime_stability",
+            "severity": "LOW",
+            "title": "No committed offsets found for consumer group 'claims-service'",
+            "impact": "Beacon could not calculate lag.",
+            "recommendation": "Verify consumer group is active.",
+            "file": "runtime-kafka",
+            "evidence": {"consumer_group": "claims-service"},
+            "tags": [],
+        },
+    ]
+
+    summary = calculate_readiness(findings)
+    assessment = summary["architect_assessment"]
+
+    assert any(
+        "No organization intelligence context" in gap
+        for gap in assessment["context_gaps"]
+    )
+    assert any("single-broker" in gap for gap in assessment["context_gaps"])
+    assert any("throughput" in gap for gap in assessment["context_gaps"])
+    assert any("Missing consumer offsets" in gap for gap in assessment["context_gaps"])
+    assert assessment["accepted_assumptions"]
+
+
 def test_readiness_top_reasons_follow_severity_order():
     findings = [
         {
@@ -478,8 +531,7 @@ def test_readiness_all_emits_readiness_summary(monkeypatch):
         output="json",
     )
 
-    assert captured["summary"]["production_decision"] == "NOT READY"
-    assert captured["readiness_summary"] == captured["summary"]
+    assert captured["readiness_summary"]["production_decision"] == "NOT READY"
     assert captured["findings"][0]["domain"] == "api"
 
 
@@ -525,6 +577,262 @@ def test_diagnose_all_emits_diagnostic_report_without_readiness_summary(monkeypa
 
     assert captured["findings"][0]["domain"] == "database"
     assert "readiness_summary" not in captured
+    assert captured["diagnostic_summary"]["diagnostic_status"] in {
+        "ROOT_CAUSE_CANDIDATES_FOUND",
+        "DEGRADATION_SIGNALS_FOUND",
+    }
+    assert captured["diagnostic_summary"]["first_actions"]
+
+
+def test_module2_diagnostic_summary_ranks_root_cause_and_gaps():
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    findings = [
+        {
+            "rule_id": "flow.runtime.downstream_db_bottleneck",
+            "domain": "flow",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Flow indicates downstream DB bottleneck",
+            "impact": "Consumers are slowing down behind database calls.",
+            "recommendation": "Investigate DB latency before scaling Kafka.",
+            "file": "runtime.yaml",
+            "evidence": {"flow": "api-kafka-db"},
+            "tags": [],
+        },
+        {
+            "rule_id": "database.runtime.connection_pool.exhaustion",
+            "domain": "database",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Database connection pool exhausted",
+            "impact": "Requests queue behind database connections.",
+            "recommendation": "Review DB pool sizing and slow queries.",
+            "file": "runtime.yaml",
+            "evidence": {"pool_usage_percent": 98},
+            "tags": [],
+        },
+    ]
+
+    summary = build_diagnostic_summary(findings)
+
+    assert summary["diagnostic_status"] == "ROOT_CAUSE_CANDIDATES_FOUND"
+    assert (
+        summary["primary_hypothesis"]["correlation_id"]
+        == "correlation.root_cause.downstream_database_bottleneck"
+    )
+    assert summary["affected_domains"][0]["max_severity"] == "HIGH"
+    assert summary["first_actions"][0].startswith("Investigate database")
+    assert summary["evidence_summary"]
+    assert any(
+        playbook["id"] == "module2.kafka.consumer_lag"
+        for playbook in summary["diagnostic_playbooks"]
+    )
+    assert any(
+        playbook["id"] == "module3.flow.bottleneck"
+        for playbook in summary["diagnostic_playbooks"]
+    )
+
+
+def test_module2_diagnostic_summary_reports_telemetry_gap_for_kafka_lag_only():
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    summary = build_diagnostic_summary(
+        [
+            {
+                "rule_id": "kafka.consumer_group.lag.high",
+                "domain": "kafka",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "Kafka consumer lag is high",
+                "impact": "Consumers are behind.",
+                "recommendation": "Investigate consumers.",
+                "file": "runtime-kafka",
+                "evidence": {"consumer_group": "claims-service", "lag": 10000},
+                "tags": [],
+            }
+        ]
+    )
+
+    assert any("Kafka lag needs downstream" in gap for gap in summary["telemetry_gaps"])
+    assert summary["diagnostic_playbooks"][0]["id"] == "module2.kafka.consumer_lag"
+    assert summary["diagnostic_playbooks"][0]["confidence"] == "MEDIUM"
+    assert (
+        "downstream database/API latency"
+        in summary["diagnostic_playbooks"][0]["evidence_needed"]
+    )
+
+
+def test_diagnose_terminal_uses_runtime_diagnosis_language(capsys):
+    from beacon.reporter import print_report
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    findings = [
+        {
+            "rule_id": "database.runtime.latency.high",
+            "domain": "database",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Database latency high",
+            "impact": "Runtime latency is degraded.",
+            "recommendation": "Investigate slow queries.",
+            "file": "runtime.yaml",
+            "evidence": {},
+            "tags": [],
+        }
+    ]
+
+    print_report(
+        findings,
+        html=False,
+        open_report=False,
+        output="terminal",
+        diagnostic_summary=build_diagnostic_summary(findings),
+    )
+
+    output = capsys.readouterr().out
+
+    assert "Beacon Runtime Diagnosis" in output
+    assert "Matched Diagnostic Playbooks" in output
+    assert "Production Readiness Score" not in output
+
+
+def test_module2_diagnostic_summary_maps_scale_and_flow_use_cases():
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    findings = [
+        {
+            "rule_id": "kafka.runtime.disk_usage.high",
+            "domain": "kafka",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Kafka disk usage high",
+            "impact": "Broker disk is under pressure.",
+            "recommendation": "Review retention and growth drivers.",
+            "file": "runtime.yaml",
+            "evidence": {"broker_disk_usage_percent": 86},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.runtime.message_size.increased_under_pressure",
+            "domain": "kafka",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Kafka message size increased under disk pressure",
+            "impact": "Payload growth can drive disk pressure.",
+            "recommendation": "Review producer payload changes.",
+            "file": "runtime.yaml",
+            "evidence": {"average_message_size_growth_percent": 45},
+            "tags": [],
+        },
+        {
+            "rule_id": "flow.runtime.cascading_latency",
+            "domain": "flow",
+            "category": "runtime_stability",
+            "severity": "CRITICAL",
+            "title": "Flow shows cascading latency",
+            "impact": "Retries and lag are increasing together.",
+            "recommendation": "Reduce retry amplification.",
+            "file": "runtime.yaml",
+            "evidence": {},
+            "tags": [],
+        },
+    ]
+
+    summary = build_diagnostic_summary(findings)
+    playbook_ids = {playbook["id"] for playbook in summary["diagnostic_playbooks"]}
+
+    assert "module2.kafka.scale_or_optimize" in playbook_ids
+    assert "module3.flow.cascading_latency" in playbook_ids
+
+
+def test_module2_diagnostic_summary_maps_additional_operational_use_cases():
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    findings = [
+        {
+            "rule_id": "kafka.runtime.controller_churn.high",
+            "domain": "kafka",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Kafka controller churn high",
+            "impact": "Controller churn can destabilize metadata operations.",
+            "recommendation": "Inspect broker churn and quorum health.",
+            "file": "runtime.yaml",
+            "evidence": {"controller_change_count_15m": 4},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.runtime.replay.time_exceeds_target",
+            "domain": "kafka",
+            "category": "recovery_readiness",
+            "severity": "HIGH",
+            "title": "Kafka replay time exceeds target",
+            "impact": "Backlog recovery may miss the recovery objective.",
+            "recommendation": "Increase drain capacity or reduce downstream bottlenecks.",
+            "file": "runtime.yaml",
+            "evidence": {"estimated_replay_hours": 8, "replay_target_hours": 2},
+            "tags": [],
+        },
+        {
+            "rule_id": "schema_registry.compatibility.global_unsafe",
+            "domain": "kafka",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Schema Registry global compatibility unsafe",
+            "impact": "Unsafe schema evolution can break consumers.",
+            "recommendation": "Set a safe compatibility mode.",
+            "file": "schema-registry.yaml",
+            "evidence": {"compatibility": "NONE"},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.runtime.producer_throttle.high",
+            "domain": "kafka",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Kafka producer throttling high",
+            "impact": "Producer writes may be slowed by quotas or broker pressure.",
+            "recommendation": "Review producer quotas and broker load.",
+            "file": "runtime.yaml",
+            "evidence": {"produce_throttle_time_ms": 250},
+            "tags": [],
+        },
+        {
+            "rule_id": "k8s.runtime.pod.crash_loop",
+            "domain": "kubernetes",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Kubernetes pod is crash looping",
+            "impact": "Application capacity is unstable.",
+            "recommendation": "Inspect pod events and recent deployment changes.",
+            "file": "runtime.yaml",
+            "evidence": {"pod": "claims-consumer"},
+            "tags": [],
+        },
+        {
+            "rule_id": "storage.runtime.iops_saturation.high",
+            "domain": "storage",
+            "category": "storage_sustainability",
+            "severity": "HIGH",
+            "title": "Storage IOPS saturation high",
+            "impact": "I/O saturation can slow applications.",
+            "recommendation": "Create I/O headroom and inspect workload growth.",
+            "file": "runtime.yaml",
+            "evidence": {"iops_utilization_percent": 95},
+            "tags": [],
+        },
+    ]
+
+    summary = build_diagnostic_summary(findings)
+    playbook_ids = {playbook["id"] for playbook in summary["diagnostic_playbooks"]}
+
+    assert "module2.kafka.cluster_health" in playbook_ids
+    assert "module2.kafka.replay_survivability" in playbook_ids
+    assert "module2.kafka.schema_poison_message" in playbook_ids
+    assert "module2.kafka.auth_quota_throttling" in playbook_ids
+    assert "module2.kubernetes.workload_instability" in playbook_ids
+    assert "module2.platform.capacity_pressure" in playbook_ids
 
 
 def test_live_kafka_topics_use_normalized_evaluator(monkeypatch):
