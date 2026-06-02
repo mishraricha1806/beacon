@@ -1,0 +1,7 @@
+rule_id: kafka.history.producer_rate.increased
+severity_default: HIGH
+title: Kafka producer rate increased across history
+description: Producer throughput increased significantly across historical Kafka snapshots.
+category: runtime_stability
+recommendation: Compare producer deployments, payload changes, consumer drain rate, and broker capacity before scaling broadly.
+tags: [kafka, history, producer, throughput]

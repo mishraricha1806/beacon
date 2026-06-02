@@ -38,6 +38,7 @@ def analyze_kafka_history(data, source="kafka-history"):
     last = ordered[-1]
 
     findings.extend(check_numeric_growth(first, last, source))
+    findings.extend(check_workload_and_deployment_trends(first, last, ordered, source))
     findings.extend(check_counter_accumulation(ordered, source))
     findings.extend(check_member_churn(ordered, source))
 
@@ -53,6 +54,59 @@ def analyze_kafka_history(data, source="kafka-history"):
                 confidence="HIGH",
             )
         )
+
+    return findings
+
+
+def check_workload_and_deployment_trends(first, last, snapshots, source):
+    findings = []
+    first_rate = numeric(first.get("producer_rate_messages_per_sec"))
+    latest_rate = numeric(last.get("producer_rate_messages_per_sec"))
+    first_lag = numeric(first.get("total_consumer_lag"))
+    latest_lag = numeric(last.get("total_consumer_lag"))
+
+    if first_rate is not None and latest_rate is not None:
+        delta = latest_rate - first_rate
+        growth_percent = percent_growth(first_rate, latest_rate)
+        if delta >= 1000 or growth_percent >= 50:
+            findings.append(
+                finding(
+                    "HIGH",
+                    "Kafka producer rate increased across history",
+                    "Producer throughput increased significantly across the sampled window and may be contributing to lag, broker pressure, or storage growth.",
+                    "Validate whether the producer rate change was expected. Compare producer deployments, payload changes, consumer drain rate, and broker capacity.",
+                    rule_id="kafka.history.producer_rate.increased",
+                    evidence={
+                        "first_producer_rate_messages_per_sec": first_rate,
+                        "latest_producer_rate_messages_per_sec": latest_rate,
+                        "delta_messages_per_sec": delta,
+                        "growth_percent": growth_percent,
+                        "source": source,
+                    },
+                    confidence="HIGH",
+                )
+            )
+
+    if recent_deployment_seen(snapshots) and first_lag is not None and latest_lag:
+        lag_delta = latest_lag - first_lag
+        if lag_delta >= 50000 and latest_lag >= 100000:
+            findings.append(
+                finding(
+                    "HIGH",
+                    "Kafka lag growth is correlated with deployment history",
+                    "Consumer lag increased after or during a window with recent deployment signals.",
+                    "Review producer and consumer deployment diffs, rollout timing, feature flags, retry behavior, and downstream dependency changes before scaling Kafka.",
+                    rule_id="kafka.history.deployment_correlated_lag",
+                    evidence={
+                        "first_total_consumer_lag": first_lag,
+                        "latest_total_consumer_lag": latest_lag,
+                        "lag_delta": lag_delta,
+                        "deployment_seen": True,
+                        "source": source,
+                    },
+                    confidence="MEDIUM",
+                )
+            )
 
     return findings
 
@@ -224,3 +278,24 @@ def numeric(value):
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def percent_growth(first, latest):
+    if first is None or latest is None:
+        return None
+    if first <= 0:
+        return 100 if latest > 0 else 0
+    return round(((latest - first) / first) * 100, 2)
+
+
+def recent_deployment_seen(snapshots):
+    for snapshot in snapshots:
+        if snapshot.get("recent_deployment") or snapshot.get("deployment_recent"):
+            return True
+        deployments = snapshot.get("deployments", []) or []
+        if any(
+            deployment.get("recent") or deployment.get("changed")
+            for deployment in deployments
+        ):
+            return True
+    return False

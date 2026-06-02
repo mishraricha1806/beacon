@@ -49,6 +49,8 @@ def test_kafka_scenario_pack_lag_rebalance_history():
     ids = rule_ids(findings)
 
     assert "kafka.history.consumer_lag.growing" in ids
+    assert "kafka.history.producer_rate.increased" in ids
+    assert "kafka.history.deployment_correlated_lag" in ids
     assert "kafka.history.controller_churn.high" in ids
     assert "kafka.history.rebalance_churn.high" in ids
     assert "kafka.history.consumer_group.member_churn" in ids

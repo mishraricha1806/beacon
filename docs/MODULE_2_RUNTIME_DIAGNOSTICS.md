@@ -34,10 +34,13 @@ Beacon analyzes:
 
 - total lag
 - lag by group/topic/partition where available
+- lag trend across history snapshots
 - hot partition symptoms
 - committed offset status
 - consumer group state
 - rebalance and member churn signals
+- producer rate trend
+- deployment timing signals
 - downstream API/database evidence when provided
 - broker health evidence when provided
 
@@ -69,6 +72,8 @@ Beacon should distinguish:
 - consumer-side processing bottlenecks
 - downstream API/database latency
 - hot partitions where consumer scaling alone is insufficient
+- producer-rate increases across the incident window
+- deployment-correlated lag growth
 
 ### Are we seeing hot partitions?
 

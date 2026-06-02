@@ -920,6 +920,57 @@ def test_module2_diagnostic_summary_maps_additional_operational_use_cases():
     assert "module2.platform.capacity_pressure" in playbook_ids
 
 
+def test_module2_diagnostic_summary_maps_kafka_history_trend_use_cases():
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    summary = build_diagnostic_summary(
+        [
+            {
+                "rule_id": "kafka.history.consumer_lag.growing",
+                "domain": "kafka",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "Kafka consumer lag is increasing across history",
+                "impact": "Consumers are not keeping up.",
+                "recommendation": "Investigate consumers and downstream systems.",
+                "file": "history.yaml",
+                "evidence": {"delta": 120000},
+                "tags": [],
+            },
+            {
+                "rule_id": "kafka.history.producer_rate.increased",
+                "domain": "kafka",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "Kafka producer rate increased across history",
+                "impact": "Producer throughput increased.",
+                "recommendation": "Review producer changes.",
+                "file": "history.yaml",
+                "evidence": {"growth_percent": 80},
+                "tags": [],
+            },
+            {
+                "rule_id": "kafka.history.deployment_correlated_lag",
+                "domain": "kafka",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "Kafka lag growth is correlated with deployment history",
+                "impact": "Lag increased after deployment signals.",
+                "recommendation": "Review rollout and application changes.",
+                "file": "history.yaml",
+                "evidence": {"deployment_seen": True},
+                "tags": [],
+            },
+        ]
+    )
+
+    playbook_ids = {playbook["id"] for playbook in summary["diagnostic_playbooks"]}
+
+    assert "module2.kafka.consumer_lag" in playbook_ids
+    assert "module2.kafka.scale_or_optimize" in playbook_ids
+    assert "module3.flow.deployment_triggered" in playbook_ids
+
+
 def test_live_kafka_topics_use_normalized_evaluator(monkeypatch):
     from beacon import kafka_runtime_connector
 

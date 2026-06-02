@@ -1,0 +1,7 @@
+rule_id: kafka.history.deployment_correlated_lag
+severity_default: HIGH
+title: Kafka lag growth correlated with deployment history
+description: Consumer lag increased during a window that includes deployment signals.
+category: runtime_stability
+recommendation: Review producer and consumer deployment diffs, rollout timing, feature flags, retry behavior, and downstream dependency changes.
+tags: [kafka, history, deployment, lag]

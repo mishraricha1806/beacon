@@ -10,6 +10,7 @@ if str(ROOT) not in sys.path:
 
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.html_report import generate_html_report
+from beacon.kafka_history import analyze_kafka_history_file
 
 
 def fail(message):
@@ -166,6 +167,33 @@ def check_operational_playbook_coverage():
     print("operational playbook coverage ok")
 
 
+def check_kafka_history_trend_contract():
+    findings = analyze_kafka_history_file("examples/supported/kafka/history.yaml")
+    rule_ids = {finding["rule_id"] for finding in findings}
+    expected = {
+        "kafka.history.consumer_lag.growing",
+        "kafka.history.producer_rate.increased",
+        "kafka.history.deployment_correlated_lag",
+    }
+    require(
+        expected <= rule_ids,
+        f"Kafka history trend contract missing findings: {sorted(expected - rule_ids)}",
+    )
+
+    summary = build_diagnostic_summary(findings)
+    playbooks = playbook_ids(summary)
+    require(
+        "module2.kafka.consumer_lag" in playbooks,
+        "Kafka history lag trend did not map to consumer lag playbook",
+    )
+    require(
+        "module2.kafka.scale_or_optimize" in playbooks,
+        "Kafka producer-rate trend did not map to scale-vs-optimize playbook",
+    )
+
+    print("kafka history trend contract ok")
+
+
 def check_cli_json_contract():
     command = [
         sys.executable,
@@ -247,6 +275,7 @@ def main():
         check_flow_db_ranks_database_bottleneck()
         check_retry_cascade_beats_generic_storage()
         check_operational_playbook_coverage()
+        check_kafka_history_trend_contract()
         check_cli_json_contract()
         check_html_contract()
     except AssertionError as error:
