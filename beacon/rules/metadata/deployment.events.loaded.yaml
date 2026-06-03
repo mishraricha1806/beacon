@@ -1,0 +1,7 @@
+rule_id: deployment.events.loaded
+severity_default: INFO
+title: Deployment events loaded
+description: Beacon loaded deployment events for read-only runtime correlation.
+category: runtime_stability
+recommendation: Correlate deployment events with runtime degradation before choosing rollback, scaling, or deeper investigation.
+tags: [deployment, runtime, correlation]

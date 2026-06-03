@@ -331,13 +331,14 @@ Beacon queries Schema Registry through read-only HTTP APIs and checks compatibil
 python3 -m beacon.cli readiness all \
   --static-path ./examples/supported \
   --snapshot ./examples/supported/runtime/all-runtime.yaml \
+  --deployment-events ./examples/supported/deployments/events.yaml \
   --opentelemetry ./examples/supported/opentelemetry/checkout-otel.yaml \
   --schema-registry ./examples/supported/kafka/schema-registry.yaml \
   --no-html \
   --no-open-report
 ```
 
-`readiness all` combines every provided domain input into one production-readiness decision. Static inputs cover Terraform, Helm-rendered Kubernetes, Kubernetes YAML, Kafka config, CI/CD, cloud inventory, and topology. Runtime inputs cover API, database, storage, flow, Kubernetes, Kafka snapshots, Prometheus-derived signals, OpenTelemetry-derived signals, Schema Registry metadata, and optional read-only live Kafka/Kubernetes collection.
+`readiness all` combines every provided domain input into one production-readiness decision. Static inputs cover Terraform, Helm-rendered Kubernetes, Kubernetes YAML, Kafka config, CI/CD, cloud inventory, and topology. Runtime inputs cover API, database, storage, flow, Kubernetes, Kafka snapshots, deployment events, Prometheus-derived signals, OpenTelemetry-derived signals, Schema Registry metadata, and optional read-only live Kafka/Kubernetes collection.
 
 ---
 
@@ -346,6 +347,8 @@ python3 -m beacon.cli readiness all \
 ```bash
 python3 -m beacon.cli diagnose all \
   --snapshot ./examples/supported/runtime/all-runtime.yaml \
+  --kafka-history ./examples/supported/kafka/history.yaml \
+  --deployment-events ./examples/supported/deployments/events.yaml \
   --opentelemetry ./examples/supported/opentelemetry/checkout-otel.yaml \
   --schema-registry ./examples/supported/kafka/schema-registry.yaml \
   --no-html \

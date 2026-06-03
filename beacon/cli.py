@@ -22,6 +22,7 @@ from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.schema_registry_connector import analyze_schema_registry_config
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
+from beacon.deployment_events import analyze_deployment_events_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.engine import metadata_registry as rules_registry
 from rich.table import Table
@@ -113,6 +114,7 @@ def collect_all_domain_findings(
     schema_registry_path=None,
     kafka_acl_path=None,
     kafka_history_path=None,
+    deployment_events_path=None,
     prometheus_timeout=5,
     schema_registry_timeout=5,
     kafka_bootstrap_server=None,
@@ -226,6 +228,16 @@ def collect_all_domain_findings(
                     namespace=kubernetes_namespace,
                     context=kubernetes_context,
                     kubeconfig=kubernetes_kubeconfig,
+                ),
+            )
+        )
+
+    if deployment_events_path:
+        findings.extend(
+            collect_domain_findings(
+                "deployment_events",
+                lambda: analyze_deployment_events_file(
+                    deployment_events_path, existing_findings=findings
                 ),
             )
         )
@@ -442,6 +454,19 @@ def diagnose_kafka_history(
     emit_diagnostics(findings, html=html, open_report=open_report, output=output)
 
 
+@diagnose_app.command("deployment-events")
+def diagnose_deployment_events(
+    path: str = typer.Argument(..., help="Path to deployment events YAML or JSON."),
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Inspect deployment events for runtime correlation."""
+
+    findings = analyze_deployment_events_file(path)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
+
+
 @diagnose_app.command("flow")
 def diagnose_flow(
     path: str = typer.Argument(..., help="Path to a flow runtime snapshot YAML."),
@@ -504,6 +529,9 @@ def diagnose_all(
     kafka_history_path: str = typer.Option(
         None, "--kafka-history", help="Kafka runtime history YAML or JSON path."
     ),
+    deployment_events_path: str = typer.Option(
+        None, "--deployment-events", help="Deployment events YAML or JSON path."
+    ),
     prometheus_timeout: int = typer.Option(
         5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
     ),
@@ -544,6 +572,7 @@ def diagnose_all(
         schema_registry_path=schema_registry_path,
         kafka_acl_path=kafka_acl_path,
         kafka_history_path=kafka_history_path,
+        deployment_events_path=deployment_events_path,
         prometheus_timeout=prometheus_timeout,
         schema_registry_timeout=schema_registry_timeout,
         kafka_bootstrap_server=kafka_bootstrap_server,
@@ -706,6 +735,9 @@ def readiness_all(
     kafka_history_path: str = typer.Option(
         None, "--kafka-history", help="Kafka runtime history YAML or JSON path."
     ),
+    deployment_events_path: str = typer.Option(
+        None, "--deployment-events", help="Deployment events YAML or JSON path."
+    ),
     prometheus_timeout: int = typer.Option(
         5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
     ),
@@ -754,6 +786,7 @@ def readiness_all(
         schema_registry_path=schema_registry_path,
         kafka_acl_path=kafka_acl_path,
         kafka_history_path=kafka_history_path,
+        deployment_events_path=deployment_events_path,
         prometheus_timeout=prometheus_timeout,
         schema_registry_timeout=schema_registry_timeout,
         kafka_bootstrap_server=kafka_bootstrap_server,

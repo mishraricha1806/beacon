@@ -12,6 +12,7 @@ section "Module 1 all-domain readiness bundle"
 python3 -m beacon.cli readiness all \
   --static-path examples/supported \
   --snapshot examples/supported/runtime/all-runtime.yaml \
+  --deployment-events examples/supported/deployments/events.yaml \
   --opentelemetry examples/supported/opentelemetry/checkout-otel.yaml \
   --schema-registry examples/supported/kafka/schema-registry.yaml \
   --context examples/supported/intelligence/context.yaml \
@@ -46,6 +47,14 @@ python3 -m beacon.cli readiness kafka-acls examples/supported/kafka/acls.yaml \
 
 section "Kafka history trend readiness"
 python3 -m beacon.cli readiness kafka-history examples/supported/kafka/history.yaml \
+  --no-html \
+  --no-open-report
+
+section "Deployment event diagnostics"
+python3 -m beacon.cli diagnose all \
+  --snapshot examples/supported/runtime/all-runtime.yaml \
+  --kafka-history examples/supported/kafka/history.yaml \
+  --deployment-events examples/supported/deployments/events.yaml \
   --no-html \
   --no-open-report
 

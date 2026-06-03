@@ -1,0 +1,20 @@
+deployment_events:
+  - service: checkout-consumer
+    environment: staging
+    version: v1.42.0
+    deployed_at: "2026-06-03T10:15:00Z"
+    commit: abc123
+    namespace: payments
+    changed_components:
+      - consumer
+      - database-client
+      - retry-policy
+  - service: checkout-api
+    environment: staging
+    version: v1.42.1
+    deployed_at: "2026-06-03T10:20:00Z"
+    commit: def456
+    namespace: payments
+    changed_components:
+      - api
+      - timeout-policy

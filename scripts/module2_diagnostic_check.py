@@ -9,6 +9,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+from beacon.deployment_events import analyze_deployment_events_file
 from beacon.html_report import generate_html_report
 from beacon.kafka_history import analyze_kafka_history_file
 import beacon.prometheus_connector as prometheus_connector
@@ -195,6 +196,43 @@ def check_kafka_history_trend_contract():
     print("kafka history trend contract ok")
 
 
+def check_deployment_event_correlation_contract():
+    runtime_findings = [
+        finding(
+            "kafka.consumer_group.lag.high",
+            "kafka",
+            evidence={"consumer_group": "checkout-consumer", "lag": 10000},
+        )
+    ]
+    deployment_findings = analyze_deployment_events_file(
+        ROOT / "examples" / "supported" / "deployments" / "events.yaml",
+        existing_findings=runtime_findings,
+    )
+    rule_ids = {finding["rule_id"] for finding in deployment_findings}
+
+    require(
+        "deployment.events.loaded" in rule_ids,
+        "Deployment event input was not loaded",
+    )
+    require(
+        "deployment.runtime.degradation_correlated" in rule_ids,
+        "Deployment event input did not correlate with runtime degradation",
+    )
+
+    summary = build_diagnostic_summary(runtime_findings + deployment_findings)
+    require(
+        summary["primary_hypothesis"]["correlation_id"]
+        == "correlation.root_cause.deployment_regression",
+        "Deployment correlation did not rank deployment regression first",
+    )
+    require(
+        "module3.flow.deployment_triggered" in playbook_ids(summary),
+        "Deployment correlation did not map to deployment-triggered playbook",
+    )
+
+    print("deployment event correlation contract ok")
+
+
 def check_prometheus_kafka_jmx_contract():
     values = {
         "log_size_bytes": 88,
@@ -359,6 +397,7 @@ def main():
         check_retry_cascade_beats_generic_storage()
         check_operational_playbook_coverage()
         check_kafka_history_trend_contract()
+        check_deployment_event_correlation_contract()
         check_prometheus_kafka_jmx_contract()
         check_cli_json_contract()
         check_html_contract()

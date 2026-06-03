@@ -49,6 +49,13 @@ python3 -m beacon.cli diagnose flow examples/supported/runtime/flow-runtime.yaml
 python3 -m beacon.cli diagnose kafka-history examples/supported/kafka/history.yaml \
   --no-html \
   --no-open-report
+
+python3 -m beacon.cli diagnose all \
+  --snapshot examples/supported/runtime/all-runtime.yaml \
+  --kafka-history examples/supported/kafka/history.yaml \
+  --deployment-events examples/supported/deployments/events.yaml \
+  --no-html \
+  --no-open-report
 ```
 
 ## Current Scope
@@ -62,12 +69,15 @@ Supported diagnostic inputs:
 - Prometheus collector config
 - OpenTelemetry exports
 - Schema Registry config
+- Deployment events YAML/JSON
 
 The first stable Module 2 behavior is deterministic root-cause ranking. For example:
 
 - Flow + database pressure can rank downstream database bottleneck.
 - API timeout + retry + flow cascade can rank retry cascade.
 - Kafka lag alone does not claim database bottleneck; Beacon reports telemetry gaps.
+- Deployment events plus runtime degradation can rank deployment regression and
+  trigger the Module 3 deployment playbook.
 
 ## Diagnostic Playbooks
 
@@ -116,6 +126,8 @@ The gate verifies:
 - Retry cascade outranks generic storage pressure when timeout/retry evidence is present.
 - Operational playbooks are emitted for Kafka health, replay, schema, auth/quota,
   Kubernetes instability, and platform capacity pressure.
+- Deployment event correlation maps runtime degradation to the deployment-triggered
+  playbook.
 - `diagnose` JSON output is valid and includes `diagnostic_summary`.
 - HTML output renders Runtime Diagnosis and matched diagnostic playbooks.
 

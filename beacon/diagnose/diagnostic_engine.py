@@ -297,6 +297,7 @@ DIAGNOSTIC_USE_CASES = [
         "rule_ids": {
             "flow.runtime.deployment_correlated_degradation",
             "api.runtime.deployment_correlated_degradation",
+            "deployment.runtime.degradation_correlated",
             "kafka.history.deployment_correlated_lag",
             "k8s.runtime.deployment.unavailable",
         },

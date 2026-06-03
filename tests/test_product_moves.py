@@ -443,6 +443,14 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
         lambda **kwargs: calls.append(("kubernetes", kwargs))
         or [finding("kubernetes.rule", "kubernetes")],
     )
+    monkeypatch.setattr(
+        cli,
+        "analyze_deployment_events_file",
+        lambda path, existing_findings=None: calls.append(
+            ("deployment-events", path, [item["rule_id"] for item in existing_findings])
+        )
+        or [finding("deployment.events.loaded", "deployment")],
+    )
 
     findings = cli.collect_all_domain_findings(
         static_path="infra",
@@ -460,6 +468,7 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
         kafka_churn_interval_seconds=0.25,
         kubernetes_live=True,
         kubernetes_namespace="payments",
+        deployment_events_path="deployments.yaml",
     )
 
     rule_ids = {item["rule_id"] for item in findings}
@@ -475,6 +484,7 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
         "kafka.history.rule",
         "kafka.rule",
         "kubernetes.rule",
+        "deployment.events.loaded",
     }
     assert ("prometheus", "prom.yaml", 2) in calls
     assert ("schema-registry", "schema-registry.yaml", 3) in calls
@@ -484,6 +494,10 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
     assert kafka_call[1]["churn_samples"] == 3
     assert kafka_call[1]["churn_interval_seconds"] == 0.25
     assert any(call[0] == "kubernetes" for call in calls)
+    deployment_call = next(call for call in calls if call[0] == "deployment-events")
+    assert deployment_call[1] == "deployments.yaml"
+    assert "kafka.rule" in deployment_call[2]
+    assert "kubernetes.rule" in deployment_call[2]
 
 
 def test_readiness_all_emits_readiness_summary(monkeypatch):

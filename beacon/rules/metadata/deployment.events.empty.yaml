@@ -1,0 +1,7 @@
+rule_id: deployment.events.empty
+severity_default: LOW
+title: Deployment events input empty
+description: Deployment event input did not contain events Beacon can correlate.
+category: runtime_stability
+recommendation: Provide deployment_events with service, environment, deployed_at, commit, namespace, and changed components.
+tags: [deployment, runtime, correlation]

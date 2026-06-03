@@ -1,0 +1,7 @@
+rule_id: deployment.runtime.degradation_correlated
+severity_default: HIGH
+title: Runtime degradation correlated with deployment events
+description: Deployment events are present alongside runtime degradation signals.
+category: runtime_stability
+recommendation: Review deployment diff, rollout health, feature flags, changed components, and rollback safety before broad infrastructure scaling.
+tags: [deployment, runtime, correlation, rollback]

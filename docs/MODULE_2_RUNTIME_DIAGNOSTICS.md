@@ -118,6 +118,7 @@ Beacon may inspect:
 - Prometheus/OpenTelemetry-derived metrics
 - Schema Registry metadata and compatibility settings
 - Kafka JMX metrics exposed through Prometheus
+- deployment event timelines provided as YAML or JSON
 
 ## CLI Contract
 
@@ -155,6 +156,17 @@ profiles:
 python3 -m beacon.cli diagnose kafka \
   --access-config examples/supported/kafka/access-profiles.yaml \
   --consumer-group checkout-consumer
+```
+
+All-domain diagnosis can correlate deployment events with runtime findings:
+
+```bash
+python3 -m beacon.cli diagnose all \
+  --snapshot examples/supported/runtime/all-runtime.yaml \
+  --kafka-history examples/supported/kafka/history.yaml \
+  --deployment-events examples/supported/deployments/events.yaml \
+  --no-html \
+  --no-open-report
 ```
 
 ## Output Contract
@@ -207,6 +219,8 @@ The gate verifies:
 - Retry cascade outranks generic storage pressure when timeout/retry evidence is present.
 - Operational playbooks are emitted for Kafka health, replay, schema, auth/quota,
   Kubernetes instability, and platform capacity pressure.
+- Deployment events correlate with runtime degradation and emit the
+  deployment-triggered playbook.
 - Prometheus Kafka JMX mappings produce broker health, ISR, controller, queue,
   network, throttling, schema, and replay findings.
 - `diagnose` JSON output is valid and includes `diagnostic_summary`.
@@ -231,9 +245,9 @@ deterministic runtime diagnosis.
 
 ## Next Engineering Priorities
 
-1. Improve time-window trend modeling for lag, rebalance churn, disk growth,
+1. Deepen deployment attribution with before/after windows and service matching.
+2. Improve time-window trend modeling for lag, rebalance churn, disk growth,
    producer rate, and deployment correlation.
-2. Add deployment event input for runtime correlation.
 3. Improve the web UI around focused Kafka consumer-group diagnosis.
 4. Add more examples for live-like Kafka incident scenarios.
 5. Add richer broker/client attribution for Kafka JMX findings.

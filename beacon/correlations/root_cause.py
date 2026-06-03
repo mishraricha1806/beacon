@@ -44,8 +44,10 @@ CORRELATION_PATTERNS = [
         "rule_ids": {
             "flow.runtime.deployment_correlated_degradation",
             "api.runtime.deployment_correlated_degradation",
+            "deployment.runtime.degradation_correlated",
+            "kafka.history.deployment_correlated_lag",
         },
-        "domains": {"api", "flow"},
+        "domains": {"api", "flow", "deployment", "kafka"},
         "domain_terms": {"deployment", "rollout"},
     },
     {
