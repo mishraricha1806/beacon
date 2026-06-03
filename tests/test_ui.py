@@ -69,6 +69,8 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert 'id="intelligence_context"' in ui.HTML
     assert "Runtime Diagnosis" in ui.HTML
     assert "Kafka consumer group diagnosis" in ui.HTML
+    assert 'id="deployment_events"' in ui.HTML
+    assert "Diagnostic Timeline" in ui.HTML
 
 
 def test_ui_e2e_static_config_upload_returns_backend_findings():
@@ -402,6 +404,132 @@ def test_beacon_ui_combines_generic_domain_inputs(monkeypatch):
     assert ("prometheus", "/tmp/prometheus.yaml", 2) in calls
     assert ("acls", "/tmp/acls.yaml") in calls
     assert ("history", "/tmp/history.yaml") in calls
+
+
+def test_beacon_ui_exposes_kafka_scope_and_filters(monkeypatch):
+    from beacon import ui
+
+    calls = []
+
+    def fake_analyze_kafka_cluster(**kwargs):
+        calls.append(kwargs)
+        return [
+            {
+                "rule_id": "kafka.consumer_group.lag.high",
+                "domain": "kafka",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "Kafka consumer lag high",
+                "impact": "Consumers are behind.",
+                "recommendation": "Inspect the group.",
+                "file": "runtime-kafka",
+                "evidence": {
+                    "consumer_group": "checkout-consumer",
+                    "topic": "payments",
+                    "total_lag": 10000,
+                },
+                "tags": [],
+            }
+        ]
+
+    monkeypatch.setattr(ui, "analyze_kafka_cluster", fake_analyze_kafka_cluster)
+
+    result = ui.run_beacon_check(
+        {
+            "mode": "direct",
+            "bootstrap_server": "localhost:9092",
+            "topic": "payments",
+            "consumer_group": "checkout-consumer",
+            "max_topics": "5",
+            "max_groups": "1",
+        },
+        {},
+    )
+
+    assert calls[0]["topic"] == "payments"
+    assert calls[0]["consumer_group"] == "checkout-consumer"
+    assert calls[0]["max_topics"] == 5
+    assert calls[0]["max_groups"] == 1
+    assert result["request_scope"]["kafka_topic"] == "payments"
+    assert result["request_scope"]["kafka_consumer_group"] == "checkout-consumer"
+    assert "Kafka live" in result["request_scope"]["inputs"]
+    assert (
+        result["diagnostic_summary"]["consumer_group_diagnoses"][0]["consumer_group"]
+        == "checkout-consumer"
+    )
+
+
+def test_beacon_ui_correlates_deployment_events_after_runtime_inputs(monkeypatch):
+    from beacon import ui
+
+    seen_existing = []
+
+    monkeypatch.setattr(
+        ui,
+        "analyze_runtime_snapshot_file",
+        lambda path: [
+            {
+                "rule_id": "api.runtime.deployment_correlated_degradation",
+                "domain": "api",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "API degraded after deployment",
+                "impact": "API degraded after rollout.",
+                "recommendation": "Inspect deployment.",
+                "file": path,
+                "evidence": {"service": "checkout-api"},
+                "tags": [],
+            }
+        ],
+    )
+
+    def fake_deployment_events(path, existing_findings=None):
+        seen_existing.extend(item["rule_id"] for item in existing_findings)
+        return [
+            {
+                "rule_id": "deployment.runtime.degradation_correlated",
+                "domain": "deployment",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "Runtime degradation is correlated with deployment events",
+                "impact": "Deployment events align with degradation.",
+                "recommendation": "Review rollout.",
+                "file": path,
+                "evidence": {
+                    "latest_deployment": {
+                        "service": "checkout-api",
+                        "deployed_at": "2026-06-03T10:20:00Z",
+                    },
+                    "deployment_count": 1,
+                    "matched_rule_ids": [
+                        "api.runtime.deployment_correlated_degradation"
+                    ],
+                },
+                "tags": [],
+            }
+        ]
+
+    monkeypatch.setattr(ui, "analyze_deployment_events_file", fake_deployment_events)
+
+    result = ui.run_beacon_check(
+        {"mode": "direct"},
+        {
+            "runtime_snapshot": "/tmp/runtime.yaml",
+            "deployment_events": "/tmp/deployments.yaml",
+        },
+    )
+
+    assert "api.runtime.deployment_correlated_degradation" in seen_existing
+    assert "Deployment events" in result["request_scope"]["inputs"]
+    assert result["diagnostic_timeline"]
+    assert any(
+        item["rule_id"] == "deployment.runtime.degradation_correlated"
+        for item in result["diagnostic_timeline"]
+    )
+    assert (
+        result["diagnostic_summary"]["primary_hypothesis"]["correlation_id"]
+        == "correlation.root_cause.deployment_regression"
+    )
 
 
 def test_beacon_ui_passes_collector_timeouts(monkeypatch):

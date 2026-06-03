@@ -15,6 +15,7 @@ from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.policy import apply_policy_to_findings, load_policy
 from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+from beacon.deployment_events import analyze_deployment_events_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.intelligence.context import load_intelligence_context
 from beacon.readiness.interpretation import sort_findings
@@ -237,6 +238,37 @@ HTML = """<!doctype html>
       line-height: 1.45;
       font-size: 13px;
     }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .chip {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #f7fafb;
+      color: var(--ink);
+      padding: 6px 9px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .timeline {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .timeline-item {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      padding: 10px 12px;
+    }
+    .timeline-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 13px;
+    }
     .meta {
       color: var(--muted);
       font-size: 12px;
@@ -413,6 +445,10 @@ HTML = """<!doctype html>
           </div>
         </div>
         <div class="hint">Use 3 samples with a short interval to catch rebalance/member churn during a live incident.</div>
+
+        <label for="deployment_events">Deployment events</label>
+        <input id="deployment_events" name="deployment_events" type="file">
+        <div class="hint">Optional. Upload deployment events YAML/JSON so Beacon can correlate lag, latency, and failures with rollout timing.</div>
         </div>
 
         <div class="domain-panel" data-domain-panel="kubernetes">
@@ -565,6 +601,8 @@ HTML = """<!doctype html>
       const intelligenceContext = summary.intelligence_context || {};
       const architectAssessment = summary.architect_assessment || null;
       const diagnosticSummary = data.diagnostic_summary || null;
+      const requestScope = data.request_scope || {};
+      const diagnosticTimeline = data.diagnostic_timeline || [];
       const summaryHtml = `
         <div class="result-actions">
           <button type="button" onclick="downloadReport()">Download JSON</button>
@@ -575,6 +613,8 @@ HTML = """<!doctype html>
           <div class="metric"><span>Risk Points</span><strong>${summary.risk_points ?? '-'}</strong></div>
           <div class="metric"><span>Environment</span><strong>${summary.environment || '-'}</strong></div>
         </div>
+        ${renderRequestScope(requestScope)}
+        ${renderDiagnosticTimeline(diagnosticTimeline)}
         ${renderDiagnosticSummary(diagnosticSummary)}
         ${renderArchitectAssessment(architectAssessment)}
         ${renderIntelligenceContext(intelligenceContext)}
@@ -629,6 +669,32 @@ HTML = """<!doctype html>
           return '<li>' + escapeHtml(label) + '</li>';
         }).join('') +
         '</ul></div>';
+    }
+
+    function renderRequestScope(scope) {
+      const chips = [];
+      if (scope.environment) chips.push('Environment: ' + scope.environment);
+      if (scope.kafka_topic) chips.push('Topic: ' + scope.kafka_topic);
+      if (scope.kafka_consumer_group) chips.push('Consumer group: ' + scope.kafka_consumer_group);
+      if (scope.kafka_max_topics) chips.push('Max topics: ' + scope.kafka_max_topics);
+      if (scope.kafka_max_groups !== undefined && scope.kafka_max_groups !== null) chips.push('Max groups: ' + scope.kafka_max_groups);
+      (scope.inputs || []).forEach((input) => chips.push(input));
+      if (!chips.length) return '';
+      return '<div class="chips">' + chips.map((chip) => '<span class="chip">' + escapeHtml(chip) + '</span>').join('') + '</div>';
+    }
+
+    function renderDiagnosticTimeline(items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<div class="insight-list"><h3>Diagnostic Timeline</h3><div class="timeline">' +
+        items.slice(0, 10).map((item) => {
+          const time = item.time ? escapeHtml(item.time) + ' · ' : '';
+          const severity = item.severity ? escapeHtml(item.severity) + ' · ' : '';
+          return '<div class="timeline-item"><strong>' + time + severity + escapeHtml(item.title || '') + '</strong>' +
+            '<div class="hint">' + escapeHtml(item.detail || item.rule_id || '') + '</div></div>';
+        }).join('') +
+        '</div></div>';
     }
 
     function renderDiagnosticSummary(summary) {
@@ -1059,6 +1125,24 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
     else:
         LOGGER.info("ui.schema_registry.skipped id=%s", request_id)
 
+    if files.get("deployment_events"):
+        before = len(findings)
+        LOGGER.info(
+            "ui.deployment_events.start id=%s path=%s",
+            request_id,
+            files["deployment_events"],
+        )
+        findings.extend(
+            analyze_deployment_events_file(
+                files["deployment_events"], existing_findings=findings
+            )
+        )
+        LOGGER.info(
+            "ui.deployment_events.complete id=%s added=%s",
+            request_id,
+            len(findings) - before,
+        )
+
     LOGGER.info("ui.policy.start id=%s findings=%s", request_id, len(findings))
     findings = apply_policy_to_findings(findings, load_policy())
     intelligence_context = load_intelligence_context(files.get("intelligence_context"))
@@ -1086,12 +1170,22 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
             if has_runtime_diagnostic_signal(displayed_findings)
             else None
         ),
+        "request_scope": build_request_scope(fields, files),
+        "diagnostic_timeline": build_diagnostic_timeline(displayed_findings),
         "findings": displayed_findings,
     }
 
 
 def has_runtime_diagnostic_signal(findings):
-    runtime_domains = {"api", "database", "storage", "flow", "kubernetes", "kafka"}
+    runtime_domains = {
+        "api",
+        "database",
+        "storage",
+        "flow",
+        "kubernetes",
+        "kafka",
+        "deployment",
+    }
     return any(
         finding.get("domain") in runtime_domains
         and (
@@ -1115,6 +1209,137 @@ def has_kafka_input(fields, files):
             value_or_none(fields.get("consumer_group")),
         ]
     )
+
+
+def build_request_scope(fields, files):
+    inputs = []
+    input_labels = {
+        "static_config": "Static config",
+        "runtime_snapshot": "Runtime snapshot",
+        "flow_snapshot": "Flow snapshot",
+        "prometheus_config": "Prometheus",
+        "opentelemetry_file": "OpenTelemetry",
+        "kafka_acl_export": "Kafka ACLs",
+        "kafka_history": "Kafka history",
+        "deployment_events": "Deployment events",
+        "schema_registry_config": "Schema Registry",
+        "intelligence_context": "Intelligence context",
+    }
+
+    for key, label in input_labels.items():
+        if files.get(key):
+            inputs.append(label)
+
+    if value_or_none(fields.get("schema_registry_url")):
+        inputs.append("Schema Registry")
+
+    if fields.get("kubernetes_live") == "true":
+        inputs.append("Kubernetes live")
+
+    if has_kafka_input(fields, files):
+        inputs.append("Kafka live")
+
+    return {
+        "environment": value_or_none(fields.get("environment")) or "auto",
+        "inputs": sorted(set(inputs)),
+        "kafka_topic": value_or_none(fields.get("topic")),
+        "kafka_consumer_group": value_or_none(fields.get("consumer_group")),
+        "kafka_max_topics": int(fields.get("max_topics") or 50),
+        "kafka_max_groups": int(fields.get("max_groups") or 20),
+        "kafka_churn_samples": int(fields.get("churn_samples") or 1),
+        "kafka_churn_interval_seconds": float(
+            fields.get("churn_interval_seconds") or 0
+        ),
+    }
+
+
+def build_diagnostic_timeline(findings):
+    timeline = []
+    for finding in findings:
+        event = timeline_event_from_finding(finding)
+        if event:
+            timeline.append(event)
+
+    timeline.sort(key=lambda item: (item.get("time") or "", item.get("title") or ""))
+    return timeline[:12]
+
+
+def timeline_event_from_finding(finding):
+    rule_id = finding.get("rule_id", "")
+    evidence = finding.get("evidence") or {}
+
+    if rule_id == "deployment.events.loaded":
+        return deployment_loaded_event(finding, evidence)
+
+    if rule_id == "deployment.runtime.degradation_correlated":
+        latest = evidence.get("latest_deployment") or {}
+        return {
+            "time": latest.get("deployed_at"),
+            "severity": finding.get("severity"),
+            "title": finding.get("title"),
+            "detail": (
+                f"Latest deployment: {latest.get('service', 'unknown')} "
+                f"{latest.get('version', '')}".strip()
+            ),
+            "rule_id": rule_id,
+        }
+
+    if rule_id in {
+        "api.runtime.deployment_correlated_degradation",
+        "kafka.history.deployment_correlated_lag",
+        "flow.runtime.deployment_correlated_degradation",
+    }:
+        return {
+            "time": evidence.get("deployed_at") or evidence.get("timestamp"),
+            "severity": finding.get("severity"),
+            "title": finding.get("title"),
+            "detail": finding.get("impact") or rule_id,
+            "rule_id": rule_id,
+        }
+
+    if rule_id in {
+        "kafka.history.consumer_lag.growing",
+        "kafka.history.producer_rate.increased",
+        "kafka.history.rebalance_churn.high",
+        "kafka.history.consumer_group.member_churn",
+    }:
+        return {
+            "time": evidence.get("timestamp"),
+            "severity": finding.get("severity"),
+            "title": finding.get("title"),
+            "detail": finding.get("recommendation") or rule_id,
+            "rule_id": rule_id,
+        }
+
+    if rule_id in {
+        "flow.runtime.downstream_db_bottleneck",
+        "flow.runtime.cascading_latency",
+        "database.runtime.latency.high",
+        "api.runtime.latency_p95.high",
+        "api.runtime.error_rate.high",
+        "kafka.consumer_group.lag.high",
+    }:
+        return {
+            "time": evidence.get("timestamp"),
+            "severity": finding.get("severity"),
+            "title": finding.get("title"),
+            "detail": finding.get("impact") or rule_id,
+            "rule_id": rule_id,
+        }
+
+    return None
+
+
+def deployment_loaded_event(finding, evidence):
+    events = evidence.get("events") or []
+    latest = events[-1] if events else {}
+    return {
+        "time": latest.get("deployed_at"),
+        "severity": finding.get("severity"),
+        "title": finding.get("title"),
+        "detail": f"{evidence.get('event_count', 0)} deployment event(s) loaded",
+        "rule_id": finding.get("rule_id"),
+    }
 
 
 def run_kafka_collector(fields, files):
