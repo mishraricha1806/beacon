@@ -69,6 +69,7 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert 'id="intelligence_context"' in ui.HTML
     assert "Runtime Diagnosis" in ui.HTML
     assert "Kafka consumer group diagnosis" in ui.HTML
+    assert "Flow bottleneck ranking" in ui.HTML
     assert 'id="deployment_events"' in ui.HTML
     assert "Diagnostic Timeline" in ui.HTML
 
@@ -139,6 +140,7 @@ def test_ui_e2e_runtime_snapshot_upload_returns_root_cause_findings():
     assert payload["diagnostic_summary"]["diagnostic_status"] == (
         "ROOT_CAUSE_CANDIDATES_FOUND"
     )
+    assert payload["diagnostic_summary"]["flow_bottleneck_rankings"]
 
 
 def test_kafka_ui_run_check_uses_existing_report_contract(monkeypatch):

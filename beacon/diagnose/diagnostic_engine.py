@@ -1,6 +1,7 @@
 from collections import Counter, defaultdict
 
 from beacon.correlations.root_cause import correlate_findings
+from beacon.diagnose.flow_ranker import build_flow_bottleneck_rankings
 from beacon.readiness.interpretation import SEVERITY_ORDER, sort_findings
 
 
@@ -356,6 +357,7 @@ def build_diagnostic_summary(findings):
         "telemetry_gaps": telemetry_gaps(sorted_items, hypotheses),
         "diagnostic_playbooks": diagnostic_playbooks(sorted_items, hypotheses),
         "consumer_group_diagnoses": consumer_group_diagnoses(sorted_items, hypotheses),
+        "flow_bottleneck_rankings": build_flow_bottleneck_rankings(sorted_items),
         "scope": diagnostic_scope(sorted_items),
     }
 

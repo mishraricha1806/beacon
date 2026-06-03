@@ -127,3 +127,21 @@ def test_kafka_payload_risk_does_not_emit_generic_storage_hypothesis():
 
     assert "correlation.root_cause.kafka_payload_storage_growth" in correlation_ids
     assert "correlation.root_cause.storage_capacity_pressure" not in correlation_ids
+
+
+def test_retry_cascade_does_not_match_generic_flow_component_health():
+    hypotheses = correlate_findings(
+        [
+            finding(
+                "flow.runtime.component_unhealthy",
+                "flow",
+                "HIGH",
+                title="Flow component 'api' is unhealthy",
+            )
+        ]
+    )
+
+    assert all(
+        hypothesis["correlation_id"] != "correlation.root_cause.retry_cascade"
+        for hypothesis in hypotheses
+    )

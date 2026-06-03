@@ -1,0 +1,27 @@
+flow_runtime:
+  name: checkout-cascading-latency
+  signals:
+    kafka_consumer_lag_increasing: true
+    kafka_broker_unhealthy: false
+    db_latency_ms: 180
+    api_error_rate_percent: 6
+    api_timeout_rate_percent: 5
+    consumer_retry_rate_percent: 12
+  components:
+    api:
+      type: api
+      signals:
+        unhealthy: true
+    kafka:
+      type: kafka
+      signals:
+        unhealthy: false
+    consumer:
+      type: consumer
+      depends_on: [kafka]
+      signals:
+        unhealthy: true
+    database:
+      type: database
+      signals:
+        unhealthy: false

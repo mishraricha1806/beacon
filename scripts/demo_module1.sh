@@ -73,3 +73,6 @@ python3 -m beacon.cli rules list --output json
 
 section "Module 2 diagnostic release gate"
 python3 scripts/module2_diagnostic_check.py
+
+section "Module 3 flow intelligence release gate"
+python3 scripts/module3_flow_check.py

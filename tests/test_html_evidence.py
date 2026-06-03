@@ -29,3 +29,47 @@ def test_generate_html_includes_rule_id_and_evidence(tmp_path):
 
     assert "kafka.topic.replication_factor.low" in html
     assert "topics[0].replication_factor" in html
+
+
+def test_generate_html_includes_flow_bottleneck_ranking():
+    diagnostic_summary = {
+        "diagnostic_status": "ROOT_CAUSE_CANDIDATES_FOUND",
+        "executive_summary": "Beacon found a flow bottleneck.",
+        "primary_hypothesis": None,
+        "first_actions": [],
+        "diagnostic_playbooks": [],
+        "consumer_group_diagnoses": [],
+        "flow_bottleneck_rankings": [
+            {
+                "flow": "checkout",
+                "top_bottleneck": "database",
+                "top_confidence": "HIGH",
+                "components": [
+                    {
+                        "rank": 1,
+                        "component": "database",
+                        "component_type": "database",
+                        "confidence": "HIGH",
+                        "status": "likely_bottleneck",
+                        "reason": "Database latency is high while Kafka appears healthy.",
+                    }
+                ],
+            }
+        ],
+        "telemetry_gaps": [],
+        "affected_domains": [],
+    }
+
+    generate_html_report(
+        [],
+        score=0,
+        open_report=False,
+        diagnostic_summary=diagnostic_summary,
+    )
+
+    out_path = os.path.join("reports", "report.html")
+    with open(out_path, "r") as f:
+        html = f.read()
+
+    assert "Flow Bottleneck Ranking" in html
+    assert "database" in html

@@ -66,7 +66,7 @@ CORRELATION_PATTERNS = [
             "api.runtime.retry_amplification",
             "api.runtime.timeout_rate.high",
         },
-        "domains": {"api", "flow"},
+        "domains": {"api"},
         "domain_terms": {"retry", "timeout", "cascade"},
     },
     {

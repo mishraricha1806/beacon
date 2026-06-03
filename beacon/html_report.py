@@ -499,6 +499,37 @@ HTML_TEMPLATE = """
         </table>
         {% endif %}
 
+        {% if diagnostic_summary.flow_bottleneck_rankings %}
+        <h3>Flow Bottleneck Ranking</h3>
+        {% for ranking in diagnostic_summary.flow_bottleneck_rankings %}
+        <p class="text-block">
+            <strong>Flow:</strong> {{ ranking.flow }}
+            · <strong>Top Bottleneck:</strong> {{ ranking.top_bottleneck }}
+            · <strong>Confidence:</strong> {{ ranking.top_confidence }}
+        </p>
+        <table>
+            <tr>
+                <th>Rank</th>
+                <th>Component</th>
+                <th>Type</th>
+                <th>Confidence</th>
+                <th>Status</th>
+                <th>Reason</th>
+            </tr>
+            {% for component in ranking.components %}
+            <tr>
+                <td>{{ component.rank }}</td>
+                <td>{{ component.component }}</td>
+                <td>{{ component.component_type }}</td>
+                <td>{{ component.confidence }}</td>
+                <td>{{ component.status }}</td>
+                <td>{{ component.reason }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endfor %}
+        {% endif %}
+
         {% if diagnostic_summary.telemetry_gaps %}
         <h3>Telemetry Gaps</h3>
         <ul>

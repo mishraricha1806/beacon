@@ -1,0 +1,28 @@
+flow_runtime:
+  name: checkout-deployment-regression
+  signals:
+    recent_deployment: true
+    kafka_consumer_lag_increasing: true
+    kafka_broker_unhealthy: false
+    api_error_rate_percent: 8
+    latency_p95_ms: 1600
+    api_timeout_rate_percent: 2
+    consumer_retry_rate_percent: 3
+  components:
+    api:
+      type: api
+      signals:
+        unhealthy: true
+    kafka:
+      type: kafka
+      signals:
+        unhealthy: false
+    consumer:
+      type: consumer
+      depends_on: [kafka]
+      signals:
+        unhealthy: true
+    database:
+      type: database
+      signals:
+        unhealthy: false

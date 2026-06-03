@@ -711,8 +711,29 @@ HTML = """<!doctype html>
         hypothesis +
         renderNestedList('First actions', summary.first_actions || []) +
         renderConsumerGroupDiagnoses(summary.consumer_group_diagnoses || []) +
+        renderFlowBottleneckRankings(summary.flow_bottleneck_rankings || []) +
         renderNestedList('Telemetry gaps', summary.telemetry_gaps || []) +
         '</ul></div>';
+    }
+
+    function renderFlowBottleneckRankings(items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<li><strong>Flow bottleneck ranking:</strong><ul>' +
+        items.slice(0, 3).map((ranking) => {
+          const components = (ranking.components || []).slice(0, 4).map((component) =>
+            '#' + escapeHtml(component.rank || '') +
+            ' ' + escapeHtml(component.component || '') +
+            ' · ' + escapeHtml(component.confidence || '') +
+            ' · ' + escapeHtml(component.status || '')
+          ).join('; ');
+          return '<li>' + escapeHtml(ranking.flow || '') +
+            ' · top: ' + escapeHtml(ranking.top_bottleneck || '') +
+            ' · ' + escapeHtml(ranking.top_confidence || '') +
+            '<br><span class="hint">' + components + '</span></li>';
+        }).join('') +
+        '</ul></li>';
     }
 
     function renderConsumerGroupDiagnoses(items) {
