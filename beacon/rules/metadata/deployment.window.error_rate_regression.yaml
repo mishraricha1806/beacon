@@ -1,0 +1,6 @@
+rule_id: deployment.window.error_rate_regression
+title: Deployment increased API error rate
+description: Detects a material API error-rate increase in the post-deployment window.
+severity_default: HIGH
+category: runtime_stability
+recommendation: Inspect error classes, rollback safety, feature flags, and dependency compatibility introduced by the deployment.

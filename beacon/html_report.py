@@ -530,6 +530,37 @@ HTML_TEMPLATE = """
         {% endfor %}
         {% endif %}
 
+        {% if diagnostic_summary.deployment_window_analyses %}
+        <h3>Before / After Deployment</h3>
+        {% for analysis in diagnostic_summary.deployment_window_analyses %}
+        <p class="text-block">
+            <strong>Service:</strong> {{ analysis.service }}
+            · <strong>Version:</strong> {{ analysis.version or '-' }}
+            · <strong>Deployed:</strong> {{ analysis.deployed_at or '-' }}
+        </p>
+        <table>
+            <tr>
+                <th>Metric</th>
+                <th>Before</th>
+                <th>After</th>
+                <th>Delta</th>
+                <th>Ratio</th>
+                <th>Severity</th>
+            </tr>
+            {% for metric in analysis.metrics %}
+            <tr>
+                <td>{{ metric.metric }}</td>
+                <td>{{ metric.before }}</td>
+                <td>{{ metric.after }}</td>
+                <td>{{ metric.delta }}</td>
+                <td>{{ metric.ratio }}</td>
+                <td>{{ metric.severity }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% endfor %}
+        {% endif %}
+
         {% if diagnostic_summary.telemetry_gaps %}
         <h3>Telemetry Gaps</h3>
         <ul>

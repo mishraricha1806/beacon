@@ -70,6 +70,7 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert "Runtime Diagnosis" in ui.HTML
     assert "Kafka consumer group diagnosis" in ui.HTML
     assert "Flow bottleneck ranking" in ui.HTML
+    assert "Before / after deployment" in ui.HTML
     assert 'id="deployment_events"' in ui.HTML
     assert "Diagnostic Timeline" in ui.HTML
 

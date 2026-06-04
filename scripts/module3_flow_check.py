@@ -9,6 +9,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+from beacon.deployment_events import analyze_deployment_events_file
 from beacon.flow_runtime import analyze_flow_file
 
 
@@ -176,8 +177,44 @@ def check_all_domain_flow_diagnostics_json():
         summary["flow_bottleneck_rankings"],
         "All-domain flow diagnosis did not include flow bottleneck rankings",
     )
+    require(
+        summary["deployment_window_analyses"],
+        "All-domain flow diagnosis did not include deployment before/after analysis",
+    )
 
     print("module3 all-domain JSON contract ok")
+
+
+def check_deployment_window_contract():
+    findings = analyze_deployment_events_file(
+        ROOT / "examples" / "supported" / "deployments" / "events.yaml"
+    )
+    ids = rule_ids(findings)
+    expected = {
+        "deployment.window.api_latency_regression",
+        "deployment.window.error_rate_regression",
+        "deployment.window.kafka_lag_regression",
+    }
+    require(
+        expected <= ids,
+        f"Deployment window contract missing findings: {sorted(expected - ids)}",
+    )
+
+    summary = build_diagnostic_summary(findings)
+    require(
+        summary["deployment_window_analyses"],
+        "Deployment window findings did not create structured before/after analysis",
+    )
+
+    analysis = summary["deployment_window_analyses"][0]
+    metrics = {metric["metric"] for metric in analysis["metrics"]}
+    require(
+        {"api_latency_p95_ms", "api_error_rate_percent", "kafka_consumer_lag"}
+        <= metrics,
+        f"Deployment window analysis missing metrics: {sorted(metrics)}",
+    )
+
+    print("module3 deployment before/after window ok")
 
 
 def main():
@@ -185,6 +222,7 @@ def main():
         check_downstream_database_bottleneck()
         check_deployment_triggered_degradation()
         check_cascading_latency()
+        check_deployment_window_contract()
         check_all_domain_flow_diagnostics_json()
     except AssertionError as error:
         return fail(str(error))

@@ -18,3 +18,11 @@ deployment_events:
     changed_components:
       - api
       - timeout-policy
+    window_before:
+      api_latency_p95_ms: 220
+      api_error_rate_percent: 0.3
+      kafka_consumer_lag: 25000
+    window_after:
+      api_latency_p95_ms: 1600
+      api_error_rate_percent: 8
+      kafka_consumer_lag: 140000

@@ -1,0 +1,6 @@
+rule_id: deployment.window.kafka_lag_regression
+title: Deployment increased Kafka consumer lag
+description: Detects a material Kafka consumer-lag increase in the post-deployment window.
+severity_default: HIGH
+category: runtime_stability
+recommendation: Compare consumer deployment changes, processing latency, retry behavior, downstream latency, and partition-level lag.

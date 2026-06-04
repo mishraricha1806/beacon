@@ -8,6 +8,9 @@ DEGRADATION_RULE_IDS = {
     "flow.runtime.downstream_db_bottleneck",
     "flow.runtime.deployment_correlated_degradation",
     "flow.runtime.cascading_latency",
+    "deployment.window.api_latency_regression",
+    "deployment.window.error_rate_regression",
+    "deployment.window.kafka_lag_regression",
     "api.runtime.deployment_correlated_degradation",
     "api.runtime.error_rate.high",
     "api.runtime.latency_p95.high",
@@ -76,6 +79,8 @@ def analyze_deployment_events(data, existing_findings=None, source="deployment-e
     if correlated:
         findings.append(correlated)
 
+    findings.extend(analyze_deployment_windows(events, source))
+
     return findings
 
 
@@ -107,10 +112,119 @@ def normalize_deployment_events(data):
                 "commit": event.get("commit") or event.get("sha"),
                 "namespace": event.get("namespace"),
                 "changed_components": event.get("changed_components", []) or [],
+                "window_before": event.get("window_before")
+                or event.get("before")
+                or {},
+                "window_after": event.get("window_after") or event.get("after") or {},
             }
         )
 
     return sorted(normalized, key=lambda event: event_time_key(event))
+
+
+def analyze_deployment_windows(events, source):
+    findings = []
+
+    for event in events:
+        before = event.get("window_before") or {}
+        after = event.get("window_after") or {}
+
+        if not before or not after:
+            continue
+
+        findings.extend(api_latency_regression(event, before, after, source))
+        findings.extend(error_rate_regression(event, before, after, source))
+        findings.extend(kafka_lag_regression(event, before, after, source))
+
+    return findings
+
+
+def api_latency_regression(event, before, after, source):
+    before_value = metric_value(before, "api_latency_p95_ms", "latency_p95_ms")
+    after_value = metric_value(after, "api_latency_p95_ms", "latency_p95_ms")
+
+    if before_value is None or after_value is None:
+        return []
+
+    delta = after_value - before_value
+    ratio = safe_ratio(after_value, before_value)
+    if not (after_value >= 1000 and (delta >= 500 or ratio >= 2)):
+        return []
+
+    return [
+        deployment_window_finding(
+            "deployment.window.api_latency_regression",
+            "HIGH",
+            f"Deployment '{event['service']}' increased API p95 latency",
+            "API latency increased materially after deployment, strengthening the deployment-regression hypothesis.",
+            "Compare application traces, dependency latency, timeout policy, and deployment diff before scaling infrastructure.",
+            source,
+            event,
+            "api_latency_p95_ms",
+            before_value,
+            after_value,
+        )
+    ]
+
+
+def error_rate_regression(event, before, after, source):
+    before_value = metric_value(before, "api_error_rate_percent", "error_rate_percent")
+    after_value = metric_value(after, "api_error_rate_percent", "error_rate_percent")
+
+    if before_value is None or after_value is None:
+        return []
+
+    delta = after_value - before_value
+    ratio = safe_ratio(after_value, before_value)
+    if not (after_value >= 5 and (delta >= 2 or ratio >= 2)):
+        return []
+
+    return [
+        deployment_window_finding(
+            "deployment.window.error_rate_regression",
+            "HIGH",
+            f"Deployment '{event['service']}' increased API error rate",
+            "API error rate increased materially after deployment, pointing to rollout or application regression.",
+            "Inspect error classes, rollback safety, feature flags, and dependency compatibility introduced by the deployment.",
+            source,
+            event,
+            "api_error_rate_percent",
+            before_value,
+            after_value,
+        )
+    ]
+
+
+def kafka_lag_regression(event, before, after, source):
+    before_value = metric_value(
+        before, "kafka_consumer_lag", "kafka_total_consumer_lag", "total_consumer_lag"
+    )
+    after_value = metric_value(
+        after, "kafka_consumer_lag", "kafka_total_consumer_lag", "total_consumer_lag"
+    )
+
+    if before_value is None or after_value is None:
+        return []
+
+    delta = after_value - before_value
+    ratio = safe_ratio(after_value, before_value)
+    if not (after_value >= 10000 and (delta >= 10000 or ratio >= 2)):
+        return []
+
+    return [
+        deployment_window_finding(
+            "deployment.window.kafka_lag_regression",
+            "HIGH",
+            f"Deployment '{event['service']}' increased Kafka consumer lag",
+            "Kafka consumer lag increased materially after deployment, which can indicate slower consumers, retries, or downstream degradation.",
+            "Compare consumer deployment changes, processing latency, retry behavior, downstream latency, and partition-level lag.",
+            source,
+            event,
+            "kafka_consumer_lag",
+            before_value,
+            after_value,
+        )
+    ]
 
 
 def correlate_deployments_with_findings(events, findings):
@@ -162,6 +276,56 @@ def event_time_key(event):
         return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
     except ValueError:
         return 0
+
+
+def metric_value(data, *keys):
+    for key in keys:
+        value = data.get(key)
+        if value is not None:
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def safe_ratio(after_value, before_value):
+    if before_value == 0:
+        return float("inf") if after_value > 0 else 1
+    return round(after_value / before_value, 2)
+
+
+def deployment_window_finding(
+    rule_id,
+    severity,
+    title,
+    impact,
+    recommendation,
+    source,
+    event,
+    metric,
+    before_value,
+    after_value,
+):
+    return deployment_finding(
+        rule_id,
+        severity,
+        title,
+        impact,
+        recommendation,
+        source,
+        {
+            "service": event.get("service"),
+            "version": event.get("version"),
+            "deployed_at": event.get("deployed_at"),
+            "namespace": event.get("namespace"),
+            "metric": metric,
+            "before": before_value,
+            "after": after_value,
+            "delta": after_value - before_value,
+            "ratio": safe_ratio(after_value, before_value),
+        },
+    )
 
 
 def deployment_finding(

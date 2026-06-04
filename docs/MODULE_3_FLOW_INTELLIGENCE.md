@@ -39,6 +39,7 @@ Current flow playbooks:
 Current diagnostic output:
 
 - `flow_bottleneck_rankings`
+- `deployment_window_analyses`
 
 Each flow ranking includes:
 
@@ -46,6 +47,15 @@ Each flow ranking includes:
 - `top_bottleneck`
 - `top_confidence`
 - ranked components with component type, confidence, status, reason, and matched evidence
+
+Each deployment window analysis includes:
+
+- service
+- version
+- deployment timestamp
+- before/after metrics
+- delta and ratio
+- severity and matched rule
 
 Current root-cause correlations:
 
@@ -99,6 +109,7 @@ The gate verifies:
 - Deployment-correlated flow degradation maps to the deployment-triggered playbook.
 - API timeouts plus retries plus Kafka lag rank retry cascade.
 - Flow bottleneck ranking identifies the top constrained component.
+- Deployment before/after windows detect API latency, error-rate, and Kafka lag regressions.
 - All-domain flow inputs produce a deployment-regression root-cause narrative.
 - Diagnostic JSON includes Module 3 playbooks.
 
@@ -116,7 +127,7 @@ Module 3 is not yet:
 ## Next Engineering Priorities
 
 1. Match deployment events to affected services/components by name and namespace.
-2. Add before/after time windows for latency, lag, retries, and errors.
-3. Connect OpenTelemetry spans to flow components more directly.
-4. Add a visual flow path panel for API to Kafka to consumer to database.
-5. Add richer evidence-used and evidence-missing panels for each ranked component.
+2. Connect OpenTelemetry spans to flow components more directly.
+3. Add a visual flow path panel for API to Kafka to consumer to database.
+4. Add richer evidence-used and evidence-missing panels for each ranked component.
+5. Add time-window severity tuning per environment and service tier.

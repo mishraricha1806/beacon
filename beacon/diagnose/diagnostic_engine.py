@@ -358,6 +358,7 @@ def build_diagnostic_summary(findings):
         "diagnostic_playbooks": diagnostic_playbooks(sorted_items, hypotheses),
         "consumer_group_diagnoses": consumer_group_diagnoses(sorted_items, hypotheses),
         "flow_bottleneck_rankings": build_flow_bottleneck_rankings(sorted_items),
+        "deployment_window_analyses": deployment_window_analyses(sorted_items),
         "scope": diagnostic_scope(sorted_items),
     }
 
@@ -558,6 +559,55 @@ def diagnostic_scope(findings):
         "domains": sorted({finding.get("domain", "unknown") for finding in findings}),
         "rule_count": len({finding.get("rule_id") for finding in findings}),
     }
+
+
+def deployment_window_analyses(findings):
+    by_service = defaultdict(list)
+
+    for finding in findings:
+        if not str(finding.get("rule_id", "")).startswith("deployment.window."):
+            continue
+        evidence = finding.get("evidence") or {}
+        service = evidence.get("service") or "unknown-service"
+        by_service[service].append(finding)
+
+    analyses = []
+    for service, service_findings in sorted(by_service.items()):
+        metrics = []
+        deployed_at = None
+        version = None
+        namespace = None
+
+        for finding in service_findings:
+            evidence = finding.get("evidence") or {}
+            deployed_at = deployed_at or evidence.get("deployed_at")
+            version = version or evidence.get("version")
+            namespace = namespace or evidence.get("namespace")
+            metrics.append(
+                {
+                    "metric": evidence.get("metric"),
+                    "before": evidence.get("before"),
+                    "after": evidence.get("after"),
+                    "delta": evidence.get("delta"),
+                    "ratio": evidence.get("ratio"),
+                    "severity": finding.get("severity"),
+                    "rule_id": finding.get("rule_id"),
+                    "title": finding.get("title"),
+                }
+            )
+
+        analyses.append(
+            {
+                "service": service,
+                "version": version,
+                "namespace": namespace,
+                "deployed_at": deployed_at,
+                "metric_count": len(metrics),
+                "metrics": sorted(metrics, key=lambda item: item["metric"] or ""),
+            }
+        )
+
+    return analyses
 
 
 def consumer_group_diagnoses(findings, hypotheses):

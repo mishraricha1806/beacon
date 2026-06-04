@@ -712,8 +712,29 @@ HTML = """<!doctype html>
         renderNestedList('First actions', summary.first_actions || []) +
         renderConsumerGroupDiagnoses(summary.consumer_group_diagnoses || []) +
         renderFlowBottleneckRankings(summary.flow_bottleneck_rankings || []) +
+        renderDeploymentWindows(summary.deployment_window_analyses || []) +
         renderNestedList('Telemetry gaps', summary.telemetry_gaps || []) +
         '</ul></div>';
+    }
+
+    function renderDeploymentWindows(items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<li><strong>Before / after deployment:</strong><ul>' +
+        items.slice(0, 3).map((analysis) => {
+          const metrics = (analysis.metrics || []).slice(0, 4).map((metric) =>
+            escapeHtml(metric.metric || '') +
+            ': ' + escapeHtml(metric.before ?? '-') +
+            ' -> ' + escapeHtml(metric.after ?? '-') +
+            ' (' + escapeHtml(metric.severity || '') + ')'
+          ).join('; ');
+          return '<li>' + escapeHtml(analysis.service || '') +
+            ' · ' + escapeHtml(analysis.version || '-') +
+            ' · ' + escapeHtml(analysis.deployed_at || '-') +
+            '<br><span class="hint">' + metrics + '</span></li>';
+        }).join('') +
+        '</ul></li>';
     }
 
     function renderFlowBottleneckRankings(items) {

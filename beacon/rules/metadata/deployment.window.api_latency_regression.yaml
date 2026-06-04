@@ -1,0 +1,6 @@
+rule_id: deployment.window.api_latency_regression
+title: Deployment increased API p95 latency
+description: Detects a material API latency increase in the post-deployment window.
+severity_default: HIGH
+category: runtime_stability
+recommendation: Compare traces, dependency latency, timeout policy, and deployment diff before scaling infrastructure.

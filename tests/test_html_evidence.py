@@ -73,3 +73,48 @@ def test_generate_html_includes_flow_bottleneck_ranking():
 
     assert "Flow Bottleneck Ranking" in html
     assert "database" in html
+
+
+def test_generate_html_includes_deployment_before_after_window():
+    diagnostic_summary = {
+        "diagnostic_status": "ROOT_CAUSE_CANDIDATES_FOUND",
+        "executive_summary": "Beacon found a deployment regression.",
+        "primary_hypothesis": None,
+        "first_actions": [],
+        "diagnostic_playbooks": [],
+        "consumer_group_diagnoses": [],
+        "flow_bottleneck_rankings": [],
+        "deployment_window_analyses": [
+            {
+                "service": "checkout-api",
+                "version": "v1.42.1",
+                "deployed_at": "2026-06-03T10:20:00Z",
+                "metrics": [
+                    {
+                        "metric": "api_latency_p95_ms",
+                        "before": 220,
+                        "after": 1600,
+                        "delta": 1380,
+                        "ratio": 7.27,
+                        "severity": "HIGH",
+                    }
+                ],
+            }
+        ],
+        "telemetry_gaps": [],
+        "affected_domains": [],
+    }
+
+    generate_html_report(
+        [],
+        score=0,
+        open_report=False,
+        diagnostic_summary=diagnostic_summary,
+    )
+
+    with open(os.path.join("reports", "report.html"), "r") as f:
+        html = f.read()
+
+    assert "Before / After Deployment" in html
+    assert "api_latency_p95_ms" in html
+    assert "1600" in html
