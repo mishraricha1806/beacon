@@ -737,6 +737,8 @@ def test_module2_consumer_group_diagnosis_detects_partition_skew():
         "Consumer group: claims-service" in item for item in incident["evidence"]
     )
     assert incident["first_actions"]
+    assert incident["runbook"]["title"] == "Kafka Hot Partition Runbook"
+    assert "Lag by partition" in incident["runbook"]["evidence_to_collect"]
     assert diagnosis["confidence"] == "HIGH"
     assert diagnosis["affected_topics"] == ["claims.events"]
     assert diagnosis["hot_partitions"][0]["partition"] == 3

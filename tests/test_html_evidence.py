@@ -136,6 +136,13 @@ def test_generate_html_includes_incident_diagnosis_card():
             ],
             "first_actions": ["Check consumer pod restarts."],
             "missing_evidence": ["deployment timeline"],
+            "runbook": {
+                "title": "Kafka Consumer Instability Runbook",
+                "check_first": ["Check recent consumer deployments."],
+                "safe_actions": ["Pause risky rollout."],
+                "avoid": ["Do not add partitions first."],
+                "evidence_to_collect": ["Consumer restart history"],
+            },
         },
         "first_actions": [],
         "diagnostic_playbooks": [],
@@ -161,3 +168,5 @@ def test_generate_html_includes_incident_diagnosis_card():
     assert "Consumer Group Instability" in html
     assert "Why Beacon Thinks This" in html
     assert "What To Do First" in html
+    assert "Kafka Consumer Instability Runbook" in html
+    assert "Do not add partitions first." in html

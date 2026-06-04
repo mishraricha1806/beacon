@@ -16,6 +16,7 @@ from beacon.policy import apply_policy_to_findings, load_policy
 from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.deployment_events import analyze_deployment_events_file
+from beacon.runtime_advisor import analyze_runtime_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.intelligence.context import load_intelligence_context
 from beacon.readiness.interpretation import sort_findings
@@ -25,6 +26,22 @@ from beacon.schema_registry_connector import analyze_schema_registry_config
 
 
 LOGGER = logging.getLogger(__name__)
+
+
+KAFKA_INCIDENT_SCENARIOS = {
+    "rebalance_storm": {
+        "label": "Rebalance storm",
+        "path": "examples/supported/kafka/scenarios/rebalance-storm-runtime.yaml",
+    },
+    "quota_throttling": {
+        "label": "Quota / throttling pressure",
+        "path": "examples/supported/kafka/scenarios/quota-throttle-runtime.yaml",
+    },
+    "schema_poison": {
+        "label": "Schema / poison-message risk",
+        "path": "examples/supported/kafka/scenarios/schema-poison-runtime.yaml",
+    },
+}
 
 
 HTML = """<!doctype html>
@@ -390,6 +407,15 @@ HTML = """<!doctype html>
 
         <div class="domain-panel" data-domain-panel="kafka">
         <h2>Kafka Connection</h2>
+        <label for="kafka_incident_scenario">Kafka incident demo</label>
+        <select id="kafka_incident_scenario" name="kafka_incident_scenario">
+          <option value="">None</option>
+          <option value="rebalance_storm">Rebalance storm</option>
+          <option value="quota_throttling">Quota / throttling pressure</option>
+          <option value="schema_poison">Schema / poison-message risk</option>
+        </select>
+        <div class="hint">Optional. Loads a local read-only incident snapshot so you can preview Module 2 diagnosis without connecting to a cluster.</div>
+
         <label for="kafka_acl_export">Kafka ACL export</label>
         <input id="kafka_acl_export" name="kafka_acl_export" type="file">
         <div class="hint">Optional. Use when live DescribeAcls is blocked; supports YAML or JSON ACL exports.</div>
@@ -750,7 +776,29 @@ HTML = """<!doctype html>
         renderNestedList('Why Beacon thinks this', incident.evidence || []) +
         renderNestedList('What to do first', incident.first_actions || []) +
         renderNestedList('Evidence still needed', incident.missing_evidence || []) +
+        renderIncidentRunbook(incident.runbook || null) +
         '</ul></div>';
+    }
+
+    function renderIncidentRunbook(runbook) {
+      if (!runbook) {
+        return '';
+      }
+      return '<li><strong>Runbook:</strong> ' + escapeHtml(runbook.title || '') + '<ul>' +
+        renderPlainNestedList('Check first', runbook.check_first || []) +
+        renderPlainNestedList('Safe actions', runbook.safe_actions || []) +
+        renderPlainNestedList('Avoid', runbook.avoid || []) +
+        renderPlainNestedList('Evidence to collect', runbook.evidence_to_collect || []) +
+        '</ul></li>';
+    }
+
+    function renderPlainNestedList(title, items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<li><strong>' + escapeHtml(title) + ':</strong><ul>' +
+        items.slice(0, 4).map((item) => '<li>' + escapeHtml(item) + '</li>').join('') +
+        '</ul></li>';
     }
 
     function renderDeploymentWindows(items) {
@@ -1162,6 +1210,39 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
             len(findings) - before,
         )
 
+    incident_scenario = value_or_none(fields.get("kafka_incident_scenario"))
+    if incident_scenario:
+        before = len(findings)
+        scenario = KAFKA_INCIDENT_SCENARIOS.get(incident_scenario)
+        if scenario:
+            LOGGER.info(
+                "ui.kafka_incident_scenario.start id=%s scenario=%s path=%s",
+                request_id,
+                incident_scenario,
+                scenario["path"],
+            )
+            findings.extend(analyze_runtime_file(scenario["path"]))
+            LOGGER.info(
+                "ui.kafka_incident_scenario.complete id=%s added=%s",
+                request_id,
+                len(findings) - before,
+            )
+        else:
+            findings.append(
+                {
+                    "rule_id": "beacon.ui.request_failed",
+                    "domain": "beacon",
+                    "category": "operational_safety",
+                    "severity": "ERROR",
+                    "title": "Unknown Kafka incident scenario selected",
+                    "impact": f"Beacon does not recognize scenario '{incident_scenario}'.",
+                    "recommendation": "Select one of the supported Kafka incident scenarios.",
+                    "file": "beacon-ui",
+                    "evidence": {"scenario": incident_scenario},
+                    "tags": ["ui", "kafka", "scenario"],
+                }
+            )
+
     if fields.get("kubernetes_live") == "true":
         before = len(findings)
         LOGGER.info("ui.kubernetes.start id=%s", request_id)
@@ -1285,6 +1366,7 @@ def has_kafka_input(fields, files):
             files.get("client_key"),
             value_or_none(fields.get("topic")),
             value_or_none(fields.get("consumer_group")),
+            value_or_none(fields.get("kafka_incident_scenario")),
         ]
     )
 
@@ -1316,6 +1398,14 @@ def build_request_scope(fields, files):
 
     if has_kafka_input(fields, files):
         inputs.append("Kafka live")
+
+    if value_or_none(fields.get("kafka_incident_scenario")):
+        scenario = KAFKA_INCIDENT_SCENARIOS.get(fields.get("kafka_incident_scenario"))
+        inputs.append(
+            f"Kafka incident demo: {scenario['label']}"
+            if scenario
+            else "Kafka incident demo"
+        )
 
     return {
         "environment": value_or_none(fields.get("environment")) or "auto",

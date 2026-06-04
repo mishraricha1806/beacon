@@ -377,17 +377,21 @@ def incident_diagnosis(summary):
     if consumer_diagnoses and should_prioritize_consumer_diagnosis(
         consumer_diagnoses[0], primary
     ):
-        return incident_diagnosis_from_consumer_group(
+        diagnosis = incident_diagnosis_from_consumer_group(
             consumer_diagnoses[0], first_actions, telemetry_gaps
         )
+        diagnosis["runbook"] = incident_runbook(diagnosis)
+        return diagnosis
 
     if playbooks and is_generic_kafka_observation(primary):
-        return incident_diagnosis_from_playbook(
+        diagnosis = incident_diagnosis_from_playbook(
             playbooks[0], first_actions, telemetry_gaps
         )
+        diagnosis["runbook"] = incident_runbook(diagnosis)
+        return diagnosis
 
     if primary:
-        return {
+        diagnosis = {
             "title": primary.get("title"),
             "source": "root_cause_hypothesis",
             "confidence": primary.get("confidence", "MEDIUM"),
@@ -397,18 +401,24 @@ def incident_diagnosis(summary):
             "first_actions": first_actions[:4],
             "missing_evidence": telemetry_gaps[:4],
         }
+        diagnosis["runbook"] = incident_runbook(diagnosis)
+        return diagnosis
 
     if consumer_diagnoses:
-        return incident_diagnosis_from_consumer_group(
+        diagnosis = incident_diagnosis_from_consumer_group(
             consumer_diagnoses[0], first_actions, telemetry_gaps
         )
+        diagnosis["runbook"] = incident_runbook(diagnosis)
+        return diagnosis
 
     if playbooks:
-        return incident_diagnosis_from_playbook(
+        diagnosis = incident_diagnosis_from_playbook(
             playbooks[0], first_actions, telemetry_gaps
         )
+        diagnosis["runbook"] = incident_runbook(diagnosis)
+        return diagnosis
 
-    return {
+    diagnosis = {
         "title": "No major runtime degradation detected",
         "source": "diagnostic_status",
         "confidence": "LOW",
@@ -418,6 +428,8 @@ def incident_diagnosis(summary):
         "first_actions": first_actions[:4],
         "missing_evidence": telemetry_gaps[:4],
     }
+    diagnosis["runbook"] = incident_runbook(diagnosis)
+    return diagnosis
 
 
 def should_prioritize_consumer_diagnosis(diagnosis, primary):
@@ -529,6 +541,115 @@ def first_scenario_action(items):
         if item and not item.startswith(generic_prefixes):
             return item
     return first_non_empty(items)
+
+
+def incident_runbook(incident):
+    title = str(incident.get("title") or "").lower()
+
+    if "consumer" in title and "unstable" in title:
+        return {
+            "title": "Kafka Consumer Instability Runbook",
+            "check_first": [
+                "Check recent consumer deployments, restarts, and rollout timing.",
+                "Inspect group state, member count, rebalance count, and assignment churn.",
+                "Review heartbeat.interval.ms, session.timeout.ms, and max.poll.interval.ms.",
+            ],
+            "safe_actions": [
+                "Pause or slow risky consumer rollouts while membership is unstable.",
+                "Restore crashed or under-replicated consumer instances before changing Kafka topology.",
+            ],
+            "avoid": [
+                "Do not add partitions as the first response to a rebalance storm.",
+                "Do not restart every consumer at once unless the group is already fully down.",
+            ],
+            "evidence_to_collect": [
+                "Consumer pod/process restart history",
+                "Consumer group describe output over time",
+                "Recent deployment and config changes",
+            ],
+        }
+
+    if "quota" in title or "throttling" in title or "auth" in title:
+        return {
+            "title": "Kafka Auth / Quota / Throttling Runbook",
+            "check_first": [
+                "Check producer and fetch throttle time by client/principal.",
+                "Inspect producer error classes for auth, timeout, quota, and serialization failures.",
+                "Compare client quota settings with current traffic and broker saturation.",
+            ],
+            "safe_actions": [
+                "Tune the affected client quota only after identifying the noisy or blocked client.",
+                "Reduce producer pressure or batch payloads if throttling is protecting broker health.",
+            ],
+            "avoid": [
+                "Do not scale brokers before checking whether quotas or ACL/auth failures are the actual limiter.",
+                "Do not broaden ACLs as a shortcut during diagnosis.",
+            ],
+            "evidence_to_collect": [
+                "Throttle metrics by client ID/principal",
+                "Broker request latency and queue utilization",
+                "ACL and quota configuration for affected clients",
+            ],
+        }
+
+    if "schema" in title or "poison" in title:
+        return {
+            "title": "Kafka Schema / Poison Message Runbook",
+            "check_first": [
+                "Check Schema Registry health and global/subject compatibility mode.",
+                "Compare producer deployment timing with incompatible schema changes.",
+                "Inspect consumer deserialization errors, retry loops, and DLQ behavior.",
+            ],
+            "safe_actions": [
+                "Restore Schema Registry availability before broad consumer restarts.",
+                "Rollback or block incompatible producer schema changes when consumers are not ready.",
+            ],
+            "avoid": [
+                "Do not restart consumers repeatedly if poison messages are replaying.",
+                "Do not set compatibility to NONE in production to bypass an incident.",
+            ],
+            "evidence_to_collect": [
+                "Schema compatibility settings by subject",
+                "Latest schema versions and producer deployment diff",
+                "Consumer deserialization error rate and DLQ counts",
+            ],
+        }
+
+    if "partition skew" in title or "hot key" in title:
+        return {
+            "title": "Kafka Hot Partition Runbook",
+            "check_first": [
+                "Inspect lag by topic partition and identify the hot partition.",
+                "Review producer partition key distribution and recent producer changes.",
+                "Compare consumer concurrency with partition count and assignment balance.",
+            ],
+            "safe_actions": [
+                "Mitigate producer hot-key behavior before scaling consumers broadly.",
+                "Scale consumers only up to useful partition parallelism.",
+            ],
+            "avoid": [
+                "Do not assume consumer scaling will fix a single hot partition.",
+                "Do not repartition without a replay and ordering-impact plan.",
+            ],
+            "evidence_to_collect": [
+                "Lag by partition",
+                "Producer key distribution",
+                "Consumer assignment and concurrency",
+            ],
+        }
+
+    return {
+        "title": "Runtime Incident Runbook",
+        "check_first": incident.get("first_actions", [])[:3],
+        "safe_actions": (
+            [incident.get("recommendation")] if incident.get("recommendation") else []
+        ),
+        "avoid": [
+            "Do not scale every layer before confirming the constrained component.",
+            "Do not mutate Kafka topics, offsets, or ACLs from Beacon output alone.",
+        ],
+        "evidence_to_collect": incident.get("missing_evidence", [])[:3],
+    }
 
 
 def diagnostic_status(findings, hypotheses):

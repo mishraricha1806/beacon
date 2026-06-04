@@ -496,6 +496,43 @@ HTML_TEMPLATE = """
             {% endfor %}
         </ul>
         {% endif %}
+        {% if diagnostic_summary.incident_diagnosis.runbook %}
+        <h3>{{ diagnostic_summary.incident_diagnosis.runbook.title }}</h3>
+        <div class="incident-grid">
+            <div>
+                <h3>Check First</h3>
+                <ul>
+                    {% for step in diagnostic_summary.incident_diagnosis.runbook.check_first %}
+                    <li>{{ step }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <h3>Safe Actions</h3>
+                <ul>
+                    {% for step in diagnostic_summary.incident_diagnosis.runbook.safe_actions %}
+                    <li>{{ step }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <h3>Avoid</h3>
+                <ul>
+                    {% for step in diagnostic_summary.incident_diagnosis.runbook.avoid %}
+                    <li>{{ step }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <h3>Evidence To Collect</h3>
+                <ul>
+                    {% for step in diagnostic_summary.incident_diagnosis.runbook.evidence_to_collect %}
+                    <li>{{ step }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 

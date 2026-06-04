@@ -133,6 +133,11 @@ def print_diagnostic_summary(summary):
             console.print("- Why Beacon thinks this:")
             for evidence in incident["evidence"][:4]:
                 console.print(f"  - {evidence}")
+        runbook = incident.get("runbook") or {}
+        if runbook:
+            console.print(f"- Runbook: {runbook.get('title')}")
+            for step in (runbook.get("check_first") or [])[:3]:
+                console.print(f"  - Check: {step}")
 
     if summary.get("affected_domains"):
         table = Table(title="Affected Runtime Domains")

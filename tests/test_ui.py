@@ -76,6 +76,8 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert "Before / after deployment" in ui.HTML
     assert 'id="deployment_events"' in ui.HTML
     assert "Diagnostic Timeline" in ui.HTML
+    assert 'id="kafka_incident_scenario"' in ui.HTML
+    assert "Rebalance storm" in ui.HTML
 
 
 def test_ui_e2e_static_config_upload_returns_backend_findings():
@@ -212,6 +214,32 @@ def test_kafka_ui_passes_multiple_bootstrap_servers(monkeypatch):
 
     assert calls[0]["bootstrap_server"] == (
         "broker-1:9092\nbroker-2:9092, broker-3:9092"
+    )
+
+
+def test_kafka_ui_incident_scenario_returns_incident_diagnosis():
+    from beacon import ui
+
+    result = ui.run_beacon_check(
+        {"mode": "direct", "kafka_incident_scenario": "quota_throttling"},
+        {},
+    )
+
+    rule_ids = {finding["rule_id"] for finding in result["findings"]}
+
+    assert "kafka.runtime.producer_throttle.high" in rule_ids
+    assert "kafka.runtime.fetch_throttle.high" in rule_ids
+    assert (
+        result["diagnostic_summary"]["incident_diagnosis"]["title"]
+        == "Are clients failing because of auth, ACLs, quotas, or throttling?"
+    )
+    assert (
+        result["diagnostic_summary"]["incident_diagnosis"]["runbook"]["title"]
+        == "Kafka Auth / Quota / Throttling Runbook"
+    )
+    assert (
+        "Kafka incident demo: Quota / throttling pressure"
+        in result["request_scope"]["inputs"]
     )
 
 
