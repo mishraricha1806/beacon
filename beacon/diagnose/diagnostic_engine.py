@@ -844,7 +844,50 @@ def diagnostic_scope(findings):
         "finding_count": len(findings),
         "domains": sorted({finding.get("domain", "unknown") for finding in findings}),
         "rule_count": len({finding.get("rule_id") for finding in findings}),
+        "kafka_consumer_group_scope": kafka_consumer_group_scope(findings),
     }
+
+
+def kafka_consumer_group_scope(findings):
+    for finding in findings:
+        evidence = finding.get("evidence") or {}
+        consumer_group = evidence.get("consumer_group_filter")
+        if not consumer_group:
+            continue
+
+        topic_scope = evidence.get("topic_scope")
+        analyzed_topic_count = evidence.get("analyzed_topic_count")
+        cluster_topic_count = evidence.get("cluster_topic_count")
+
+        if topic_scope == "consumer_group_committed_topics":
+            status = "SCOPED_TO_COMMITTED_TOPICS"
+            summary = (
+                f"Beacon scoped Kafka topic diagnostics to consumer group "
+                f"'{consumer_group}' using committed offsets."
+            )
+        elif topic_scope == "consumer_group_only_no_committed_topics":
+            status = "NO_COMMITTED_OFFSETS"
+            summary = (
+                f"Beacon scoped diagnosis to consumer group '{consumer_group}' "
+                "and skipped broad topic checks because no committed offsets were found."
+            )
+        else:
+            status = "CONSUMER_GROUP_FILTERED"
+            summary = (
+                f"Beacon scoped Kafka diagnosis to consumer group '{consumer_group}'."
+            )
+
+        return {
+            "consumer_group": consumer_group,
+            "topic_scope": topic_scope,
+            "status": status,
+            "summary": summary,
+            "analyzed_topic_count": analyzed_topic_count,
+            "cluster_topic_count": cluster_topic_count,
+            "topic_filter": evidence.get("topic_filter"),
+        }
+
+    return None
 
 
 def deployment_window_analyses(findings):

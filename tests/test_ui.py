@@ -514,10 +514,68 @@ def test_beacon_ui_exposes_kafka_scope_and_filters(monkeypatch):
     assert result["request_scope"]["kafka_topic"] == "payments"
     assert result["request_scope"]["kafka_consumer_group"] == "checkout-consumer"
     assert "Kafka live" in result["request_scope"]["inputs"]
+    assert result["diagnostic_summary"]["scope"]["kafka_consumer_group_scope"] is None
     assert (
         result["diagnostic_summary"]["consumer_group_diagnoses"][0]["consumer_group"]
         == "checkout-consumer"
     )
+
+
+def test_beacon_ui_exposes_scoped_consumer_group_banner(monkeypatch):
+    from beacon import ui
+
+    def fake_analyze_kafka_cluster(**kwargs):
+        return [
+            {
+                "rule_id": "kafka.runtime.connection.success",
+                "domain": "kafka",
+                "category": "runtime_stability",
+                "severity": "LOW",
+                "title": "Kafka cluster connection successful",
+                "impact": "Connected.",
+                "recommendation": "No action required.",
+                "file": "runtime-kafka",
+                "evidence": {
+                    "consumer_group_filter": "checkout-consumer",
+                    "topic_scope": "consumer_group_committed_topics",
+                    "analyzed_topic_count": 2,
+                    "cluster_topic_count": 40,
+                },
+                "tags": [],
+            },
+            {
+                "rule_id": "kafka.consumer_group.lag.high",
+                "domain": "kafka",
+                "category": "runtime_stability",
+                "severity": "HIGH",
+                "title": "Kafka consumer lag high",
+                "impact": "Consumers are behind.",
+                "recommendation": "Inspect the group.",
+                "file": "runtime-kafka",
+                "evidence": {
+                    "consumer_group": "checkout-consumer",
+                    "topic": "payments",
+                    "total_lag": 10000,
+                },
+                "tags": [],
+            },
+        ]
+
+    monkeypatch.setattr(ui, "analyze_kafka_cluster", fake_analyze_kafka_cluster)
+
+    result = ui.run_beacon_check(
+        {
+            "mode": "direct",
+            "bootstrap_server": "localhost:9092",
+            "consumer_group": "checkout-consumer",
+        },
+        {},
+    )
+
+    scope = result["diagnostic_summary"]["scope"]["kafka_consumer_group_scope"]
+    assert scope["consumer_group"] == "checkout-consumer"
+    assert scope["status"] == "SCOPED_TO_COMMITTED_TOPICS"
+    assert scope["analyzed_topic_count"] == 2
 
 
 def test_beacon_ui_correlates_deployment_events_after_runtime_inputs(monkeypatch):

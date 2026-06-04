@@ -661,6 +661,7 @@ HTML = """<!doctype html>
         </div>
         ${renderRequestScope(requestScope)}
         ${renderDiagnosticTimeline(diagnosticTimeline)}
+        ${renderKafkaConsumerGroupScope(diagnosticSummary && diagnosticSummary.scope && diagnosticSummary.scope.kafka_consumer_group_scope)}
         ${renderIncidentDiagnosis(diagnosticSummary && diagnosticSummary.incident_diagnosis)}
         ${renderDiagnosticSummary(diagnosticSummary)}
         ${renderArchitectAssessment(architectAssessment)}
@@ -761,6 +762,20 @@ HTML = """<!doctype html>
         renderFlowBottleneckRankings(summary.flow_bottleneck_rankings || []) +
         renderDeploymentWindows(summary.deployment_window_analyses || []) +
         renderNestedList('Telemetry gaps', summary.telemetry_gaps || []) +
+        '</ul></div>';
+    }
+
+    function renderKafkaConsumerGroupScope(scope) {
+      if (!scope) {
+        return '';
+      }
+      return '<div class="incident-card"><h3>Scoped Kafka Consumer Group Diagnosis</h3><ul>' +
+        '<li><strong>Consumer group:</strong> ' + escapeHtml(scope.consumer_group || '') + '</li>' +
+        '<li><strong>Status:</strong> ' + escapeHtml(scope.status || '') + '</li>' +
+        '<li><strong>Topic scope:</strong> ' + escapeHtml(scope.topic_scope || '') + '</li>' +
+        '<li><strong>Analyzed topics:</strong> ' + escapeHtml(scope.analyzed_topic_count ?? '-') +
+        ' of ' + escapeHtml(scope.cluster_topic_count ?? '-') + '</li>' +
+        '<li>' + escapeHtml(scope.summary || '') + '</li>' +
         '</ul></div>';
     }
 

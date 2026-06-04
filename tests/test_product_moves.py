@@ -1132,6 +1132,14 @@ def test_live_kafka_consumer_group_filter_limits_topic_diagnostics(monkeypatch):
     assert connection["evidence"]["topic_scope"] == "consumer_group_committed_topics"
     assert connection["evidence"]["analyzed_topic_count"] == 1
 
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    summary = build_diagnostic_summary(findings)
+    scope = summary["scope"]["kafka_consumer_group_scope"]
+    assert scope["consumer_group"] == "payments-consumer"
+    assert scope["status"] == "SCOPED_TO_COMMITTED_TOPICS"
+    assert scope["analyzed_topic_count"] == 1
+
 
 def test_live_kafka_consumer_group_without_offsets_skips_cluster_topic_diagnostics(
     monkeypatch,
@@ -1212,6 +1220,14 @@ def test_live_kafka_consumer_group_without_offsets_skips_cluster_topic_diagnosti
         == "consumer_group_only_no_committed_topics"
     )
     assert connection["evidence"]["analyzed_topic_count"] == 0
+
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    summary = build_diagnostic_summary(findings)
+    scope = summary["scope"]["kafka_consumer_group_scope"]
+    assert scope["consumer_group"] == "payments-consumer"
+    assert scope["status"] == "NO_COMMITTED_OFFSETS"
+    assert "skipped broad topic checks" in scope["summary"]
 
 
 def test_live_kafka_partition_health_detects_replication_and_leader_risk():

@@ -139,6 +139,14 @@ def print_diagnostic_summary(summary):
             for step in (runbook.get("check_first") or [])[:3]:
                 console.print(f"  - Check: {step}")
 
+    kafka_scope = (summary.get("scope") or {}).get("kafka_consumer_group_scope")
+    if kafka_scope:
+        console.print("\n[bold]Scoped Kafka Consumer Group Diagnosis:[/bold]")
+        console.print(f"- Consumer group: {kafka_scope['consumer_group']}")
+        console.print(f"- Status: {kafka_scope['status']}")
+        console.print(f"- Topic scope: {kafka_scope.get('topic_scope')}")
+        console.print(f"- {kafka_scope['summary']}")
+
     if summary.get("affected_domains"):
         table = Table(title="Affected Runtime Domains")
         table.add_column("Domain")

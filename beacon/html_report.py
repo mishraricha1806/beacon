@@ -541,6 +541,16 @@ HTML_TEMPLATE = """
         <p class="text-block"><strong>Status:</strong> {{ diagnostic_summary.diagnostic_status }}</p>
         <p class="text-block"><strong>Summary:</strong> {{ diagnostic_summary.executive_summary }}</p>
 
+        {% if diagnostic_summary.scope and diagnostic_summary.scope.kafka_consumer_group_scope %}
+        <div class="evidence">
+            <strong>Scoped Kafka Consumer Group Diagnosis</strong>
+            <p><strong>Consumer Group:</strong> {{ diagnostic_summary.scope.kafka_consumer_group_scope.consumer_group }}</p>
+            <p><strong>Status:</strong> {{ diagnostic_summary.scope.kafka_consumer_group_scope.status }}</p>
+            <p><strong>Topic Scope:</strong> {{ diagnostic_summary.scope.kafka_consumer_group_scope.topic_scope }}</p>
+            <p>{{ diagnostic_summary.scope.kafka_consumer_group_scope.summary }}</p>
+        </div>
+        {% endif %}
+
         {% if diagnostic_summary.primary_hypothesis %}
         <p class="text-block">
             <strong>Primary Hypothesis:</strong>
