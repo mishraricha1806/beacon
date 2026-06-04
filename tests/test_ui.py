@@ -188,6 +188,33 @@ def test_kafka_ui_run_check_uses_existing_report_contract(monkeypatch):
     assert result["findings"][0]["rule_id"] == "kafka.runtime.read_only_mode"
 
 
+def test_kafka_ui_passes_multiple_bootstrap_servers(monkeypatch):
+    from beacon import ui
+
+    calls = []
+
+    def fake_analyze_kafka_cluster(**kwargs):
+        calls.append(kwargs)
+        return []
+
+    monkeypatch.setattr(ui, "analyze_kafka_cluster", fake_analyze_kafka_cluster)
+
+    ui.run_kafka_check(
+        {
+            "mode": "direct",
+            "bootstrap_server": "broker-1:9092\nbroker-2:9092, broker-3:9092",
+            "security_protocol": "SSL",
+            "max_topics": "50",
+            "max_groups": "20",
+        },
+        {},
+    )
+
+    assert calls[0]["bootstrap_server"] == (
+        "broker-1:9092\nbroker-2:9092, broker-3:9092"
+    )
+
+
 def test_kafka_ui_access_mode_uses_uploaded_access_config(monkeypatch):
     from beacon import ui
 

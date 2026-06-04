@@ -7,6 +7,8 @@ from typing import Dict, List, Optional
 
 import yaml
 
+from beacon.diagnose.kafka.server_config import normalize_bootstrap_servers
+
 
 SUPPORTED_AUTH_TYPES = {
     "plaintext",
@@ -151,8 +153,8 @@ def parse_profile(profile_config, index):
 
     name = profile_config.get("name") or f"profile-{index}"
     scope = profile_config.get("scope", "all")
-    bootstrap_servers = profile_config.get(
-        "bootstrap_servers", profile_config.get("bootstrap_server")
+    bootstrap_servers = normalize_bootstrap_servers(
+        profile_config.get("bootstrap_servers", profile_config.get("bootstrap_server"))
     )
     auth_config = profile_config.get("auth", {}) or {}
     auth_type = auth_config.get("type", "plaintext")
@@ -457,7 +459,7 @@ def admin_config_from_profile(profile):
     values = auth.values
 
     config = {
-        "bootstrap.servers": profile.bootstrap_servers,
+        "bootstrap.servers": normalize_bootstrap_servers(profile.bootstrap_servers),
         "socket.timeout.ms": 3000,
         "request.timeout.ms": 3000,
         "metadata.max.age.ms": 30000,

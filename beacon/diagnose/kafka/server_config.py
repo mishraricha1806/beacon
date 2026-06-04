@@ -6,6 +6,18 @@ from typing import Dict, List, Optional
 SUPPORTED_SECURITY_PROTOCOLS = {"PLAINTEXT", "SSL", "SASL_SSL"}
 
 
+def normalize_bootstrap_servers(value) -> str:
+    if isinstance(value, (list, tuple)):
+        parts = [str(item).strip() for item in value]
+    else:
+        text = str(value or "")
+        parts = []
+        for line in text.splitlines():
+            parts.extend(item.strip() for item in line.split(","))
+
+    return ",".join(part for part in parts if part)
+
+
 @dataclass(frozen=True)
 class KafkaServerConfig:
     bootstrap_server: str
@@ -19,8 +31,13 @@ class KafkaServerConfig:
     consumer_group: Optional[str] = None
 
     def evidence(self) -> Dict[str, object]:
+        bootstrap_servers = normalize_bootstrap_servers(self.bootstrap_server)
         return {
-            "bootstrap_server": self.bootstrap_server,
+            "bootstrap_server": bootstrap_servers,
+            "bootstrap_servers": bootstrap_servers,
+            "bootstrap_server_count": (
+                len(bootstrap_servers.split(",")) if bootstrap_servers else 0
+            ),
             "security_protocol": self.security_protocol,
             "ca_cert_configured": bool(self.ca_cert),
             "client_cert_configured": bool(self.client_cert),
@@ -33,8 +50,9 @@ class KafkaServerConfig:
 
     def validation_errors(self) -> List[Dict[str, object]]:
         errors = []
+        bootstrap_servers = normalize_bootstrap_servers(self.bootstrap_server)
 
-        if not self.bootstrap_server or not self.bootstrap_server.strip():
+        if not bootstrap_servers:
             errors.append(
                 {
                     "field": "bootstrap_server",

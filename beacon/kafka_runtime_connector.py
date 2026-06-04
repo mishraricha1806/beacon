@@ -14,7 +14,10 @@ from beacon.diagnose.kafka.access_config import (
     admin_config_from_profile,
     load_kafka_access_config,
 )
-from beacon.diagnose.kafka.server_config import KafkaServerConfig
+from beacon.diagnose.kafka.server_config import (
+    KafkaServerConfig,
+    normalize_bootstrap_servers,
+)
 from beacon.engine.evaluator import evaluate
 from beacon.engine.normalizer import normalize_kafka_config
 
@@ -61,8 +64,9 @@ def build_admin_config(
     client_cert=None,
     client_key=None,
 ):
+    bootstrap_servers = normalize_bootstrap_servers(bootstrap_server)
     config = {
-        "bootstrap.servers": bootstrap_server,
+        "bootstrap.servers": bootstrap_servers,
         "security.protocol": security_protocol,
         "socket.timeout.ms": 3000,
         "request.timeout.ms": 3000,
@@ -193,7 +197,9 @@ def analyze_kafka_cluster(
             )
         )
 
-        bootstrap_server = cluster_profile.bootstrap_servers
+        bootstrap_server = normalize_bootstrap_servers(
+            cluster_profile.bootstrap_servers
+        )
 
     server_config = KafkaServerConfig(
         bootstrap_server=bootstrap_server,

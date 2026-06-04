@@ -404,8 +404,9 @@ HTML = """<!doctype html>
         </div>
 
         <div id="direct-fields">
-          <label for="bootstrap_server">Bootstrap server</label>
-          <input id="bootstrap_server" name="bootstrap_server" placeholder="localhost:9092">
+          <label for="bootstrap_server">Bootstrap servers</label>
+          <textarea id="bootstrap_server" name="bootstrap_server" placeholder="broker-1:9092, broker-2:9092&#10;broker-3:9092"></textarea>
+          <div class="hint">Use comma-separated brokers or one broker per line. Beacon passes the full list to Kafka as bootstrap.servers.</div>
 
           <label for="security_protocol">Security protocol</label>
           <select id="security_protocol" name="security_protocol">

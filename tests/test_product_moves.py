@@ -1497,6 +1497,19 @@ def test_direct_server_config_validation_fails_before_connect(monkeypatch):
     )
 
 
+def test_direct_server_config_preserves_multiple_bootstrap_servers():
+    from beacon.kafka_runtime_connector import build_admin_config
+
+    config = build_admin_config(
+        "broker-1.example:9093\nbroker-2.example:9093, broker-3.example:9093",
+        security_protocol="SSL",
+    )
+
+    assert config["bootstrap.servers"] == (
+        "broker-1.example:9093,broker-2.example:9093,broker-3.example:9093"
+    )
+
+
 def test_kafka_access_config_resolves_generic_profiles(tmp_path):
     from beacon.diagnose.kafka.access_config import (
         admin_config_from_profile,
@@ -1517,7 +1530,9 @@ kafka_access:
   profiles:
     - name: discovery
       scope: cluster
-      bootstrap_servers: kafka.example:9093
+      bootstrap_servers:
+        - kafka-1.example:9093
+        - kafka-2.example:9093
       auth:
         type: bearer_token
         token: token-value
@@ -1525,7 +1540,9 @@ kafka_access:
         - list_topics
     - name: payments
       scope: topic
-      bootstrap_servers: kafka.example:9093
+      bootstrap_servers: |
+        kafka-1.example:9093
+        kafka-2.example:9093
       topics:
         - payments.*
       auth:
@@ -1545,6 +1562,15 @@ kafka_access:
     assert access.valid
     assert cluster_profile.name == "discovery"
     assert topic_profile.name == "payments"
+    assert cluster_profile.bootstrap_servers == (
+        "kafka-1.example:9093,kafka-2.example:9093"
+    )
+    assert topic_profile.bootstrap_servers == (
+        "kafka-1.example:9093,kafka-2.example:9093"
+    )
+    assert admin_config_from_profile(cluster_profile)["bootstrap.servers"] == (
+        "kafka-1.example:9093,kafka-2.example:9093"
+    )
     assert (
         admin_config_from_profile(cluster_profile)["sasl.mechanisms"] == "OAUTHBEARER"
     )
