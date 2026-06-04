@@ -1,0 +1,10 @@
+kafka_runtime:
+  broker_disk_usage_percent: 72
+  consumer_lag_increasing: true
+  consumer_group_state: REBALANCING
+  active_members: 2
+  expected_members: 4
+  rebalance_count_15m: 6
+  broker_count: 3
+  partition_count: 24
+  replication_factor: 3

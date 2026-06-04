@@ -454,6 +454,21 @@ def diagnose_kafka_history(
     emit_diagnostics(findings, html=html, open_report=open_report, output=output)
 
 
+@diagnose_app.command("kafka-runtime")
+def diagnose_kafka_runtime(
+    path: str = typer.Argument(
+        ..., help="Path to Kafka runtime snapshot YAML or JSON."
+    ),
+    html: bool = typer.Option(True, help="Generate browser-based HTML report."),
+    open_report: bool = typer.Option(True, help="Open HTML report in browser."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Diagnose Kafka runtime signals from an offline incident snapshot."""
+
+    findings = analyze_runtime_file(path)
+    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
+
+
 @diagnose_app.command("deployment-events")
 def diagnose_deployment_events(
     path: str = typer.Argument(..., help="Path to deployment events YAML or JSON."),

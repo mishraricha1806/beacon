@@ -238,18 +238,22 @@ def correlate_deployments_with_findings(events, findings):
     if not degradation:
         return None
 
-    latest = events[-1]
-    matched = degradation[:8]
+    matched_event, matched = best_event_match(events, degradation)
+
+    if not matched:
+        return None
+
     return deployment_finding(
         "deployment.runtime.degradation_correlated",
         "HIGH",
         "Runtime degradation is correlated with deployment events",
-        "Recent deployment events are present alongside runtime degradation signals. Beacon cannot prove causality from timing alone, but deployment inspection or rollback safety should be evaluated before broad infrastructure scaling.",
+        "Recent deployment events match runtime degradation signals by service, namespace, topic, consumer group, component, or before/after regression windows. Beacon cannot prove causality from timing alone, but deployment inspection or rollback safety should be evaluated before broad infrastructure scaling.",
         "Review deployment diff, rollout health, feature flags, changed components, consumer group churn, and rollback safety before scaling Kafka or other infrastructure.",
         matched[0].get("file", "deployment-correlation"),
         {
-            "latest_deployment": latest,
+            "latest_deployment": matched_event,
             "deployment_count": len(events),
+            "match": deployment_match_summary(matched_event, matched),
             "matched_rule_ids": sorted({finding.get("rule_id") for finding in matched}),
             "matched_findings": [
                 {
@@ -261,6 +265,111 @@ def correlate_deployments_with_findings(events, findings):
             ],
         },
     )
+
+
+def best_event_match(events, degradation):
+    scored = []
+
+    for event in events:
+        matched = []
+        score = 0
+        for finding in degradation:
+            match_score = event_match_score(event, finding)
+            if match_score > 0:
+                score += match_score
+                matched.append(finding)
+
+        if event_has_window_metrics(event):
+            score += 3
+
+        scored.append((score, event_time_key(event), event, matched))
+
+    scored.sort(key=lambda item: (item[0], item[1]), reverse=True)
+    best_score, _time, event, matched = scored[0]
+
+    if best_score <= 0:
+        return None, []
+
+    if not matched:
+        matched = degradation[:8]
+
+    return event, matched[:8]
+
+
+def event_match_score(event, finding):
+    evidence = finding.get("evidence") or {}
+    text = normalized_tokens(
+        [
+            finding.get("title"),
+            finding.get("impact"),
+            evidence.get("service"),
+            evidence.get("flow"),
+            evidence.get("component"),
+            evidence.get("namespace"),
+            evidence.get("topic"),
+            evidence.get("consumer_group"),
+            evidence.get("group_id"),
+        ]
+    )
+    score = 0
+
+    for token in service_tokens(event.get("service")):
+        if token in text:
+            score += 5
+
+    namespace = normalize_token(event.get("namespace"))
+    if namespace and namespace in text:
+        score += 3
+
+    for component in event.get("changed_components") or []:
+        token = normalize_token(component)
+        if token and token in text:
+            score += 2
+
+    return score
+
+
+def service_tokens(service):
+    token = normalize_token(service)
+    if not token:
+        return set()
+    parts = {part for part in token.replace("_", "-").split("-") if len(part) >= 3}
+    return {token, *parts}
+
+
+def normalized_tokens(values):
+    tokens = set()
+    for value in values:
+        if value is None:
+            continue
+        normalized = normalize_token(value)
+        if not normalized:
+            continue
+        tokens.add(normalized)
+        tokens.update(
+            part for part in normalized.replace("_", "-").split("-") if len(part) >= 3
+        )
+    return tokens
+
+
+def normalize_token(value):
+    if value is None:
+        return ""
+    return str(value).lower().replace(".", "-").replace("/", "-").strip()
+
+
+def event_has_window_metrics(event):
+    return bool(event.get("window_before") and event.get("window_after"))
+
+
+def deployment_match_summary(event, matched):
+    return {
+        "service": event.get("service"),
+        "namespace": event.get("namespace"),
+        "changed_components": event.get("changed_components", []),
+        "matched_findings": len(matched),
+        "has_window_metrics": event_has_window_metrics(event),
+    }
 
 
 def event_summaries(events):

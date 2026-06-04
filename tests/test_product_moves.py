@@ -728,6 +728,15 @@ def test_module2_consumer_group_diagnosis_detects_partition_skew():
 
     diagnosis = summary["consumer_group_diagnoses"][0]
     assert diagnosis["primary_likely_cause"] == "partition_skew_or_hot_key"
+
+    incident = summary["incident_diagnosis"]
+    assert incident["title"] == "Partition Skew Or Hot Key"
+    assert incident["source"] == "consumer_group_diagnosis"
+    assert incident["confidence"] == "HIGH"
+    assert any(
+        "Consumer group: claims-service" in item for item in incident["evidence"]
+    )
+    assert incident["first_actions"]
     assert diagnosis["confidence"] == "HIGH"
     assert diagnosis["affected_topics"] == ["claims.events"]
     assert diagnosis["hot_partitions"][0]["partition"] == 3
@@ -792,6 +801,7 @@ def test_diagnose_terminal_uses_runtime_diagnosis_language(capsys):
     output = capsys.readouterr().out
 
     assert "Beacon Runtime Diagnosis" in output
+    assert "Incident Diagnosis" in output
     assert "Matched Diagnostic Playbooks" in output
     assert "Production Readiness Score" not in output
 

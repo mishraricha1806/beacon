@@ -76,3 +76,6 @@ python3 scripts/module2_diagnostic_check.py
 
 section "Module 3 flow intelligence release gate"
 python3 scripts/module3_flow_check.py
+
+section "Combined Beacon release gate"
+python3 scripts/release_check_all.py

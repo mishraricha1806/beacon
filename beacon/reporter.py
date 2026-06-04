@@ -119,6 +119,21 @@ def print_diagnostic_summary(summary):
         )
         console.print(f"[bold]Recommendation:[/bold] {primary['recommendation']}")
 
+    incident = summary.get("incident_diagnosis")
+    if incident:
+        console.print("\n[bold]Incident Diagnosis:[/bold]")
+        console.print(
+            f"- Primary likely cause: {incident.get('confidence')} - {incident.get('title')}"
+        )
+        if incident.get("summary"):
+            console.print(f"- Summary: {incident['summary']}")
+        if incident.get("recommendation"):
+            console.print(f"- Recommendation: {incident['recommendation']}")
+        if incident.get("evidence"):
+            console.print("- Why Beacon thinks this:")
+            for evidence in incident["evidence"][:4]:
+                console.print(f"  - {evidence}")
+
     if summary.get("affected_domains"):
         table = Table(title="Affected Runtime Domains")
         table.add_column("Domain")

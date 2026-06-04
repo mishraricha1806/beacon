@@ -227,6 +227,25 @@ HTML = """<!doctype html>
       padding: 12px 14px;
       margin-bottom: 14px;
     }
+    .incident-card {
+      border: 1px solid #b8d8d5;
+      border-left: 5px solid var(--accent);
+      border-radius: 8px;
+      background: #f2fbf9;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .incident-card h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+    }
+    .incident-card ul {
+      margin: 6px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
     .insight-list h3 {
       margin: 0 0 8px;
       font-size: 14px;
@@ -615,6 +634,7 @@ HTML = """<!doctype html>
         </div>
         ${renderRequestScope(requestScope)}
         ${renderDiagnosticTimeline(diagnosticTimeline)}
+        ${renderIncidentDiagnosis(diagnosticSummary && diagnosticSummary.incident_diagnosis)}
         ${renderDiagnosticSummary(diagnosticSummary)}
         ${renderArchitectAssessment(architectAssessment)}
         ${renderIntelligenceContext(intelligenceContext)}
@@ -714,6 +734,21 @@ HTML = """<!doctype html>
         renderFlowBottleneckRankings(summary.flow_bottleneck_rankings || []) +
         renderDeploymentWindows(summary.deployment_window_analyses || []) +
         renderNestedList('Telemetry gaps', summary.telemetry_gaps || []) +
+        '</ul></div>';
+    }
+
+    function renderIncidentDiagnosis(incident) {
+      if (!incident) {
+        return '';
+      }
+      return '<div class="incident-card"><h3>Incident Diagnosis</h3><ul>' +
+        '<li><strong>Primary likely cause:</strong> ' + escapeHtml(incident.title || '') + '</li>' +
+        '<li><strong>Confidence:</strong> ' + escapeHtml(incident.confidence || '') + '</li>' +
+        '<li><strong>Summary:</strong> ' + escapeHtml(incident.summary || '') + '</li>' +
+        (incident.recommendation ? '<li><strong>Recommendation:</strong> ' + escapeHtml(incident.recommendation) + '</li>' : '') +
+        renderNestedList('Why Beacon thinks this', incident.evidence || []) +
+        renderNestedList('What to do first', incident.first_actions || []) +
+        renderNestedList('Evidence still needed', incident.missing_evidence || []) +
         '</ul></div>';
     }
 

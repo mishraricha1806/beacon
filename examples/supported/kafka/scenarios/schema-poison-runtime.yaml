@@ -1,0 +1,8 @@
+kafka_runtime:
+  broker_disk_usage_percent: 70
+  schema_registry_available: false
+  schema_incompatible_changes_24h: 2
+  consumer_lag_increasing: true
+  broker_count: 3
+  partition_count: 18
+  replication_factor: 3

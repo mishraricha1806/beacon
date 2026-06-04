@@ -57,6 +57,14 @@ Each deployment window analysis includes:
 - delta and ratio
 - severity and matched rule
 
+Deployment correlation also records match evidence:
+
+- service
+- namespace
+- changed components
+- matched finding count
+- whether before/after window metrics were present
+
 Current root-cause correlations:
 
 - `correlation.root_cause.downstream_database_bottleneck`
@@ -110,6 +118,7 @@ The gate verifies:
 - API timeouts plus retries plus Kafka lag rank retry cascade.
 - Flow bottleneck ranking identifies the top constrained component.
 - Deployment before/after windows detect API latency, error-rate, and Kafka lag regressions.
+- Deployment events are matched to related runtime evidence before broad correlation is emitted.
 - All-domain flow inputs produce a deployment-regression root-cause narrative.
 - Diagnostic JSON includes Module 3 playbooks.
 

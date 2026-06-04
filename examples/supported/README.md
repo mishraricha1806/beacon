@@ -64,7 +64,12 @@ python3 -m beacon.cli readiness static examples/supported/kafka/scenarios/unsafe
 python3 -m beacon.cli readiness kafka-acls examples/supported/kafka/scenarios/unsafe-acls.yaml --no-html --no-open-report
 python3 -m beacon.cli readiness kafka-history examples/supported/kafka/scenarios/lag-rebalance-history.yaml --no-html --no-open-report
 python3 -m beacon.cli readiness static examples/supported/kafka/scenarios/schema-poison-risk.yaml --no-html --no-open-report
+python3 scripts/module2_diagnostic_check.py
 ```
+
+The Module 2 diagnostic gate also verifies live-like Kafka incident scenarios
+for rebalance storms, quota/throttling pressure, schema or poison-message risk,
+and hot partition diagnosis.
 
 Supported example groups:
 

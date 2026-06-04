@@ -186,6 +186,23 @@ HTML_TEMPLATE = """
             margin-right: 8px;
         }
 
+        .incident-card {
+            border-left: 6px solid #38bdf8;
+            background: #0b1220;
+        }
+
+        .incident-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+
+        @media (max-width: 860px) {
+            .incident-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .footer {
             margin-top: 40px;
             color: #64748b;
@@ -432,6 +449,56 @@ HTML_TEMPLATE = """
     {% endif %}
 
     {% if diagnostic_summary %}
+    {% if diagnostic_summary.incident_diagnosis %}
+    <div class="card section incident-card">
+        <h2>Incident Diagnosis</h2>
+        <p class="text-block">
+            <strong>Primary Likely Cause:</strong>
+            {{ diagnostic_summary.incident_diagnosis.title }}
+        </p>
+        <p class="text-block">
+            <strong>Confidence:</strong>
+            {{ diagnostic_summary.incident_diagnosis.confidence }}
+        </p>
+        <p class="text-block">
+            <strong>Summary:</strong>
+            {{ diagnostic_summary.incident_diagnosis.summary }}
+        </p>
+        {% if diagnostic_summary.incident_diagnosis.recommendation %}
+        <p class="text-block">
+            <strong>Recommendation:</strong>
+            {{ diagnostic_summary.incident_diagnosis.recommendation }}
+        </p>
+        {% endif %}
+        <div class="incident-grid">
+            <div>
+                <h3>Why Beacon Thinks This</h3>
+                <ul>
+                    {% for evidence in diagnostic_summary.incident_diagnosis.evidence %}
+                    <li>{{ evidence }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <h3>What To Do First</h3>
+                <ul>
+                    {% for action in diagnostic_summary.incident_diagnosis.first_actions %}
+                    <li>{{ action }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% if diagnostic_summary.incident_diagnosis.missing_evidence %}
+        <h3>Evidence Still Needed</h3>
+        <ul>
+            {% for gap in diagnostic_summary.incident_diagnosis.missing_evidence %}
+            <li>{{ gap }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="card section">
         <h2>Runtime Diagnosis</h2>
         <p class="text-block"><strong>Status:</strong> {{ diagnostic_summary.diagnostic_status }}</p>

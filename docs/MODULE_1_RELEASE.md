@@ -62,6 +62,18 @@ Run the release gate. Add `--require-helm` in CI or release environments where H
 python3 scripts/module1_release_check.py
 ```
 
+Run the combined release gate before pushing broader changes:
+
+```bash
+python3 scripts/release_check_all.py
+```
+
+In release CI, require Helm:
+
+```bash
+python3 scripts/release_check_all.py --require-helm
+```
+
 Run the static supported examples:
 
 ```bash

@@ -1,0 +1,11 @@
+kafka_runtime:
+  broker_disk_usage_percent: 76
+  producer_error_rate_percent: 7
+  produce_throttle_time_ms: 180
+  fetch_throttle_time_ms: 160
+  request_latency_p95_ms: 650
+  request_queue_utilization_percent: 86
+  network_io_utilization_percent: 90
+  broker_count: 3
+  partition_count: 120
+  replication_factor: 3

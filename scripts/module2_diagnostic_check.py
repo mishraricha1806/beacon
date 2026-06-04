@@ -12,6 +12,7 @@ from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.deployment_events import analyze_deployment_events_file
 from beacon.html_report import generate_html_report
 from beacon.kafka_history import analyze_kafka_history_file
+from beacon.runtime_advisor import analyze_runtime_file
 import beacon.prometheus_connector as prometheus_connector
 
 
@@ -167,6 +168,127 @@ def check_operational_playbook_coverage():
     )
 
     print("operational playbook coverage ok")
+
+
+def check_kafka_incident_scenario(
+    name,
+    relative_path,
+    expected_rules,
+    expected_playbooks,
+    expected_incident_title,
+):
+    findings = analyze_runtime_file(str(ROOT / relative_path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+    require(
+        expected_rules <= rule_ids,
+        f"{name} scenario missing findings: {sorted(expected_rules - rule_ids)}",
+    )
+
+    summary = build_diagnostic_summary(findings)
+    playbooks = playbook_ids(summary)
+    require(
+        expected_playbooks <= playbooks,
+        f"{name} scenario missing playbooks: {sorted(expected_playbooks - playbooks)}",
+    )
+    require(
+        summary["incident_diagnosis"]["title"] == expected_incident_title,
+        (
+            f"{name} scenario incident title was "
+            f"{summary['incident_diagnosis']['title']!r}"
+        ),
+    )
+
+    print(f"kafka incident scenario ok: {name}")
+
+
+def check_kafka_hot_partition_scenario():
+    summary = build_diagnostic_summary(
+        [
+            finding(
+                "kafka.consumer_group.lag.high",
+                "kafka",
+                evidence={
+                    "consumer_group": "checkout-consumer",
+                    "total_lag": 120000,
+                    "partition_count": 8,
+                },
+            ),
+            finding(
+                "kafka.consumer_group.hot_partition",
+                "kafka",
+                evidence={
+                    "consumer_group": "checkout-consumer",
+                    "max_partition_lag": 85000,
+                    "hot_partitions": [
+                        {
+                            "topic": "checkout-events",
+                            "partition": 3,
+                            "lag": 85000,
+                        }
+                    ],
+                    "affected_topics": ["checkout-events"],
+                },
+            ),
+        ]
+    )
+
+    require(
+        "module2.kafka.partition_skew" in playbook_ids(summary),
+        "Hot partition scenario did not map to partition skew playbook",
+    )
+    require(
+        summary["consumer_group_diagnoses"],
+        "Hot partition scenario did not produce a consumer group diagnosis",
+    )
+    require(
+        summary["consumer_group_diagnoses"][0]["primary_likely_cause"]
+        == "partition_skew_or_hot_key",
+        "Hot partition scenario did not rank partition skew as the likely cause",
+    )
+
+    print("kafka incident scenario ok: hot partition")
+
+
+def check_kafka_incident_scenario_pack():
+    check_kafka_incident_scenario(
+        "rebalance storm",
+        Path("examples/supported/kafka/scenarios/rebalance-storm-runtime.yaml"),
+        {
+            "kafka.runtime.rebalance_storm",
+            "kafka.runtime.consumer_group.unstable",
+            "kafka.runtime.consumer_group.member_shortfall",
+        },
+        {"module2.kafka.consumer_instability"},
+        "Why are consumers unstable?",
+    )
+    check_kafka_incident_scenario(
+        "quota and throttling",
+        Path("examples/supported/kafka/scenarios/quota-throttle-runtime.yaml"),
+        {
+            "kafka.runtime.producer_error_rate.high",
+            "kafka.runtime.producer_throttle.high",
+            "kafka.runtime.fetch_throttle.high",
+            "kafka.runtime.request_latency.high",
+            "kafka.runtime.request_queue_saturation.high",
+            "kafka.runtime.network_saturation.high",
+        },
+        {
+            "module2.kafka.auth_quota_throttling",
+            "module2.kafka.cluster_health",
+        },
+        "Are clients failing because of auth, ACLs, quotas, or throttling?",
+    )
+    check_kafka_incident_scenario(
+        "schema poison message",
+        Path("examples/supported/kafka/scenarios/schema-poison-runtime.yaml"),
+        {
+            "kafka.runtime.schema_registry.unavailable",
+            "kafka.runtime.schema_incompatible_changes",
+        },
+        {"module2.kafka.schema_poison_message"},
+        "Could schema or poison messages break consumers?",
+    )
+    check_kafka_hot_partition_scenario()
 
 
 def check_kafka_history_trend_contract():
@@ -396,6 +518,7 @@ def main():
         check_flow_db_ranks_database_bottleneck()
         check_retry_cascade_beats_generic_storage()
         check_operational_playbook_coverage()
+        check_kafka_incident_scenario_pack()
         check_kafka_history_trend_contract()
         check_deployment_event_correlation_contract()
         check_prometheus_kafka_jmx_contract()

@@ -215,6 +215,9 @@ python3 scripts/module2_diagnostic_check.py
 The gate verifies:
 
 - Kafka lag alone does not create a downstream database bottleneck hypothesis.
+- Kafka incident scenarios emit the expected findings and playbooks for
+  rebalance storms, quota/throttling pressure, schema/poison-message risk, and
+  hot partitions.
 - Flow plus database evidence ranks downstream database bottleneck.
 - Retry cascade outranks generic storage pressure when timeout/retry evidence is present.
 - Operational playbooks are emitted for Kafka health, replay, schema, auth/quota,
@@ -246,8 +249,7 @@ deterministic runtime diagnosis.
 ## Next Engineering Priorities
 
 1. Deepen deployment attribution with before/after windows and service matching.
-2. Improve time-window trend modeling for lag, rebalance churn, disk growth,
+2. Add richer broker/client attribution for Kafka JMX findings.
+3. Improve time-window trend modeling for lag, rebalance churn, disk growth,
    producer rate, and deployment correlation.
-3. Improve the web UI around focused Kafka consumer-group diagnosis.
-4. Add more examples for live-like Kafka incident scenarios.
-5. Add richer broker/client attribution for Kafka JMX findings.
+4. Improve the web UI around focused Kafka consumer-group diagnosis.

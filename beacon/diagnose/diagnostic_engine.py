@@ -362,8 +362,173 @@ def build_diagnostic_summary(findings):
         "scope": diagnostic_scope(sorted_items),
     }
 
+    summary["incident_diagnosis"] = incident_diagnosis(summary)
     summary["executive_summary"] = executive_summary(summary)
     return summary
+
+
+def incident_diagnosis(summary):
+    primary = summary.get("primary_hypothesis")
+    consumer_diagnoses = summary.get("consumer_group_diagnoses") or []
+    playbooks = summary.get("diagnostic_playbooks") or []
+    first_actions = summary.get("first_actions") or []
+    telemetry_gaps = summary.get("telemetry_gaps") or []
+
+    if consumer_diagnoses and should_prioritize_consumer_diagnosis(
+        consumer_diagnoses[0], primary
+    ):
+        return incident_diagnosis_from_consumer_group(
+            consumer_diagnoses[0], first_actions, telemetry_gaps
+        )
+
+    if playbooks and is_generic_kafka_observation(primary):
+        return incident_diagnosis_from_playbook(
+            playbooks[0], first_actions, telemetry_gaps
+        )
+
+    if primary:
+        return {
+            "title": primary.get("title"),
+            "source": "root_cause_hypothesis",
+            "confidence": primary.get("confidence", "MEDIUM"),
+            "summary": primary.get("impact") or primary.get("title"),
+            "recommendation": primary.get("recommendation"),
+            "evidence": incident_evidence_from_hypothesis(primary, summary),
+            "first_actions": first_actions[:4],
+            "missing_evidence": telemetry_gaps[:4],
+        }
+
+    if consumer_diagnoses:
+        return incident_diagnosis_from_consumer_group(
+            consumer_diagnoses[0], first_actions, telemetry_gaps
+        )
+
+    if playbooks:
+        return incident_diagnosis_from_playbook(
+            playbooks[0], first_actions, telemetry_gaps
+        )
+
+    return {
+        "title": "No major runtime degradation detected",
+        "source": "diagnostic_status",
+        "confidence": "LOW",
+        "summary": summary.get("diagnostic_status"),
+        "recommendation": first_non_empty(first_actions),
+        "evidence": ["No material runtime incident pattern was matched."],
+        "first_actions": first_actions[:4],
+        "missing_evidence": telemetry_gaps[:4],
+    }
+
+
+def should_prioritize_consumer_diagnosis(diagnosis, primary):
+    cause = diagnosis.get("primary_likely_cause")
+    if cause in {
+        "partition_skew_or_hot_key",
+        "consumer_group_instability",
+        "offsets_missing_or_group_inactive",
+    }:
+        return True
+    if cause == "lag_requires_more_evidence":
+        return primary is None
+    return False
+
+
+def is_generic_kafka_observation(primary):
+    if not primary:
+        return False
+    return (
+        primary.get("correlation_id")
+        == "correlation.root_cause.kafka_consumer_observation"
+    )
+
+
+def incident_diagnosis_from_consumer_group(diagnosis, first_actions, telemetry_gaps):
+    title = humanize_cause(diagnosis.get("primary_likely_cause"))
+    return {
+        "title": title,
+        "source": "consumer_group_diagnosis",
+        "confidence": diagnosis.get("confidence", "MEDIUM"),
+        "summary": (
+            f"Consumer group {diagnosis.get('consumer_group')} is "
+            f"{diagnosis.get('status', 'observed').lower()}."
+        ),
+        "recommendation": first_non_empty(diagnosis.get("first_actions"))
+        or first_non_empty(first_actions),
+        "evidence": incident_evidence_from_consumer_group(diagnosis),
+        "first_actions": (diagnosis.get("first_actions") or first_actions)[:4],
+        "missing_evidence": (diagnosis.get("evidence_missing") or telemetry_gaps)[:4],
+    }
+
+
+def incident_diagnosis_from_playbook(playbook, first_actions, telemetry_gaps):
+    return {
+        "title": playbook.get("title"),
+        "source": "diagnostic_playbook",
+        "confidence": playbook.get("confidence", "MEDIUM"),
+        "summary": playbook.get("goal"),
+        "recommendation": first_scenario_action(first_actions),
+        "evidence": [
+            f"Matched rules: {', '.join(playbook.get('matched_rule_ids') or [])}"
+        ],
+        "first_actions": first_actions[:4],
+        "missing_evidence": (playbook.get("evidence_needed") or telemetry_gaps)[:4],
+    }
+
+
+def incident_evidence_from_hypothesis(primary, summary):
+    evidence = []
+    matched = primary.get("matched_rule_ids") or []
+    if matched:
+        evidence.append("Matched rules: " + ", ".join(matched[:5]))
+
+    domains = [
+        f"{item['domain']} ({item['max_severity']})"
+        for item in summary.get("affected_domains", [])[:4]
+    ]
+    if domains:
+        evidence.append("Affected domains: " + ", ".join(domains))
+
+    return evidence or [primary.get("title")]
+
+
+def incident_evidence_from_consumer_group(diagnosis):
+    evidence = [
+        f"Consumer group: {diagnosis.get('consumer_group')}",
+        f"Status: {diagnosis.get('status')}",
+        f"Likely cause: {diagnosis.get('primary_likely_cause')}",
+    ]
+    if diagnosis.get("total_lag") is not None:
+        evidence.append(f"Total lag: {diagnosis.get('total_lag')}")
+    if diagnosis.get("max_partition_lag") is not None:
+        evidence.append(f"Max partition lag: {diagnosis.get('max_partition_lag')}")
+    if diagnosis.get("hot_partitions"):
+        evidence.append(f"Hot partitions: {diagnosis.get('hot_partitions')}")
+    return evidence
+
+
+def humanize_cause(cause):
+    if not cause:
+        return "Runtime signal needs more evidence"
+    return cause.replace("_", " ").title()
+
+
+def first_non_empty(items):
+    for item in items or []:
+        if item:
+            return item
+    return None
+
+
+def first_scenario_action(items):
+    generic_prefixes = (
+        "Check whether the consumer group is expected to be active",
+        "Review the deployment diff",
+        "Review large-payload topics",
+    )
+    for item in items or []:
+        if item and not item.startswith(generic_prefixes):
+            return item
+    return first_non_empty(items)
 
 
 def diagnostic_status(findings, hypotheses):

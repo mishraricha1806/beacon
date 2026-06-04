@@ -181,6 +181,19 @@ def check_all_domain_flow_diagnostics_json():
         summary["deployment_window_analyses"],
         "All-domain flow diagnosis did not include deployment before/after analysis",
     )
+    correlated = next(
+        finding
+        for finding in payload["findings"]
+        if finding["rule_id"] == "deployment.runtime.degradation_correlated"
+    )
+    require(
+        correlated["evidence"]["match"]["service"] == "checkout-api",
+        "All-domain deployment correlation did not preserve matched service evidence",
+    )
+    require(
+        correlated["evidence"]["match"]["has_window_metrics"],
+        "All-domain deployment correlation did not preserve window-metric match evidence",
+    )
 
     print("module3 all-domain JSON contract ok")
 

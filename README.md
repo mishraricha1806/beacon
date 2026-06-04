@@ -15,9 +15,10 @@ Beacon is organized by release module:
 
 Module 1's release boundary is documented in [docs/MODULE_1_RELEASE.md](docs/MODULE_1_RELEASE.md).
 Module 2's runtime diagnostics design is documented in [docs/MODULE_2_RUNTIME_DIAGNOSTICS.md](docs/MODULE_2_RUNTIME_DIAGNOSTICS.md).
+Module 3's flow intelligence design is documented in [docs/MODULE_3_FLOW_INTELLIGENCE.md](docs/MODULE_3_FLOW_INTELLIGENCE.md).
 
-The Module 1 release gate is codified in `scripts/module1_release_check.py` and `.github/workflows/module1-release.yml`.
-The Module 2 diagnostic gate is codified in `scripts/module2_diagnostic_check.py`.
+The combined release gate is codified in `scripts/release_check_all.py` and `.github/workflows/module1-release.yml`.
+It runs Module 1, Module 2, Module 3, the full test suite, and diff hygiene.
 
 ## Release Scope
 
@@ -40,12 +41,17 @@ The Module 2 diagnostic gate is codified in `scripts/module2_diagnostic_check.py
 * hot partition and consumer instability diagnosis
 * deterministic runtime playbooks and root-cause hypotheses
 
+### Module 3: Flow Intelligence
+
+* cross-system bottleneck ranking
+* deployment before/after regression windows
+* deployment-to-runtime evidence matching
+* cascading latency detection across API, Kafka, consumers, storage, and databases
+
 ### Future Platform Expansion
 
 * live Kubernetes diagnostics
-* Flow Intelligence across service paths
 * Prometheus and OpenTelemetry signal mapping
-* deployment event correlation
 * AI/RAG explanations downstream of deterministic findings
 
 ---
