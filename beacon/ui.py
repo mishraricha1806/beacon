@@ -646,6 +646,7 @@ HTML = """<!doctype html>
       const groupedRisks = summary.grouped_risks || [];
       const intelligenceContext = summary.intelligence_context || {};
       const architectAssessment = summary.architect_assessment || null;
+      const distributedReadiness = summary.distributed_system_readiness || null;
       const diagnosticSummary = data.diagnostic_summary || null;
       const requestScope = data.request_scope || {};
       const diagnosticTimeline = data.diagnostic_timeline || [];
@@ -664,6 +665,7 @@ HTML = """<!doctype html>
         ${renderKafkaConsumerGroupScope(diagnosticSummary && diagnosticSummary.scope && diagnosticSummary.scope.kafka_consumer_group_scope)}
         ${renderIncidentDiagnosis(diagnosticSummary && diagnosticSummary.incident_diagnosis)}
         ${renderDiagnosticSummary(diagnosticSummary)}
+        ${renderDistributedReadiness(distributedReadiness)}
         ${renderArchitectAssessment(architectAssessment)}
         ${renderIntelligenceContext(intelligenceContext)}
         ${renderBusinessCategories(summary.business_categories || {})}
@@ -917,6 +919,31 @@ HTML = """<!doctype html>
         (investigate ? '<li><strong>Investigate now:</strong><ul>' + investigate + '</ul></li>' : '') +
         contextGaps +
         assumptions +
+        '</ul></div>';
+    }
+
+    function renderDistributedReadiness(readiness) {
+      if (!readiness) {
+        return '';
+      }
+      const dimensions = (readiness.dimensions || []).map((dimension) =>
+        '<li><strong>' + escapeHtml(dimension.title || '') + ':</strong> ' +
+        escapeHtml(dimension.status || '') +
+        ' · max ' + escapeHtml(dimension.max_severity || '') +
+        ' · ' + escapeHtml(dimension.finding_count ?? 0) + ' finding(s)</li>'
+      ).join('');
+      const paths = renderNestedList('Critical paths', readiness.critical_paths || []);
+      const gaps = renderNestedList('Coverage gaps', readiness.coverage_gaps || []);
+      const domains = (readiness.domains_observed || []).length ?
+        '<li><strong>Domains observed:</strong> ' + readiness.domains_observed.map(escapeHtml).join(', ') + '</li>' :
+        '';
+      return '<div class="insight-list"><h3>Distributed System Readiness</h3><ul>' +
+        '<li><strong>Verdict:</strong> ' + escapeHtml(readiness.verdict || '') + '</li>' +
+        '<li><strong>Confidence:</strong> ' + escapeHtml(readiness.confidence || '') + '</li>' +
+        domains +
+        paths +
+        (dimensions ? '<li><strong>Dimensions:</strong><ul>' + dimensions + '</ul></li>' : '') +
+        gaps +
         '</ul></div>';
     }
 

@@ -5,6 +5,7 @@ from beacon.scoring import (
 from beacon.correlations.root_cause import correlate_findings
 from beacon.intelligence.context import context_summary
 from beacon.kafka_report import build_kafka_report
+from beacon.readiness.distributed import build_distributed_system_readiness
 from beacon.readiness.interpretation import (
     build_business_categories,
     interpret_findings,
@@ -77,6 +78,7 @@ def calculate_readiness(findings, environment=None, intelligence_context=None):
         "top_reasons": [],
         "next_best_actions": [],
         "architect_assessment": None,
+        "distributed_system_readiness": None,
         "root_cause_hypotheses": [],
         "kafka_report": None,
     }
@@ -113,6 +115,9 @@ def calculate_readiness(findings, environment=None, intelligence_context=None):
     summary["next_best_actions"] = build_next_best_actions(summary)
     summary["architect_assessment"] = build_architect_assessment(summary)
     summary["root_cause_hypotheses"] = correlate_findings(interpreted_findings)
+    summary["distributed_system_readiness"] = build_distributed_system_readiness(
+        interpreted_findings, summary
+    )
     summary["kafka_report"] = build_kafka_report(sort_findings(interpreted_findings))
     return summary
 

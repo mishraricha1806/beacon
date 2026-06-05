@@ -59,6 +59,37 @@ def print_readiness_summary(summary):
     console.print(f"[bold]Production Decision:[/bold] {summary['production_decision']}")
     console.print(f"[bold]Primary Risk Area:[/bold] {summary['primary_risk_area']}\n")
 
+    if summary.get("distributed_system_readiness"):
+        distributed = summary["distributed_system_readiness"]
+        console.print("[bold]Distributed System Readiness:[/bold]")
+        console.print(f"- Verdict: {distributed['verdict']}")
+        console.print(f"- Confidence: {distributed['confidence']}")
+        if distributed.get("domains_observed"):
+            console.print(
+                "- Domains observed: " + ", ".join(distributed["domains_observed"])
+            )
+        if distributed.get("critical_paths"):
+            console.print("- Critical paths:")
+            for path in distributed["critical_paths"][:3]:
+                console.print(f"  - {path}")
+
+        dimension_table = Table(title="Distributed Readiness Dimensions")
+        dimension_table.add_column("Dimension")
+        dimension_table.add_column("Status")
+        dimension_table.add_column("Max Severity")
+        dimension_table.add_column("Findings")
+
+        for dimension in distributed.get("dimensions", []):
+            dimension_table.add_row(
+                dimension["title"],
+                dimension["status"],
+                dimension["max_severity"],
+                str(dimension["finding_count"]),
+            )
+
+        console.print(dimension_table)
+        console.print()
+
     if summary.get("architect_assessment"):
         assessment = summary["architect_assessment"]
         console.print("[bold]Architect Assessment:[/bold]")

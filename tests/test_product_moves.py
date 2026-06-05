@@ -24,6 +24,77 @@ def test_readiness_handles_runtime_stability_category():
     assert summary["high"] == 1
 
 
+def test_readiness_summarizes_whole_distributed_system_not_only_kafka():
+    findings = [
+        {
+            "rule_id": "api.runtime.latency_p95.high",
+            "domain": "api",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "API latency is high",
+            "impact": "Users see slow checkout.",
+            "recommendation": "Inspect API latency and downstream dependencies.",
+            "file": "runtime",
+            "evidence": {},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.consumer_group.lag.high",
+            "domain": "kafka",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Kafka consumer lag is high",
+            "impact": "Consumers are behind.",
+            "recommendation": "Inspect consumer processing.",
+            "file": "runtime",
+            "evidence": {},
+            "tags": [],
+        },
+        {
+            "rule_id": "database.runtime.connection_pool.exhaustion",
+            "domain": "database",
+            "category": "runtime_stability",
+            "severity": "CRITICAL",
+            "title": "Database connection pool is near exhaustion",
+            "impact": "Consumers and APIs can block.",
+            "recommendation": "Tune pool and inspect slow queries.",
+            "file": "runtime",
+            "evidence": {},
+            "tags": [],
+        },
+        {
+            "rule_id": "k8s.workload.probes.missing",
+            "domain": "kubernetes",
+            "category": "operational_safety",
+            "severity": "MEDIUM",
+            "title": "Kubernetes workload is missing probes",
+            "impact": "Failed pods may receive traffic.",
+            "recommendation": "Add readiness and liveness probes.",
+            "file": "deployment.yaml",
+            "evidence": {},
+            "tags": [],
+        },
+    ]
+
+    summary = calculate_readiness(findings)
+    distributed = summary["distributed_system_readiness"]
+
+    assert distributed["title"] == "Distributed System Production Readiness"
+    assert distributed["scope"] == "whole distributed system"
+    assert {"api", "database", "kafka", "kubernetes"} <= set(
+        distributed["domains_observed"]
+    )
+    assert "API -> Kafka -> Consumer -> Database" in distributed["critical_paths"]
+    assert any(
+        dimension["title"] == "Database/Storage Readiness"
+        and dimension["status"] == "BLOCKED"
+        for dimension in distributed["dimensions"]
+    )
+    assert any(
+        blocker["domain"] == "database" for blocker in distributed["release_blockers"]
+    )
+
+
 def test_readiness_groups_repeated_kafka_topic_findings_for_nonprod():
     findings = [
         {

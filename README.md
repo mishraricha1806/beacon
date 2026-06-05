@@ -1,14 +1,17 @@
 # Beacon
 
-Production-readiness intelligence for modern infrastructure.
+Production-readiness intelligence for distributed systems.
 
 Beacon detects risky infrastructure configurations, operational anti-patterns, and runtime infrastructure risks before they impact production systems.
 
-Beacon combines infrastructure analysis with runtime operational diagnostics to help engineers understand WHY systems become unstable — not just WHAT metric changed.
+Beacon starts with production readiness: it checks whether the architecture,
+configuration, and operational defaults of a distributed system are safe enough
+to release. Runtime diagnostics and flow intelligence extend that same
+deterministic reasoning when a system is already degrading.
 
 Beacon is organized by release module:
 
-* **Module 1: Production Readiness RC** - deterministic readiness analysis before rollout.
+* **Module 1: Distributed System Production Readiness RC** - deterministic readiness analysis before rollout.
 * **Module 2: Runtime Diagnostics** - Kafka-first live/snapshot diagnosis for degradation.
 * **Module 3: Flow Intelligence** - cross-system bottleneck correlation across services, Kafka, databases, APIs, Kubernetes, and deployments.
 * **Module 4: AI/RAG Explanation Layer** - future explanation layer downstream of deterministic findings.
@@ -16,6 +19,7 @@ Beacon is organized by release module:
 Module 1's release boundary is documented in [docs/MODULE_1_RELEASE.md](docs/MODULE_1_RELEASE.md).
 Module 2's runtime diagnostics design is documented in [docs/MODULE_2_RUNTIME_DIAGNOSTICS.md](docs/MODULE_2_RUNTIME_DIAGNOSTICS.md).
 Module 3's flow intelligence design is documented in [docs/MODULE_3_FLOW_INTELLIGENCE.md](docs/MODULE_3_FLOW_INTELLIGENCE.md).
+The end-to-end project demo is documented in [docs/PROJECT_DEMO.md](docs/PROJECT_DEMO.md).
 
 The combined release gate is codified in `scripts/release_check_all.py` and `.github/workflows/module1-release.yml`.
 It runs Module 1, Module 2, Module 3, the full test suite, and diff hygiene.
@@ -25,7 +29,8 @@ It runs Module 1, Module 2, Module 3, the full test suite, and diff hygiene.
 ### Module 1: Stable
 
 * static production readiness
-* Kafka configuration readiness
+* distributed-system readiness across application/API, Kafka, Kubernetes, database, storage, security/IAM, CI/CD, topology, and flow inputs
+* Kafka configuration readiness as the first deep event-streaming domain
 * Kubernetes manifest readiness
 * Terraform, plan, and state readiness
 * Helm-rendered Kubernetes manifest scanning

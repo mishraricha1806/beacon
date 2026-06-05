@@ -274,6 +274,56 @@ HTML_TEMPLATE = """
         <p class="muted">Scoring model: {{ readiness_summary.score_formula }}</p>
     </div>
 
+    {% if readiness_summary.distributed_system_readiness %}
+    <div class="card section">
+        <h2>{{ readiness_summary.distributed_system_readiness.title }}</h2>
+        <p class="text-block">
+            <strong>Verdict:</strong> {{ readiness_summary.distributed_system_readiness.verdict }}
+        </p>
+        <p class="text-block">
+            <strong>Confidence:</strong> {{ readiness_summary.distributed_system_readiness.confidence }}
+        </p>
+        {% if readiness_summary.distributed_system_readiness.domains_observed %}
+        <p class="text-block">
+            <strong>Domains Observed:</strong>
+            {{ readiness_summary.distributed_system_readiness.domains_observed | join(', ') }}
+        </p>
+        {% endif %}
+        {% if readiness_summary.distributed_system_readiness.critical_paths %}
+        <h3>Critical Paths</h3>
+        <ul>
+            {% for path in readiness_summary.distributed_system_readiness.critical_paths %}
+            <li>{{ path }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        <table>
+            <tr>
+                <th>Dimension</th>
+                <th>Status</th>
+                <th>Max Severity</th>
+                <th>Findings</th>
+            </tr>
+            {% for dimension in readiness_summary.distributed_system_readiness.dimensions %}
+            <tr>
+                <td>{{ dimension.title }}</td>
+                <td>{{ dimension.status }}</td>
+                <td>{{ dimension.max_severity }}</td>
+                <td>{{ dimension.finding_count }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% if readiness_summary.distributed_system_readiness.coverage_gaps %}
+        <h3>Coverage Gaps</h3>
+        <ul>
+            {% for gap in readiness_summary.distributed_system_readiness.coverage_gaps %}
+            <li>{{ gap }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if readiness_summary.business_categories %}
     <div class="card section">
         <h2>Business Risk Categories</h2>
