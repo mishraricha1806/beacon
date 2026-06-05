@@ -460,6 +460,14 @@ HTML_TEMPLATE = """
             <strong>Confidence:</strong>
             {{ diagnostic_summary.incident_diagnosis.confidence }}
         </p>
+        {% if diagnostic_summary.incident_diagnosis.evidence_quality %}
+        <p class="text-block">
+            <strong>Evidence Quality:</strong>
+            {{ diagnostic_summary.incident_diagnosis.evidence_quality.status }}
+            ({{ diagnostic_summary.incident_diagnosis.evidence_quality.score }}/100)
+            · {{ diagnostic_summary.incident_diagnosis.evidence_quality.reason }}
+        </p>
+        {% endif %}
         <p class="text-block">
             <strong>Summary:</strong>
             {{ diagnostic_summary.incident_diagnosis.summary }}
@@ -597,6 +605,7 @@ HTML_TEMPLATE = """
                 <th>Status</th>
                 <th>Likely Cause</th>
                 <th>Confidence</th>
+                <th>Evidence Quality</th>
                 <th>Total Lag</th>
                 <th>Evidence Missing</th>
             </tr>
@@ -606,6 +615,13 @@ HTML_TEMPLATE = """
                 <td>{{ diagnosis.status }}</td>
                 <td>{{ diagnosis.primary_likely_cause }}</td>
                 <td>{{ diagnosis.confidence }}</td>
+                <td>
+                    {% if diagnosis.evidence_quality %}
+                    {{ diagnosis.evidence_quality.status }} ({{ diagnosis.evidence_quality.score }}/100)
+                    {% else %}
+                    unknown
+                    {% endif %}
+                </td>
                 <td>{{ diagnosis.total_lag or 'unknown' }}</td>
                 <td>{{ diagnosis.evidence_missing | join(', ') if diagnosis.evidence_missing else 'None' }}</td>
             </tr>

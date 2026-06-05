@@ -380,15 +380,13 @@ def incident_diagnosis(summary):
         diagnosis = incident_diagnosis_from_consumer_group(
             consumer_diagnoses[0], first_actions, telemetry_gaps
         )
-        diagnosis["runbook"] = incident_runbook(diagnosis)
-        return diagnosis
+        return finalize_incident_diagnosis(diagnosis)
 
     if playbooks and is_generic_kafka_observation(primary):
         diagnosis = incident_diagnosis_from_playbook(
             playbooks[0], first_actions, telemetry_gaps
         )
-        diagnosis["runbook"] = incident_runbook(diagnosis)
-        return diagnosis
+        return finalize_incident_diagnosis(diagnosis)
 
     if primary:
         diagnosis = {
@@ -401,22 +399,19 @@ def incident_diagnosis(summary):
             "first_actions": first_actions[:4],
             "missing_evidence": telemetry_gaps[:4],
         }
-        diagnosis["runbook"] = incident_runbook(diagnosis)
-        return diagnosis
+        return finalize_incident_diagnosis(diagnosis)
 
     if consumer_diagnoses:
         diagnosis = incident_diagnosis_from_consumer_group(
             consumer_diagnoses[0], first_actions, telemetry_gaps
         )
-        diagnosis["runbook"] = incident_runbook(diagnosis)
-        return diagnosis
+        return finalize_incident_diagnosis(diagnosis)
 
     if playbooks:
         diagnosis = incident_diagnosis_from_playbook(
             playbooks[0], first_actions, telemetry_gaps
         )
-        diagnosis["runbook"] = incident_runbook(diagnosis)
-        return diagnosis
+        return finalize_incident_diagnosis(diagnosis)
 
     diagnosis = {
         "title": "No major runtime degradation detected",
@@ -428,6 +423,11 @@ def incident_diagnosis(summary):
         "first_actions": first_actions[:4],
         "missing_evidence": telemetry_gaps[:4],
     }
+    return finalize_incident_diagnosis(diagnosis)
+
+
+def finalize_incident_diagnosis(diagnosis):
+    diagnosis["evidence_quality"] = incident_evidence_quality(diagnosis)
     diagnosis["runbook"] = incident_runbook(diagnosis)
     return diagnosis
 
@@ -460,6 +460,7 @@ def incident_diagnosis_from_consumer_group(diagnosis, first_actions, telemetry_g
         "title": title,
         "source": "consumer_group_diagnosis",
         "confidence": diagnosis.get("confidence", "MEDIUM"),
+        "supporting_quality": diagnosis.get("evidence_quality"),
         "summary": (
             f"Consumer group {diagnosis.get('consumer_group')} is "
             f"{diagnosis.get('status', 'observed').lower()}."
@@ -473,15 +474,15 @@ def incident_diagnosis_from_consumer_group(diagnosis, first_actions, telemetry_g
 
 
 def incident_diagnosis_from_playbook(playbook, first_actions, telemetry_gaps):
+    matched_rule_ids = playbook.get("matched_rule_ids") or []
     return {
         "title": playbook.get("title"),
         "source": "diagnostic_playbook",
         "confidence": playbook.get("confidence", "MEDIUM"),
         "summary": playbook.get("goal"),
         "recommendation": first_scenario_action(first_actions),
-        "evidence": [
-            f"Matched rules: {', '.join(playbook.get('matched_rule_ids') or [])}"
-        ],
+        "evidence": [f"Matched rules: {', '.join(matched_rule_ids)}"],
+        "matched_rule_count": len(matched_rule_ids),
         "first_actions": first_actions[:4],
         "missing_evidence": (playbook.get("evidence_needed") or telemetry_gaps)[:4],
     }
@@ -516,6 +517,78 @@ def incident_evidence_from_consumer_group(diagnosis):
     if diagnosis.get("hot_partitions"):
         evidence.append(f"Hot partitions: {diagnosis.get('hot_partitions')}")
     return evidence
+
+
+def incident_evidence_quality(incident):
+    supporting_quality = incident.get("supporting_quality") or {}
+    if supporting_quality:
+        return {
+            "status": supporting_quality.get("status", "NEEDS_MORE_EVIDENCE"),
+            "score": supporting_quality.get("score", 50),
+            "evidence_count": len(incident.get("evidence") or []),
+            "missing_count": len(incident.get("missing_evidence") or []),
+            "reason": supporting_quality.get("reason")
+            or "Beacon inherited evidence quality from the strongest scoped diagnosis.",
+        }
+
+    confidence = str(incident.get("confidence") or "MEDIUM").upper()
+    evidence_count = len(incident.get("evidence") or [])
+    matched_rule_count = int(incident.get("matched_rule_count") or 0)
+    missing_count = len(incident.get("missing_evidence") or [])
+    source = incident.get("source")
+
+    if source == "diagnostic_status":
+        status = "OBSERVATION_ONLY"
+        score = 60
+        reason = "Beacon did not match a material runtime incident pattern."
+    elif (
+        source == "diagnostic_playbook"
+        and confidence == "HIGH"
+        and matched_rule_count >= 2
+    ):
+        status = "ACTIONABLE"
+        score = 82
+        reason = (
+            "Beacon matched multiple deterministic rules for this incident playbook."
+        )
+    elif (
+        source == "diagnostic_playbook"
+        and confidence == "MEDIUM"
+        and matched_rule_count >= 3
+        and missing_count <= 3
+    ):
+        status = "ACTIONABLE"
+        score = 76
+        reason = (
+            "Beacon matched several deterministic playbook rules; validate the "
+            "remaining evidence before remediation."
+        )
+    elif confidence == "HIGH" and evidence_count >= 2 and missing_count <= 3:
+        status = "ACTIONABLE"
+        score = 82
+        reason = "Beacon has multiple deterministic signals supporting this incident diagnosis."
+    elif confidence == "HIGH":
+        status = "NEEDS_MORE_EVIDENCE"
+        score = 68
+        reason = (
+            "Beacon found a high-confidence signal, but needs more supporting context."
+        )
+    elif confidence == "MEDIUM":
+        status = "NEEDS_MORE_EVIDENCE"
+        score = 55
+        reason = "Beacon has a plausible incident pattern but not enough evidence for a strong decision."
+    else:
+        status = "OBSERVATION_ONLY"
+        score = 45
+        reason = "Beacon only has weak or low-confidence runtime evidence."
+
+    return {
+        "status": status,
+        "score": score,
+        "evidence_count": evidence_count,
+        "missing_count": missing_count,
+        "reason": reason,
+    }
 
 
 def humanize_cause(cause):
@@ -1002,6 +1075,10 @@ def build_consumer_group_diagnosis(group, group_findings, all_findings, hypothes
         rule_ids, all_rule_ids, domains, hypotheses
     )
     evidence_missing = consumer_group_evidence_missing(rule_ids, all_rule_ids, domains)
+    evidence_used = consumer_group_evidence_used(group_findings, hypotheses)
+    evidence_quality = consumer_group_evidence_quality(
+        likely_cause["cause"], rule_ids, evidence_used, evidence_missing
+    )
 
     return {
         "consumer_group": group,
@@ -1017,7 +1094,8 @@ def build_consumer_group_diagnosis(group, group_findings, all_findings, hypothes
         "committed_offsets_status": committed_offsets_status(rule_ids),
         "primary_likely_cause": likely_cause["cause"],
         "confidence": likely_cause["confidence"],
-        "evidence_used": consumer_group_evidence_used(group_findings, hypotheses),
+        "evidence_quality": evidence_quality,
+        "evidence_used": evidence_used,
         "evidence_missing": evidence_missing,
         "first_actions": consumer_group_first_actions(
             likely_cause["cause"], group_findings, evidence_missing
@@ -1155,6 +1233,76 @@ def consumer_group_evidence_missing(rule_ids, all_rule_ids, domains):
         missing.append("deployment and member churn timeline")
 
     return dedupe(missing)[:6]
+
+
+def consumer_group_evidence_quality(cause, rule_ids, evidence_used, evidence_missing):
+    missing_count = len(evidence_missing)
+    used_count = len(evidence_used)
+
+    if cause == "partition_skew_or_hot_key":
+        has_hot_partition_signal = "kafka.consumer_group.hot_partition" in rule_ids
+        status = (
+            "ACTIONABLE"
+            if has_hot_partition_signal and missing_count <= 4
+            else "NEEDS_MORE_EVIDENCE"
+        )
+        score = 85 if status == "ACTIONABLE" else 68
+        reason = (
+            "Beacon has concrete hot-partition evidence; inspect partition keys next."
+            if status == "ACTIONABLE"
+            else "Beacon suspects skew, but needs partition-level lag evidence."
+        )
+    elif cause in {
+        "consumer_group_instability",
+        "partition_parallelism_limit",
+    }:
+        status = "ACTIONABLE" if missing_count <= 2 else "NEEDS_MORE_EVIDENCE"
+        score = 85 if status == "ACTIONABLE" else 68
+        reason = (
+            "Beacon has concrete Kafka runtime signals for this consumer group."
+            if status == "ACTIONABLE"
+            else "Beacon has a likely Kafka cause, but needs more correlation evidence."
+        )
+    elif cause in {
+        "offsets_missing_or_group_inactive",
+        "lag_requires_more_evidence",
+        "moderate_lag_monitor_trend",
+    }:
+        status = "NEEDS_MORE_EVIDENCE"
+        score = 45 if cause == "offsets_missing_or_group_inactive" else 55
+        reason = (
+            "Beacon should not make a strong runtime decision from this evidence alone."
+        )
+    elif cause == "no_urgent_consumer_lag_action":
+        status = "OBSERVATION_ONLY"
+        score = 65
+        reason = (
+            "Beacon observed the group but did not find urgent consumer lag evidence."
+        )
+    else:
+        status = (
+            "ACTIONABLE"
+            if missing_count <= 2 and used_count >= 2
+            else "NEEDS_MORE_EVIDENCE"
+        )
+        score = 78 if status == "ACTIONABLE" else 58
+        reason = (
+            "Beacon has enough correlated evidence to prioritize this diagnosis."
+            if status == "ACTIONABLE"
+            else "Beacon needs more runtime context before this should drive action."
+        )
+
+    if "kafka.consumer_group.offsets.missing" in rule_ids:
+        status = "NEEDS_MORE_EVIDENCE"
+        score = min(score, 45)
+
+    return {
+        "status": status,
+        "score": score,
+        "used_count": used_count,
+        "missing_count": missing_count,
+        "reason": reason,
+    }
 
 
 def consumer_group_evidence_used(findings, hypotheses):

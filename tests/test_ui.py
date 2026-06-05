@@ -238,6 +238,10 @@ def test_kafka_ui_incident_scenario_returns_incident_diagnosis():
         == "Kafka Auth / Quota / Throttling Runbook"
     )
     assert (
+        result["diagnostic_summary"]["incident_diagnosis"]["evidence_quality"]["status"]
+        == "ACTIONABLE"
+    )
+    assert (
         "Kafka incident demo: Quota / throttling pressure"
         in result["request_scope"]["inputs"]
     )
@@ -518,6 +522,12 @@ def test_beacon_ui_exposes_kafka_scope_and_filters(monkeypatch):
     assert (
         result["diagnostic_summary"]["consumer_group_diagnoses"][0]["consumer_group"]
         == "checkout-consumer"
+    )
+    assert (
+        result["diagnostic_summary"]["consumer_group_diagnoses"][0]["evidence_quality"][
+            "status"
+        ]
+        == "NEEDS_MORE_EVIDENCE"
     )
 
 

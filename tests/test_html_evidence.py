@@ -130,6 +130,11 @@ def test_generate_html_includes_incident_diagnosis_card():
             "confidence": "HIGH",
             "summary": "Consumer group checkout-consumer is rebalancing.",
             "recommendation": "Inspect recent consumer deployments.",
+            "evidence_quality": {
+                "status": "ACTIONABLE",
+                "score": 82,
+                "reason": "Beacon has multiple deterministic signals.",
+            },
             "evidence": [
                 "Consumer group: checkout-consumer",
                 "Status: REBALANCING",
@@ -166,6 +171,8 @@ def test_generate_html_includes_incident_diagnosis_card():
     assert "Incident Diagnosis" in html
     assert "Primary Likely Cause" in html
     assert "Consumer Group Instability" in html
+    assert "Evidence Quality" in html
+    assert "ACTIONABLE" in html
     assert "Why Beacon Thinks This" in html
     assert "What To Do First" in html
     assert "Kafka Consumer Instability Runbook" in html

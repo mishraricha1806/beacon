@@ -783,9 +783,17 @@ HTML = """<!doctype html>
       if (!incident) {
         return '';
       }
+      const quality = incident.evidence_quality || {};
+      const qualityText = quality.status ?
+        '<li><strong>Evidence quality:</strong> ' + escapeHtml(quality.status || '') +
+        ' (' + escapeHtml(String(quality.score || 'unknown')) + '/100)' +
+        (quality.reason ? '<br><span class="hint">' + escapeHtml(quality.reason) + '</span>' : '') +
+        '</li>' :
+        '';
       return '<div class="incident-card"><h3>Incident Diagnosis</h3><ul>' +
         '<li><strong>Primary likely cause:</strong> ' + escapeHtml(incident.title || '') + '</li>' +
         '<li><strong>Confidence:</strong> ' + escapeHtml(incident.confidence || '') + '</li>' +
+        qualityText +
         '<li><strong>Summary:</strong> ' + escapeHtml(incident.summary || '') + '</li>' +
         (incident.recommendation ? '<li><strong>Recommendation:</strong> ' + escapeHtml(incident.recommendation) + '</li>' : '') +
         renderNestedList('Why Beacon thinks this', incident.evidence || []) +
@@ -863,6 +871,11 @@ HTML = """<!doctype html>
       return '<li><strong>Kafka consumer group diagnosis:</strong><ul>' +
         items.slice(0, 5).map((item) => {
           const lag = item.total_lag === null || item.total_lag === undefined ? 'unknown' : item.total_lag;
+          const quality = item.evidence_quality || {};
+          const qualityText = quality.status ?
+            ' · evidence quality ' + escapeHtml(quality.status || '') +
+            ' (' + escapeHtml(String(quality.score || 'unknown')) + '/100)' :
+            '';
           const missing = (item.evidence_missing || []).length ?
             ' · missing: ' + (item.evidence_missing || []).slice(0, 3).map(escapeHtml).join(', ') :
             '';
@@ -870,6 +883,7 @@ HTML = """<!doctype html>
             ' · ' + escapeHtml(item.status || '') +
             ' · ' + escapeHtml(item.primary_likely_cause || '') +
             ' · confidence ' + escapeHtml(item.confidence || '') +
+            qualityText +
             ' · lag ' + escapeHtml(String(lag)) +
             missing +
             '</li>';

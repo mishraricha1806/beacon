@@ -125,6 +125,13 @@ def print_diagnostic_summary(summary):
         console.print(
             f"- Primary likely cause: {incident.get('confidence')} - {incident.get('title')}"
         )
+        quality = incident.get("evidence_quality") or {}
+        if quality:
+            console.print(
+                f"- Evidence quality: {quality.get('status')} ({quality.get('score')}/100)"
+            )
+            if quality.get("reason"):
+                console.print(f"  - {quality['reason']}")
         if incident.get("summary"):
             console.print(f"- Summary: {incident['summary']}")
         if incident.get("recommendation"):
@@ -185,14 +192,20 @@ def print_diagnostic_summary(summary):
         table.add_column("Status")
         table.add_column("Likely Cause")
         table.add_column("Confidence")
+        table.add_column("Evidence Quality")
         table.add_column("Lag")
         table.add_column("Evidence Missing")
         for diagnosis in summary["consumer_group_diagnoses"]:
+            quality = diagnosis.get("evidence_quality") or {}
+            quality_label = "unknown"
+            if quality:
+                quality_label = f"{quality.get('status')} ({quality.get('score')}/100)"
             table.add_row(
                 diagnosis["consumer_group"],
                 diagnosis["status"],
                 diagnosis["primary_likely_cause"],
                 diagnosis["confidence"],
+                quality_label,
                 str(diagnosis.get("total_lag") or "unknown"),
                 ", ".join(diagnosis.get("evidence_missing") or ["None"]),
             )

@@ -681,6 +681,8 @@ def test_module2_diagnostic_summary_reports_telemetry_gap_for_kafka_lag_only():
     assert diagnosis["primary_likely_cause"] == "lag_requires_more_evidence"
     assert diagnosis["total_lag"] == 10000
     assert "downstream API/database latency" in diagnosis["evidence_missing"]
+    assert diagnosis["evidence_quality"]["status"] == "NEEDS_MORE_EVIDENCE"
+    assert diagnosis["evidence_quality"]["score"] == 55
 
 
 def test_module2_consumer_group_diagnosis_detects_partition_skew():
@@ -733,6 +735,8 @@ def test_module2_consumer_group_diagnosis_detects_partition_skew():
     assert incident["title"] == "Partition Skew Or Hot Key"
     assert incident["source"] == "consumer_group_diagnosis"
     assert incident["confidence"] == "HIGH"
+    assert incident["evidence_quality"]["status"] == "ACTIONABLE"
+    assert incident["evidence_quality"]["score"] >= 80
     assert any(
         "Consumer group: claims-service" in item for item in incident["evidence"]
     )
@@ -740,6 +744,8 @@ def test_module2_consumer_group_diagnosis_detects_partition_skew():
     assert incident["runbook"]["title"] == "Kafka Hot Partition Runbook"
     assert "Lag by partition" in incident["runbook"]["evidence_to_collect"]
     assert diagnosis["confidence"] == "HIGH"
+    assert diagnosis["evidence_quality"]["status"] == "ACTIONABLE"
+    assert diagnosis["evidence_quality"]["score"] >= 80
     assert diagnosis["affected_topics"] == ["claims.events"]
     assert diagnosis["hot_partitions"][0]["partition"] == 3
 
@@ -771,6 +777,8 @@ def test_module2_consumer_group_diagnosis_handles_missing_offsets():
     assert diagnosis["status"] == "OFFSETS_MISSING"
     assert diagnosis["committed_offsets_status"] == "MISSING"
     assert diagnosis["primary_likely_cause"] == "offsets_missing_or_group_inactive"
+    assert diagnosis["evidence_quality"]["status"] == "NEEDS_MORE_EVIDENCE"
+    assert diagnosis["evidence_quality"]["score"] == 45
 
 
 def test_diagnose_terminal_uses_runtime_diagnosis_language(capsys):
