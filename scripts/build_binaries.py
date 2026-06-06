@@ -10,9 +10,19 @@ import shutil
 from pathlib import Path
 
 def get_version():
-    """Read version from VERSION file."""
     version_file = Path(__file__).parent / "VERSION"
-    return version_file.read_text().strip()
+
+    if version_file.exists():
+        return version_file.read_text().strip()
+
+    pyproject_file = Path(__file__).parent.parent / "pyproject.toml"
+
+    if pyproject_file.exists():
+        for line in pyproject_file.read_text().splitlines():
+            if line.strip().startswith("version"):
+                return line.split("=", 1)[1].strip().strip('"')
+
+    return "0.0.0"
 
 def build_binary(platform: str, output_name: str):
     """Build a standalone binary for the specified platform."""
