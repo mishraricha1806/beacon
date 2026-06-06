@@ -1,0 +1,14 @@
+include README.md
+include LICENSE
+include VERSION
+recursive-include beacon *.py
+recursive-include beacon/readiness *.py
+recursive-include beacon/engine *.py
+recursive-include beacon/rules *.py
+recursive-include beacon/collectors *.py
+recursive-include beacon/correlations *.py
+recursive-include beacon/decisions *.py
+recursive-include beacon/diagnose *.py
+recursive-include beacon/intelligence *.py
+recursive-include beacon/normalizers *.py
+

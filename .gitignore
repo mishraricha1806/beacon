@@ -8,3 +8,32 @@ reports/
 .DS_Store
 *.log
 .env
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+*.whl
+
+# PyInstaller binaries
+beacon-macos
+beacon-linux
+beacon-windows
+beacon.exe
+dist-binaries/
+
+# Coverage
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
