@@ -77,6 +77,7 @@ def calculate_readiness(findings, environment=None, intelligence_context=None):
         "primary_risk_area": "",
         "top_reasons": [],
         "next_best_actions": [],
+        "release_gate": None,
         "architect_assessment": None,
         "distributed_system_readiness": None,
         "root_cause_hypotheses": [],
@@ -113,6 +114,7 @@ def calculate_readiness(findings, environment=None, intelligence_context=None):
         interpreted_findings, summary["grouped_risks"]
     )
     summary["next_best_actions"] = build_next_best_actions(summary)
+    summary["release_gate"] = build_release_gate(summary)
     summary["architect_assessment"] = build_architect_assessment(summary)
     summary["root_cause_hypotheses"] = correlate_findings(interpreted_findings)
     summary["distributed_system_readiness"] = build_distributed_system_readiness(
@@ -120,6 +122,40 @@ def calculate_readiness(findings, environment=None, intelligence_context=None):
     )
     summary["kafka_report"] = build_kafka_report(sort_findings(interpreted_findings))
     return summary
+
+
+def build_release_gate(summary):
+    decision = summary.get("production_decision")
+    if summary.get("score_status") == "BLOCKED_BY_ANALYSIS_ERROR":
+        answer = "Analysis blocked"
+        business_risk = "Beacon could not complete the scan because one or more inputs or collectors failed."
+    elif decision == "READY":
+        answer = "Yes"
+        business_risk = (
+            "No material production-readiness blocker was found in the scanned inputs."
+        )
+    elif decision == "READY WITH RISKS":
+        answer = "Yes, with risks"
+        business_risk = (
+            "The release may proceed only if the remaining risks are accepted, "
+            "owned, and tracked before production traffic."
+        )
+    else:
+        answer = "No"
+        business_risk = (
+            "Critical or high production-readiness risks can cause production "
+            "instability, exposure, data loss, or recovery failure."
+        )
+
+    return {
+        "question": "Is this production ready?",
+        "answer": answer,
+        "decision": decision,
+        "score": summary.get("score"),
+        "why_not": summary.get("top_reasons", [])[:4],
+        "fix_first": summary.get("next_best_actions", [])[:4],
+        "business_risk": business_risk,
+    }
 
 
 def classify_finding(title, impact):

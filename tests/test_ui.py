@@ -4,6 +4,8 @@ import mimetypes
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import uuid4
+import subprocess
+import sys
 
 from beacon import ui
 
@@ -66,6 +68,9 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert 'id="environment"' in ui.HTML
     assert "Risk Points" in ui.HTML
     assert "Business Risk Categories" in ui.HTML
+    assert "release-gate-card" in ui.HTML
+    assert "Is this production ready?" in ui.HTML
+    assert "Business risk" in ui.HTML
     assert 'id="intelligence_context"' in ui.HTML
     assert "Runtime Diagnosis" in ui.HTML
     assert "Incident Diagnosis" in ui.HTML
@@ -91,6 +96,21 @@ def test_ui_e2e_static_config_upload_returns_backend_findings():
     assert "kafka.topic.replication_factor.low" in rule_ids
     assert payload["readiness_summary"]["environment"] == "prod"
     assert payload["readiness_summary"]["production_decision"] == "NOT READY"
+    assert payload["readiness_summary"]["release_gate"]["answer"] == "No"
+    assert payload["readiness_summary"]["release_gate"]["why_not"]
+    assert payload["readiness_summary"]["release_gate"]["fix_first"]
+
+
+def test_ui_http_smoke_script_passes():
+    result = subprocess.run(
+        [sys.executable, "scripts/ui_smoke_check.py"],
+        cwd=Path(__file__).resolve().parents[1],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+    assert "ui smoke ok" in result.stdout
 
 
 def test_ui_returns_findings_in_severity_order(monkeypatch):

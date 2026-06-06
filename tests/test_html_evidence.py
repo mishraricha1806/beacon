@@ -31,6 +31,55 @@ def test_generate_html_includes_rule_id_and_evidence(tmp_path):
     assert "topics[0].replication_factor" in html
 
 
+def test_generate_html_includes_release_gate_card():
+    readiness_summary = {
+        "score": 52,
+        "production_decision": "NOT READY",
+        "survivability": "CRITICAL RISK",
+        "primary_risk_area": "Operational Safety",
+        "risk_points": 96,
+        "business_summary": "The system has production-readiness gaps.",
+        "recommended_action": "Fix critical risks before rollout.",
+        "critical": 1,
+        "high": 1,
+        "medium": 0,
+        "low": 0,
+        "environment": "prod",
+        "intelligence_context": {"loaded": False},
+        "score_formula": "weighted severity model",
+        "release_gate": {
+            "question": "Is this production ready?",
+            "answer": "No",
+            "decision": "NOT READY",
+            "score": 52,
+            "why_not": ["CRITICAL: Kafka topic has replication factor 1"],
+            "fix_first": ["Fix critical resiliency risks before rollout."],
+            "business_risk": "The release can fail during broker loss.",
+        },
+        "business_categories": {},
+        "architect_assessment": None,
+        "distributed_system_readiness": None,
+        "top_reasons": [],
+        "next_best_actions": [],
+        "categories": {},
+        "kafka_report": None,
+        "grouped_risks": [],
+    }
+
+    generate_html_report(
+        [], score=52, open_report=False, readiness_summary=readiness_summary
+    )
+
+    out_path = os.path.join("reports", "report.html")
+    with open(out_path, "r") as f:
+        html = f.read()
+
+    assert "Is this production ready?" in html
+    assert "Why Not?" in html
+    assert "Fix First" in html
+    assert "Business Risk" in html
+
+
 def test_generate_html_includes_flow_bottleneck_ranking():
     diagnostic_summary = {
         "diagnostic_status": "ROOT_CAUSE_CANDIDATES_FOUND",

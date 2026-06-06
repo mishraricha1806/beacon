@@ -59,6 +59,28 @@ HTML_TEMPLATE = """
             color: #f8fafc;
         }
 
+        .release-gate {
+            border-left: 6px solid #38bdf8;
+            background: #0b1220;
+        }
+
+        .gate-answer {
+            font-size: 38px;
+            font-weight: 800;
+            margin: 8px 0 10px;
+        }
+
+        .gate-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            margin-top: 18px;
+        }
+
+        .gate-grid h3 {
+            font-size: 16px;
+        }
+
         .metric {
             font-size: 30px;
             font-weight: 800;
@@ -198,7 +220,7 @@ HTML_TEMPLATE = """
         }
 
         @media (max-width: 860px) {
-            .incident-grid {
+            .incident-grid, .gate-grid {
                 grid-template-columns: 1fr;
             }
         }
@@ -220,6 +242,40 @@ HTML_TEMPLATE = """
     </div>
 
     {% if readiness_summary %}
+    {% if readiness_summary.release_gate %}
+    <div class="card section release-gate">
+        <h2>{{ readiness_summary.release_gate.question }}</h2>
+        <div class="gate-answer {{ readiness_summary.production_decision.replace(' ', '_') }}">
+            {{ readiness_summary.release_gate.answer }}
+        </div>
+        <p class="text-block">
+            <strong>Production Decision:</strong> {{ readiness_summary.release_gate.decision }}
+            · <strong>Score:</strong> {{ readiness_summary.release_gate.score }}/100
+        </p>
+        <p class="text-block">
+            <strong>Business Risk:</strong> {{ readiness_summary.release_gate.business_risk }}
+        </p>
+        <div class="gate-grid">
+            <div>
+                <h3>Why Not?</h3>
+                <ul>
+                    {% for reason in readiness_summary.release_gate.why_not %}
+                    <li>{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div>
+                <h3>Fix First</h3>
+                <ul>
+                    {% for action in readiness_summary.release_gate.fix_first %}
+                    <li>{{ action }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="grid">
         <div class="card">
             <div class="metric">{{ readiness_summary.score }}/100</div>

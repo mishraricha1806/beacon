@@ -263,6 +263,23 @@ HTML = """<!doctype html>
       line-height: 1.45;
       font-size: 13px;
     }
+    .release-gate-card {
+      border: 1px solid #d9b8b8;
+      border-left: 5px solid var(--danger);
+      border-radius: 8px;
+      background: #fff7f7;
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+    .release-gate-card h3 {
+      margin: 0 0 6px;
+      font-size: 15px;
+    }
+    .release-answer {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
     .insight-list h3 {
       margin: 0 0 8px;
       font-size: 14px;
@@ -654,6 +671,7 @@ HTML = """<!doctype html>
         <div class="result-actions">
           <button type="button" onclick="downloadReport()">Download JSON</button>
         </div>
+        ${renderReleaseGate(summary.release_gate || null)}
         <div class="summary">
           <div class="metric"><span>Score</span><strong>${data.score ?? summary.score ?? '-'}</strong></div>
           <div class="metric"><span>Decision</span><strong>${summary.production_decision || '-'}</strong></div>
@@ -731,6 +749,20 @@ HTML = """<!doctype html>
       (scope.inputs || []).forEach((input) => chips.push(input));
       if (!chips.length) return '';
       return '<div class="chips">' + chips.map((chip) => '<span class="chip">' + escapeHtml(chip) + '</span>').join('') + '</div>';
+    }
+
+    function renderReleaseGate(gate) {
+      if (!gate) {
+        return '';
+      }
+      const why = renderPlainNestedList('Why not', gate.why_not || []);
+      const fixes = renderPlainNestedList('Fix first', gate.fix_first || []);
+      return '<div class="release-gate-card"><h3>' + escapeHtml(gate.question || 'Is this production ready?') + '</h3>' +
+        '<div class="release-answer">' + escapeHtml(gate.answer || '') + '</div>' +
+        '<div class="hint"><strong>Decision:</strong> ' + escapeHtml(gate.decision || '') +
+        ' · <strong>Score:</strong> ' + escapeHtml(gate.score ?? '-') + '/100</div>' +
+        '<div class="hint"><strong>Business risk:</strong> ' + escapeHtml(gate.business_risk || '') + '</div>' +
+        '<ul>' + why + fixes + '</ul></div>';
     }
 
     function renderDiagnosticTimeline(items) {

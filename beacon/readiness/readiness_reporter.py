@@ -19,6 +19,21 @@ def print_readiness_summary(summary):
         f"[bold]Operational Survivability:[/bold] {summary['survivability']}\n"
     )
 
+    if summary.get("release_gate"):
+        gate = summary["release_gate"]
+        console.print(f"[bold]{gate['question']}[/bold] {gate['answer']}")
+        console.print(f"- Decision: {gate['decision']}")
+        console.print(f"- Score: {gate['score']}/100")
+        if gate.get("why_not"):
+            console.print("- Why not:")
+            for reason in gate["why_not"][:3]:
+                console.print(f"  - {reason}")
+        if gate.get("fix_first"):
+            console.print("- Fix first:")
+            for action in gate["fix_first"][:3]:
+                console.print(f"  - {action}")
+        console.print(f"- Business risk: {gate['business_risk']}\n")
+
     console.print(f"[bold]Business Summary:[/bold] {summary['business_summary']}")
     console.print(f"[bold]Recommended Action:[/bold] {summary['recommended_action']}\n")
 

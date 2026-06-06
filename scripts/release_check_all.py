@@ -50,6 +50,7 @@ def main():
 
     steps = [
         ("Module 1 release gate", module1),
+        ("UI smoke gate", [python, "scripts/ui_smoke_check.py"]),
         ("Module 2 diagnostic gate", [python, "scripts/module2_diagnostic_check.py"]),
         ("Module 3 flow gate", [python, "scripts/module3_flow_check.py"]),
     ]

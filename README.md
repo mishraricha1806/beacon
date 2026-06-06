@@ -17,6 +17,7 @@ Beacon is organized by release module:
 * **Module 4: AI/RAG Explanation Layer** - future explanation layer downstream of deterministic findings.
 
 Module 1's release boundary is documented in [docs/MODULE_1_RELEASE.md](docs/MODULE_1_RELEASE.md).
+The first-user static readiness demo is documented in [docs/STATIC_READINESS_DEMO.md](docs/STATIC_READINESS_DEMO.md).
 Module 2's runtime diagnostics design is documented in [docs/MODULE_2_RUNTIME_DIAGNOSTICS.md](docs/MODULE_2_RUNTIME_DIAGNOSTICS.md).
 Module 3's flow intelligence design is documented in [docs/MODULE_3_FLOW_INTELLIGENCE.md](docs/MODULE_3_FLOW_INTELLIGENCE.md).
 The end-to-end project demo is documented in [docs/PROJECT_DEMO.md](docs/PROJECT_DEMO.md).

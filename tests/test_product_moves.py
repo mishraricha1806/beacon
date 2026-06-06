@@ -95,6 +95,45 @@ def test_readiness_summarizes_whole_distributed_system_not_only_kafka():
     )
 
 
+def test_static_readiness_release_gate_answers_first_user_questions():
+    findings = [
+        {
+            "rule_id": "kafka.topic.replication_factor.low",
+            "domain": "kafka",
+            "category": "resiliency",
+            "severity": "CRITICAL",
+            "title": "Kafka topic 'payments' has replication factor 1",
+            "impact": "A broker failure can make this topic unavailable.",
+            "recommendation": "Use replication_factor=3 for production Kafka topics.",
+            "file": "kafka-topics.yaml",
+            "evidence": {"topic": "payments"},
+            "tags": [],
+        },
+        {
+            "rule_id": "aws.s3.public_access_block.weak",
+            "domain": "storage",
+            "category": "operational_safety",
+            "severity": "CRITICAL",
+            "title": "Object storage public access protection is weak",
+            "impact": "Public object storage exposure can leak sensitive data.",
+            "recommendation": "Block public object storage access.",
+            "file": "main.tf",
+            "evidence": {},
+            "tags": [],
+        },
+    ]
+
+    summary = calculate_readiness(findings, environment="prod")
+    gate = summary["release_gate"]
+
+    assert gate["question"] == "Is this production ready?"
+    assert gate["answer"] == "No"
+    assert gate["decision"] == "NOT READY"
+    assert gate["why_not"]
+    assert gate["fix_first"]
+    assert "production instability" in gate["business_risk"]
+
+
 def test_readiness_groups_repeated_kafka_topic_findings_for_nonprod():
     findings = [
         {

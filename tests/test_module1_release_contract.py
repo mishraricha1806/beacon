@@ -19,6 +19,7 @@ SUMMARY_KEYS = {
     "primary_risk_area",
     "top_reasons",
     "next_best_actions",
+    "release_gate",
     "root_cause_hypotheses",
     "distributed_system_readiness",
     "kafka_report",
@@ -63,6 +64,13 @@ def assert_release_summary(summary):
     }
     assert isinstance(summary["categories"], dict)
     assert isinstance(summary["root_cause_hypotheses"], list)
+    assert summary["release_gate"]["question"] == "Is this production ready?"
+    assert summary["release_gate"]["answer"] in {
+        "Yes",
+        "Yes, with risks",
+        "No",
+        "Analysis blocked",
+    }
     assert (
         summary["distributed_system_readiness"]["scope"] == "whole distributed system"
     )
