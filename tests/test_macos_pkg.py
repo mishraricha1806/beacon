@@ -6,7 +6,15 @@ from scripts import build_macos_pkg
 
 
 def test_macos_pkg_version_comes_from_pyproject():
-    assert build_macos_pkg.read_version() == "0.1.2"
+    pyproject_version = None
+    pyproject = build_macos_pkg.ROOT / "pyproject.toml"
+    for line in pyproject.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("version"):
+            pyproject_version = line.split("=", 1)[1].strip().strip('"')
+            break
+
+    assert build_macos_pkg.read_version() == pyproject_version
 
 
 def test_macos_pkg_checksum_helper(tmp_path):
