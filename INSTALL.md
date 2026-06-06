@@ -1,95 +1,79 @@
-# Installation & Getting Started
+# Installation
 
-## Quick Installation
+Beacon is distributed as installer and binary artifacts so users can run it
+without source-code access.
 
-### Option 1: From PyPI (Recommended)
+## macOS
+
+Download `beacon-<version>-macos.pkg` from the GitHub Release, then run:
+
 ```bash
-pip install beacon-readiness
+sudo installer -pkg beacon-<version>-macos.pkg -target /
+beacon --help
 ```
 
-### Option 2: From Source
-```bash
-git clone https://github.com/mishraricha1806/beacon.git
-cd beacon
-pip install -r requirements.txt
+The installer places Beacon at:
+
+```text
+/usr/local/bin/beacon
 ```
 
-### Option 3: With Development Tools
+Verify the package checksum if the `.sha256` file is provided:
+
 ```bash
-git clone https://github.com/mishraricha1806/beacon.git
-cd beacon
-pip install -r requirements.txt
-pip install -e ".[dev]"  # For testing and development
+shasum -a 256 -c beacon-<version>-macos.pkg.sha256
 ```
 
----
+## Linux
 
-## System Requirements
+Download `beacon-linux` from the GitHub Release:
 
-- **Python**: 3.9, 3.10, 3.11, or 3.12
-- **OS**: Linux, macOS, or Windows
-- **Memory**: Minimum 512MB (1GB+ recommended)
-- **Disk Space**: 200MB for installation
+```bash
+chmod +x beacon-linux
+./beacon-linux --help
+```
 
----
+## Windows
 
-## First-Time Usage
+Download `beacon-windows.exe` from the GitHub Release:
 
-### 1. Run the Web UI (Easiest)
+```powershell
+beacon-windows.exe --help
+```
+
+## First Run
+
+Start the local UI:
 
 ```bash
 beacon ui
 ```
 
-Then open: **http://127.0.0.1:8765**
+Then open:
 
-### 2. Scan Infrastructure
-
-```bash
-beacon scan ./my-infrastructure
+```text
+http://127.0.0.1:8765
 ```
 
-### 3. Analyze Live Kafka Cluster
+Run a static production-readiness scan:
 
 ```bash
-beacon diagnose kafka --bootstrap-server kafka.prod:9092
+beacon readiness static ./examples/supported --no-open-report
 ```
 
-### 4. Analyze Kubernetes
+Run a read-only Kafka diagnostic:
 
 ```bash
-beacon diagnose kubernetes --namespace production
+beacon diagnose kafka --bootstrap-server kafka.dev:9092
 ```
 
----
+## Source Install
 
-## Common Commands
+Source installation is for maintainers only. It is not the recommended user
+distribution model.
 
-```bash
-# Static infrastructure readiness
-beacon readiness static ./infrastructure
+## More
 
-# Live Kafka diagnostics
-beacon diagnose kafka --bootstrap-server localhost:9092
-
-# Kubernetes analysis
-beacon diagnose kubernetes --namespace production
-
-# Generate JSON output
-beacon diagnose kafka --bootstrap-server localhost:9092 --output json
-
-# Web UI
-beacon ui
-```
-
----
-
-## Documentation
-
-- [README.md](./README.md) - Full feature overview
-- [RELEASE_STEPS.md](./RELEASE_STEPS.md) - Complete usage guide
-- [examples/](./examples/) - Example configurations
-
----
-
-**Happy analyzing!** 🚀
+- [docs/PACKAGING_RELEASE.md](docs/PACKAGING_RELEASE.md)
+- [docs/MACOS_INSTALLER.md](docs/MACOS_INSTALLER.md)
+- [README.md](README.md)

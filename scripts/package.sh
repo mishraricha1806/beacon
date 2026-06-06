@@ -39,22 +39,20 @@ show_help() {
 Usage: ./scripts/package.sh [COMMAND]
 
 Commands:
-    all         Build everything (default)
+    all         Build private release artifacts (default)
     check       Check build requirements
-    wheel       Build Python wheel only
-    source      Build Python source distribution
+    wheel       Build Python wheel only (internal/dev only)
+    source      Build Python source distribution (internal/dev only)
     binary      Build standalone binary for current platform
     macos-pkg   Build macOS .pkg installer
-    test-wheel  Test the built wheel locally
-    test-pypi   Test upload to TestPyPI
+    test-wheel  Test the built wheel locally (internal/dev only)
+    test-pypi   Test upload to TestPyPI (not for private-source releases)
     clean       Clean build artifacts
 
 Examples:
     ./scripts/package.sh check
-    ./scripts/package.sh wheel
     ./scripts/package.sh binary
     ./scripts/package.sh macos-pkg
-    ./scripts/package.sh test-wheel
 EOF
 }
 
@@ -171,6 +169,19 @@ build_macos_pkg() {
     return 0
 }
 
+build_private_release() {
+    echo -e "\n${YELLOW}→ Building private-source release artifacts...${NC}"
+    build_binary
+
+    if [ "$(uname -s)" = "Darwin" ]; then
+        build_macos_pkg
+    else
+        echo -e "${YELLOW}  Skipping macOS .pkg; package installers must be built on macOS.${NC}"
+    fi
+
+    echo -e "${GREEN}✓ Private release artifacts built in dist-binaries/${NC}"
+}
+
 check_distribution() {
     echo -e "\n${YELLOW}→ Checking distributions...${NC}"
 
@@ -238,10 +249,7 @@ clean() {
 # Main
 case "$BUILD_TYPE" in
     all)
-        check_requirements || install_build_tools
-        build_wheel
-        build_source
-        check_distribution
+        build_private_release
         ;;
     check)
         check_requirements
