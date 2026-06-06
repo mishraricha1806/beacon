@@ -66,9 +66,7 @@ def test_generate_html_includes_release_gate_card():
         "grouped_risks": [],
     }
 
-    generate_html_report(
-        [], score=52, open_report=False, readiness_summary=readiness_summary
-    )
+    generate_html_report([], score=52, open_report=False, readiness_summary=readiness_summary)
 
     out_path = os.path.join("reports", "report.html")
     with open(out_path, "r") as f:

@@ -15,9 +15,7 @@ class FakeSchemaRegistryResponse:
         return json.dumps(self.payload).encode("utf-8")
 
 
-def test_schema_registry_live_metadata_maps_to_kafka_readiness_findings(
-    monkeypatch, tmp_path
-):
+def test_schema_registry_live_metadata_maps_to_kafka_readiness_findings(monkeypatch, tmp_path):
     from beacon import schema_registry_connector
 
     config = """
@@ -55,9 +53,7 @@ schema_registry:
         suffix = request.full_url.replace("http://schema-registry.local:8081", "")
         return FakeSchemaRegistryResponse(payloads[suffix])
 
-    monkeypatch.setattr(
-        schema_registry_connector.urllib.request, "urlopen", fake_urlopen
-    )
+    monkeypatch.setattr(schema_registry_connector.urllib.request, "urlopen", fake_urlopen)
 
     findings = schema_registry_connector.analyze_schema_registry_config(str(path))
     rule_ids = {finding["rule_id"] for finding in findings}
@@ -90,9 +86,7 @@ def test_schema_registry_query_failure_blocks_collection(monkeypatch, tmp_path):
     def fake_urlopen(request, timeout=None):
         raise RuntimeError("registry unavailable")
 
-    monkeypatch.setattr(
-        schema_registry_connector.urllib.request, "urlopen", fake_urlopen
-    )
+    monkeypatch.setattr(schema_registry_connector.urllib.request, "urlopen", fake_urlopen)
 
     findings = schema_registry_connector.analyze_schema_registry_config(str(path))
     rule_ids = {finding["rule_id"] for finding in findings}
@@ -139,9 +133,7 @@ schema_registry:
         "create_default_context",
         fake_create_default_context,
     )
-    monkeypatch.setattr(
-        schema_registry_connector.urllib.request, "urlopen", fake_urlopen
-    )
+    monkeypatch.setattr(schema_registry_connector.urllib.request, "urlopen", fake_urlopen)
 
     findings = schema_registry_connector.analyze_schema_registry_config(str(path))
 

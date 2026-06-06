@@ -71,9 +71,7 @@ def assert_release_summary(summary):
         "No",
         "Analysis blocked",
     }
-    assert (
-        summary["distributed_system_readiness"]["scope"] == "whole distributed system"
-    )
+    assert summary["distributed_system_readiness"]["scope"] == "whole distributed system"
 
 
 def assert_release_findings(findings):
@@ -132,9 +130,7 @@ def test_module1_runtime_snapshot_contract():
 
 
 def test_module1_opentelemetry_contract():
-    findings = analyze_opentelemetry_file(
-        str(ROOT / "opentelemetry" / "checkout-otel.yaml")
-    )
+    findings = analyze_opentelemetry_file(str(ROOT / "opentelemetry" / "checkout-otel.yaml"))
     summary = calculate_readiness(findings)
 
     assert_release_findings(findings)

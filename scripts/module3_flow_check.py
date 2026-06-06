@@ -49,8 +49,7 @@ def check_downstream_database_bottleneck():
         "Downstream database bottleneck scenario did not emit flow bottleneck finding",
     )
     require(
-        primary_correlation(summary)
-        == "correlation.root_cause.downstream_database_bottleneck",
+        primary_correlation(summary) == "correlation.root_cause.downstream_database_bottleneck",
         "Downstream database bottleneck was not the primary root-cause hypothesis",
     )
     require(
@@ -71,9 +70,7 @@ def check_downstream_database_bottleneck():
 
 
 def check_deployment_triggered_degradation():
-    findings = analyze_flow_file(
-        FLOW_SCENARIOS / "deployment-triggered-degradation.yaml"
-    )
+    findings = analyze_flow_file(FLOW_SCENARIOS / "deployment-triggered-degradation.yaml")
     ids = rule_ids(findings)
     summary = build_diagnostic_summary(findings)
 
@@ -95,10 +92,7 @@ def check_deployment_triggered_degradation():
         "Deployment-triggered scenario did not rank API as top constrained component",
     )
     require(
-        any(
-            component["component"] == "deployment"
-            for component in ranking["components"]
-        ),
+        any(component["component"] == "deployment" for component in ranking["components"]),
         "Deployment-triggered scenario did not retain deployment as causal evidence",
     )
 
@@ -222,8 +216,7 @@ def check_deployment_window_contract():
     analysis = summary["deployment_window_analyses"][0]
     metrics = {metric["metric"] for metric in analysis["metrics"]}
     require(
-        {"api_latency_p95_ms", "api_error_rate_percent", "kafka_consumer_lag"}
-        <= metrics,
+        {"api_latency_p95_ms", "api_error_rate_percent", "kafka_consumer_lag"} <= metrics,
         f"Deployment window analysis missing metrics: {sorted(metrics)}",
     )
 

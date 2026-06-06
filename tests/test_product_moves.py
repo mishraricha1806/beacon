@@ -81,18 +81,13 @@ def test_readiness_summarizes_whole_distributed_system_not_only_kafka():
 
     assert distributed["title"] == "Distributed System Production Readiness"
     assert distributed["scope"] == "whole distributed system"
-    assert {"api", "database", "kafka", "kubernetes"} <= set(
-        distributed["domains_observed"]
-    )
+    assert {"api", "database", "kafka", "kubernetes"} <= set(distributed["domains_observed"])
     assert "API -> Kafka -> Consumer -> Database" in distributed["critical_paths"]
     assert any(
-        dimension["title"] == "Database/Storage Readiness"
-        and dimension["status"] == "BLOCKED"
+        dimension["title"] == "Database/Storage Readiness" and dimension["status"] == "BLOCKED"
         for dimension in distributed["dimensions"]
     )
-    assert any(
-        blocker["domain"] == "database" for blocker in distributed["release_blockers"]
-    )
+    assert any(blocker["domain"] == "database" for blocker in distributed["release_blockers"])
 
 
 def test_static_readiness_release_gate_answers_first_user_questions():
@@ -356,10 +351,7 @@ def test_architect_assessment_surfaces_context_gaps_and_assumptions():
     summary = calculate_readiness(findings)
     assessment = summary["architect_assessment"]
 
-    assert any(
-        "No organization intelligence context" in gap
-        for gap in assessment["context_gaps"]
-    )
+    assert any("No organization intelligence context" in gap for gap in assessment["context_gaps"])
     assert any("single-broker" in gap for gap in assessment["context_gaps"])
     assert any("throughput" in gap for gap in assessment["context_gaps"])
     assert any("Missing consumer offsets" in gap for gap in assessment["context_gaps"])
@@ -497,14 +489,12 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
     monkeypatch.setattr(
         cli,
         "scan_path",
-        lambda path: calls.append(("static", path))
-        or [finding("static.rule", "static")],
+        lambda path: calls.append(("static", path)) or [finding("static.rule", "static")],
     )
     monkeypatch.setattr(
         cli,
         "analyze_runtime_snapshot_file",
-        lambda path: calls.append(("snapshot", path))
-        or [finding("snapshot.rule", "snapshot")],
+        lambda path: calls.append(("snapshot", path)) or [finding("snapshot.rule", "snapshot")],
     )
     monkeypatch.setattr(
         cli,
@@ -532,8 +522,7 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
     monkeypatch.setattr(
         cli,
         "analyze_kafka_acl_file",
-        lambda path: calls.append(("kafka-acls", path))
-        or [finding("kafka.acl.rule", "kafka")],
+        lambda path: calls.append(("kafka-acls", path)) or [finding("kafka.acl.rule", "kafka")],
     )
     monkeypatch.setattr(
         cli,
@@ -544,8 +533,7 @@ def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatc
     monkeypatch.setattr(
         cli,
         "analyze_kafka_cluster",
-        lambda **kwargs: calls.append(("kafka", kwargs))
-        or [finding("kafka.rule", "kafka")],
+        lambda **kwargs: calls.append(("kafka", kwargs)) or [finding("kafka.rule", "kafka")],
     )
     monkeypatch.setattr(
         cli,
@@ -634,9 +622,7 @@ def test_readiness_all_emits_readiness_summary(monkeypatch):
         ],
     )
     monkeypatch.setattr(cli, "load_policy", lambda: {})
-    monkeypatch.setattr(
-        cli, "apply_policy_to_findings", lambda findings, policy: findings
-    )
+    monkeypatch.setattr(cli, "apply_policy_to_findings", lambda findings, policy: findings)
     monkeypatch.setattr(
         cli,
         "print_readiness_summary",
@@ -683,9 +669,7 @@ def test_diagnose_all_emits_diagnostic_report_without_readiness_summary(monkeypa
         ],
     )
     monkeypatch.setattr(cli, "load_policy", lambda: {})
-    monkeypatch.setattr(
-        cli, "apply_policy_to_findings", lambda findings, policy: findings
-    )
+    monkeypatch.setattr(cli, "apply_policy_to_findings", lambda findings, policy: findings)
     monkeypatch.setattr(
         cli,
         "print_report",
@@ -753,8 +737,7 @@ def test_module2_diagnostic_summary_ranks_root_cause_and_gaps():
         for playbook in summary["diagnostic_playbooks"]
     )
     assert any(
-        playbook["id"] == "module3.flow.bottleneck"
-        for playbook in summary["diagnostic_playbooks"]
+        playbook["id"] == "module3.flow.bottleneck" for playbook in summary["diagnostic_playbooks"]
     )
 
 
@@ -782,8 +765,7 @@ def test_module2_diagnostic_summary_reports_telemetry_gap_for_kafka_lag_only():
     assert summary["diagnostic_playbooks"][0]["id"] == "module2.kafka.consumer_lag"
     assert summary["diagnostic_playbooks"][0]["confidence"] == "MEDIUM"
     assert (
-        "downstream database/API latency"
-        in summary["diagnostic_playbooks"][0]["evidence_needed"]
+        "downstream database/API latency" in summary["diagnostic_playbooks"][0]["evidence_needed"]
     )
     diagnosis = summary["consumer_group_diagnoses"][0]
     assert diagnosis["consumer_group"] == "claims-service"
@@ -829,9 +811,7 @@ def test_module2_consumer_group_diagnosis_detects_partition_skew():
                 "evidence": {
                     "consumer_group": "claims-service",
                     "max_partition_lag": 90000,
-                    "hot_partitions": [
-                        {"topic": "claims.events", "partition": 3, "lag": 90000}
-                    ],
+                    "hot_partitions": [{"topic": "claims.events", "partition": 3, "lag": 90000}],
                 },
                 "tags": [],
             },
@@ -847,9 +827,7 @@ def test_module2_consumer_group_diagnosis_detects_partition_skew():
     assert incident["confidence"] == "HIGH"
     assert incident["evidence_quality"]["status"] == "ACTIONABLE"
     assert incident["evidence_quality"]["score"] >= 80
-    assert any(
-        "Consumer group: claims-service" in item for item in incident["evidence"]
-    )
+    assert any("Consumer group: claims-service" in item for item in incident["evidence"])
     assert incident["first_actions"]
     assert incident["runbook"]["title"] == "Kafka Hot Partition Runbook"
     assert "Lag by partition" in incident["runbook"]["evidence_to_collect"]
@@ -1145,17 +1123,13 @@ def test_live_kafka_topics_use_normalized_evaluator(monkeypatch):
             return {resource: FakeFuture() for resource in resources}
 
     def capture_evaluate(resources, context=None):
-        captured.setdefault("resource_types", []).extend(
-            resource.type for resource in resources
-        )
+        captured.setdefault("resource_types", []).extend(resource.type for resource in resources)
         captured["context"] = context
         return []
 
     monkeypatch.setattr(kafka_runtime_connector, "AdminClient", FakeAdminClient)
     monkeypatch.setattr(kafka_runtime_connector, "evaluate", capture_evaluate)
-    monkeypatch.setattr(
-        kafka_runtime_connector, "analyze_consumer_group_lag", lambda **kwargs: []
-    )
+    monkeypatch.setattr(kafka_runtime_connector, "analyze_consumer_group_lag", lambda **kwargs: [])
 
     kafka_runtime_connector.analyze_kafka_cluster("localhost:9092")
 
@@ -1218,12 +1192,8 @@ def test_live_kafka_consumer_group_filter_limits_topic_diagnostics(monkeypatch):
             }
 
     monkeypatch.setattr(kafka_runtime_connector, "AdminClient", FakeAdminClient)
-    monkeypatch.setattr(
-        kafka_runtime_connector, "evaluate", lambda resources, context=None: []
-    )
-    monkeypatch.setattr(
-        kafka_runtime_connector, "analyze_acl_posture", lambda admin_client: []
-    )
+    monkeypatch.setattr(kafka_runtime_connector, "evaluate", lambda resources, context=None: [])
+    monkeypatch.setattr(kafka_runtime_connector, "analyze_acl_posture", lambda admin_client: [])
     monkeypatch.setattr(
         kafka_runtime_connector,
         "describe_consumer_group_stability",
@@ -1243,9 +1213,7 @@ def test_live_kafka_consumer_group_filter_limits_topic_diagnostics(monkeypatch):
     assert "payments" in captured["topic_names"]
     assert "unrelated" not in captured["topic_names"]
     connection = next(
-        finding
-        for finding in findings
-        if finding["rule_id"] == "kafka.runtime.connection.success"
+        finding for finding in findings if finding["rule_id"] == "kafka.runtime.connection.success"
     )
     assert connection["evidence"]["topic_scope"] == "consumer_group_committed_topics"
     assert connection["evidence"]["analyzed_topic_count"] == 1
@@ -1301,12 +1269,8 @@ def test_live_kafka_consumer_group_without_offsets_skips_cluster_topic_diagnosti
             return {"payments-consumer": FakeFuture(FakeOffsetsResult())}
 
     monkeypatch.setattr(kafka_runtime_connector, "AdminClient", FakeAdminClient)
-    monkeypatch.setattr(
-        kafka_runtime_connector, "evaluate", lambda resources, context=None: []
-    )
-    monkeypatch.setattr(
-        kafka_runtime_connector, "analyze_acl_posture", lambda admin_client: []
-    )
+    monkeypatch.setattr(kafka_runtime_connector, "evaluate", lambda resources, context=None: [])
+    monkeypatch.setattr(kafka_runtime_connector, "analyze_acl_posture", lambda admin_client: [])
     monkeypatch.setattr(
         kafka_runtime_connector,
         "describe_consumer_group_stability",
@@ -1329,14 +1293,9 @@ def test_live_kafka_consumer_group_without_offsets_skips_cluster_topic_diagnosti
     assert "unrelated" not in captured["topic_names"]
     assert "kafka.runtime.topic_scope.no_committed_offsets" in rule_ids
     connection = next(
-        finding
-        for finding in findings
-        if finding["rule_id"] == "kafka.runtime.connection.success"
+        finding for finding in findings if finding["rule_id"] == "kafka.runtime.connection.success"
     )
-    assert (
-        connection["evidence"]["topic_scope"]
-        == "consumer_group_only_no_committed_topics"
-    )
+    assert connection["evidence"]["topic_scope"] == "consumer_group_only_no_committed_topics"
     assert connection["evidence"]["analyzed_topic_count"] == 0
 
     from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
@@ -1399,10 +1358,7 @@ def test_live_kafka_consumer_group_stability_detects_rebalancing_and_empty():
         SimpleNamespace(state="EMPTY", members=[]),
     )
 
-    assert any(
-        finding["rule_id"] == "kafka.consumer_group.rebalancing"
-        for finding in rebalancing
-    )
+    assert any(finding["rule_id"] == "kafka.consumer_group.rebalancing" for finding in rebalancing)
     assert any(finding["rule_id"] == "kafka.consumer_group.empty" for finding in empty)
 
 
@@ -1581,10 +1537,7 @@ def test_scanner_uses_normalized_terraform_resources():
 
     findings = scan_file("./examples/bad-infra/main.tf")
 
-    assert any(
-        finding["rule_id"] == "object_storage.public_access.enabled"
-        for finding in findings
-    )
+    assert any(finding["rule_id"] == "object_storage.public_access.enabled" for finding in findings)
 
 
 def test_kafka_normalizer_accepts_nested_kafka_document():
@@ -1624,13 +1577,8 @@ def test_direct_server_config_validation_fails_before_connect(monkeypatch):
         security_protocol="BAD_PROTOCOL",
     )
 
-    assert any(
-        finding["rule_id"] == "kafka.runtime.server_config.invalid"
-        for finding in findings
-    )
-    assert not any(
-        finding["rule_id"] == "kafka.runtime.connection.failed" for finding in findings
-    )
+    assert any(finding["rule_id"] == "kafka.runtime.server_config.invalid" for finding in findings)
+    assert not any(finding["rule_id"] == "kafka.runtime.connection.failed" for finding in findings)
 
 
 def test_direct_server_config_preserves_multiple_bootstrap_servers():
@@ -1698,18 +1646,12 @@ kafka_access:
     assert access.valid
     assert cluster_profile.name == "discovery"
     assert topic_profile.name == "payments"
-    assert cluster_profile.bootstrap_servers == (
-        "kafka-1.example:9093,kafka-2.example:9093"
-    )
-    assert topic_profile.bootstrap_servers == (
-        "kafka-1.example:9093,kafka-2.example:9093"
-    )
+    assert cluster_profile.bootstrap_servers == ("kafka-1.example:9093,kafka-2.example:9093")
+    assert topic_profile.bootstrap_servers == ("kafka-1.example:9093,kafka-2.example:9093")
     assert admin_config_from_profile(cluster_profile)["bootstrap.servers"] == (
         "kafka-1.example:9093,kafka-2.example:9093"
     )
-    assert (
-        admin_config_from_profile(cluster_profile)["sasl.mechanisms"] == "OAUTHBEARER"
-    )
+    assert admin_config_from_profile(cluster_profile)["sasl.mechanisms"] == "OAUTHBEARER"
     assert admin_config_from_profile(topic_profile)["security.protocol"] == "SSL"
 
 
@@ -1891,10 +1833,7 @@ def test_terraform_plan_json_is_scanned(tmp_path):
 
     findings = scan_file(str(plan_path))
 
-    assert any(
-        finding["rule_id"] == "object_storage.public_access.enabled"
-        for finding in findings
-    )
+    assert any(finding["rule_id"] == "object_storage.public_access.enabled" for finding in findings)
 
 
 def test_terraform_state_json_is_scanned(tmp_path):
@@ -1933,9 +1872,7 @@ def test_helm_chart_rendering_is_scanned(monkeypatch, tmp_path):
     chart_dir = tmp_path / "payments"
     templates_dir = chart_dir / "templates"
     templates_dir.mkdir(parents=True)
-    (chart_dir / "Chart.yaml").write_text(
-        "apiVersion: v2\nname: payments\nversion: 0.1.0\n"
-    )
+    (chart_dir / "Chart.yaml").write_text("apiVersion: v2\nname: payments\nversion: 0.1.0\n")
     (templates_dir / "deployment.yaml").write_text("{{ .Values.placeholder }}\n")
 
     rendered_manifest = """
@@ -1972,9 +1909,7 @@ def test_helm_chart_without_helm_blocks_analysis(monkeypatch, tmp_path):
 
     chart_dir = tmp_path / "payments"
     (chart_dir / "templates").mkdir(parents=True)
-    (chart_dir / "Chart.yaml").write_text(
-        "apiVersion: v2\nname: payments\nversion: 0.1.0\n"
-    )
+    (chart_dir / "Chart.yaml").write_text("apiVersion: v2\nname: payments\nversion: 0.1.0\n")
 
     monkeypatch.setattr(scanner.shutil, "which", lambda binary: None)
 
@@ -2146,9 +2081,7 @@ def test_live_kubernetes_connector_uses_read_only_kubectl(monkeypatch):
     )
     monkeypatch.setattr(kubernetes_runtime_connector.subprocess, "run", fake_run)
 
-    findings = kubernetes_runtime_connector.analyze_kubernetes_cluster(
-        namespace="payments"
-    )
+    findings = kubernetes_runtime_connector.analyze_kubernetes_cluster(namespace="payments")
     rule_ids = {finding["rule_id"] for finding in findings}
 
     assert "k8s.runtime.read_only_mode" in rule_ids
@@ -2518,7 +2451,6 @@ api_runtime:
     cli.diagnose_snapshot(str(path), html=False, open_report=False, output="json")
 
     assert any(
-        finding["rule_id"] == "api.runtime.latency_p95.high"
-        for finding in captured["findings"]
+        finding["rule_id"] == "api.runtime.latency_p95.high" for finding in captured["findings"]
     )
     assert captured["kwargs"]["output"] == "json"

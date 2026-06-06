@@ -75,11 +75,18 @@ jobs:
       - name: Build binary
         run: python scripts/build_binaries.py ${{ matrix.platform }}
 
+      - name: Build macOS installer package
+        if: matrix.platform == 'macos'
+        run: python scripts/build_macos_pkg.py --skip-binary-build
+
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
-          path: dist-binaries/${{ matrix.artifact-name }}
+          path: |
+            dist-binaries/${{ matrix.artifact-name }}
+            dist-binaries/*.pkg
+            dist-binaries/*.pkg.sha256
 
   create-release:
     name: Create GitHub Release
@@ -110,13 +117,14 @@ jobs:
 
           ## Distribution
 
-          This release provides standalone binaries only.
+          This release provides a macOS installer package and standalone binaries.
 
           Source code, wheel files, and source distributions are not included in this release.
 
           ## Downloads
 
-          - macOS: \`beacon-macos\`
+          - macOS installer: \`beacon-<version>-macos.pkg\`
+          - macOS raw binary: \`beacon-macos\`
           - Linux: \`beacon-linux\`
           - Windows: \`beacon-windows.exe\`
 
@@ -125,8 +133,8 @@ jobs:
           ### macOS
 
           \`\`\`bash
-          chmod +x beacon-macos
-          ./beacon-macos --help
+          sudo installer -pkg beacon-<version>-macos.pkg -target /
+          beacon --help
           \`\`\`
 
           ### Linux
@@ -163,6 +171,8 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
+            release-artifacts/beacon-macos/*.pkg
+            release-artifacts/beacon-macos/*.pkg.sha256
             release-artifacts/beacon-macos/beacon-macos
             release-artifacts/beacon-linux/beacon-linux
             release-artifacts/beacon-windows.exe/beacon-windows.exe

@@ -59,9 +59,7 @@ class TestRuntimeKafkaCollection:
             ],
         }
         # Detect skew: partition 2 has 60% of traffic with 33% of partitions
-        total_traffic = sum(
-            p["incoming_byte_rate"] for p in partition_traffic["partitions"]
-        )
+        total_traffic = sum(p["incoming_byte_rate"] for p in partition_traffic["partitions"])
         partition_2_ratio = 900000 / total_traffic
         assert partition_2_ratio > 0.5  # More than 50% on one partition = hot
 

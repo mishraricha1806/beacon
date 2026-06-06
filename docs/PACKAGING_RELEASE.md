@@ -137,6 +137,31 @@ chmod +x beacon-linux
 beacon-windows.exe --help
 ```
 
+### macOS `.pkg` Installer
+
+For macOS users, prefer distributing a signed/notarized installer package over a
+raw executable.
+
+```bash
+# Build the PyInstaller binary and wrap it in a macOS installer.
+python3 scripts/build_macos_pkg.py
+
+# Output:
+# dist-binaries/beacon-<version>-macos.pkg
+# dist-binaries/beacon-<version>-macos.pkg.sha256
+```
+
+Users install with:
+
+```bash
+sudo installer -pkg beacon-<version>-macos.pkg -target /
+beacon --help
+```
+
+The installer places Beacon at `/usr/local/bin/beacon`. See
+[`docs/MACOS_INSTALLER.md`](MACOS_INSTALLER.md) for build, verify, and uninstall
+instructions.
+
 ---
 
 ## Part 3: Release Workflow
@@ -372,4 +397,3 @@ Each maintains:
 | **User Access** | Full CLI tool, no source code exposure |
 
 This model is ideal for **product-style distribution** where you maintain full source privacy while providing easy user access to stable, verified releases.
-

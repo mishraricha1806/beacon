@@ -90,6 +90,14 @@ Should show:
 ./scripts/package.sh binary
 ```
 
+### Test macOS Installer Build
+
+Run on macOS:
+
+```bash
+./scripts/package.sh macos-pkg
+```
+
 ---
 
 ## Step 6: Create First Release
@@ -146,7 +154,9 @@ pip search beacon-readiness 2>/dev/null || \
 
 **GitHub Releases:**
 1. Go to **Releases** page
-2. Should see `v0.1.0` with 5 files:
+2. Should see `v0.1.0` with macOS installer, binaries, and Python artifacts:
+   - `beacon-0.1.0-macos.pkg`
+   - `beacon-0.1.0-macos.pkg.sha256`
    - `beacon-macos`
    - `beacon-linux`
    - `beacon-windows.exe`
@@ -196,6 +206,14 @@ Before pushing a tag:
 
 ```bash
 pip install beacon-readiness
+beacon --help
+```
+
+### For macOS Installer Users
+
+```bash
+wget https://github.com/your-org/beacon/releases/download/v0.1.0/beacon-0.1.0-macos.pkg
+sudo installer -pkg beacon-0.1.0-macos.pkg -target /
 beacon --help
 ```
 
@@ -306,4 +324,3 @@ For production, sign releases with GPG:
 | **Users (binary)** | GitHub Releases | Download from releases page |
 
 Your private source + public distribution pipeline is now ready! 🚀
-

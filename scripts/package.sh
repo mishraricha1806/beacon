@@ -3,7 +3,21 @@
 
 set -e
 
-VERSION=$(cat VERSION | tr -d '\n')
+VERSION=$(python3 - <<'PY'
+from pathlib import Path
+
+pyproject = Path("pyproject.toml")
+if pyproject.exists():
+    for line in pyproject.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line.startswith("version"):
+            print(line.split("=", 1)[1].strip().strip('"'))
+            raise SystemExit
+
+version = Path("VERSION")
+print(version.read_text(encoding="utf-8").strip() if version.exists() else "0.0.0")
+PY
+)
 PROJECT_NAME="beacon-readiness"
 
 # Colors for output
@@ -30,6 +44,7 @@ Commands:
     wheel       Build Python wheel only
     source      Build Python source distribution
     binary      Build standalone binary for current platform
+    macos-pkg   Build macOS .pkg installer
     test-wheel  Test the built wheel locally
     test-pypi   Test upload to TestPyPI
     clean       Clean build artifacts
@@ -38,6 +53,7 @@ Examples:
     ./scripts/package.sh check
     ./scripts/package.sh wheel
     ./scripts/package.sh binary
+    ./scripts/package.sh macos-pkg
     ./scripts/package.sh test-wheel
 EOF
 }
@@ -138,6 +154,23 @@ build_binary() {
     return 0
 }
 
+build_macos_pkg() {
+    echo -e "\n${YELLOW}→ Building macOS .pkg installer...${NC}"
+
+    if [ "$(uname -s)" != "Darwin" ]; then
+        echo -e "${RED}✗ macOS .pkg installers must be built on macOS${NC}"
+        return 1
+    fi
+
+    if ! command -v pkgbuild > /dev/null 2>&1 || ! command -v productbuild > /dev/null 2>&1; then
+        echo -e "${RED}✗ pkgbuild and productbuild are required. Install Xcode Command Line Tools.${NC}"
+        return 1
+    fi
+
+    python3 scripts/build_macos_pkg.py
+    return 0
+}
+
 check_distribution() {
     echo -e "\n${YELLOW}→ Checking distributions...${NC}"
 
@@ -224,6 +257,9 @@ case "$BUILD_TYPE" in
     binary)
         build_binary
         ;;
+    macos-pkg)
+        build_macos_pkg
+        ;;
     test-wheel)
         test_wheel
         ;;
@@ -242,4 +278,3 @@ case "$BUILD_TYPE" in
         exit 1
         ;;
 esac
-

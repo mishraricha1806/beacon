@@ -45,13 +45,15 @@ pip install beacon-readiness
 beacon scan ./infrastructure
 ```
 
-**Option B: Standalone Binary (No Python)**
-- macOS: [beacon-macos](#)
+**Option B: Installer / Standalone Binary (No Python)**
+- macOS installer: [beacon-<version>-macos.pkg](#)
+- macOS raw binary: [beacon-macos](#)
 - Linux: [beacon-linux](#)
 - Windows: [beacon-windows.exe](#)
 
 ```bash
-./beacon-macos --help
+sudo installer -pkg beacon-<version>-macos.pkg -target /
+beacon --help
 ```
 
 **Option C: Docker**
@@ -119,4 +121,3 @@ pip install beacon-readiness
 ```
 
 Happy readiness checking! 📊
-

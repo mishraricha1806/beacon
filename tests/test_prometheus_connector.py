@@ -136,9 +136,7 @@ def test_prometheus_missing_url_blocks_analysis(tmp_path):
     assert findings[0]["severity"] == "ERROR"
 
 
-def test_prometheus_kafka_jmx_metrics_map_to_kafka_runtime_findings(
-    monkeypatch, tmp_path
-):
+def test_prometheus_kafka_jmx_metrics_map_to_kafka_runtime_findings(monkeypatch, tmp_path):
     from beacon import prometheus_connector
 
     config = """

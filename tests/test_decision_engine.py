@@ -14,9 +14,7 @@ class TestDecisionEngine:
 
     def test_ready_decision_no_findings(self):
         """Test READY decision with no findings."""
-        decision, reason = DecisionEngine.determine_production_decision(
-            findings=[], score=100
-        )
+        decision, reason = DecisionEngine.determine_production_decision(findings=[], score=100)
         assert decision == ProductionDecision.READY
         assert "ready" in reason.lower()
 
@@ -31,9 +29,7 @@ class TestDecisionEngine:
                 "test.yaml",
             )
         ]
-        decision, reason = DecisionEngine.determine_production_decision(
-            findings=findings, score=80
-        )
+        decision, reason = DecisionEngine.determine_production_decision(findings=findings, score=80)
         assert decision == ProductionDecision.NOT_READY
         assert "critical" in reason.lower()
 
@@ -44,9 +40,7 @@ class TestDecisionEngine:
             finding("HIGH", "Issue 2", "Impact", "Fix", "test.yaml"),
             finding("MEDIUM", "Issue 3", "Impact", "Fix", "test.yaml"),
         ]
-        decision, reason = DecisionEngine.determine_production_decision(
-            findings=findings, score=45
-        )
+        decision, reason = DecisionEngine.determine_production_decision(findings=findings, score=45)
         assert decision == ProductionDecision.NOT_READY
         assert "below" in reason.lower() or "threshold" in reason.lower()
 
@@ -56,9 +50,7 @@ class TestDecisionEngine:
             finding("MEDIUM", "Minor issue", "Low impact", "Consider", "test.yaml"),
             finding("LOW", "Suggestion", "Very low impact", "Optional", "test.yaml"),
         ]
-        decision, reason = DecisionEngine.determine_production_decision(
-            findings=findings, score=85
-        )
+        decision, reason = DecisionEngine.determine_production_decision(findings=findings, score=85)
         assert decision == ProductionDecision.READY
 
     def test_categorize_findings(self):
@@ -134,11 +126,7 @@ class TestDecisionFormatter:
 
     def test_format_production_decision_terminal(self):
         """Test terminal format output."""
-        findings = [
-            finding(
-                "CRITICAL", "Replication issue", "Data loss", "Fix now", "test.yaml"
-            )
-        ]
+        findings = [finding("CRITICAL", "Replication issue", "Data loss", "Fix now", "test.yaml")]
         output = DecisionFormatter.format_production_decision(
             decision=ProductionDecision.NOT_READY,
             findings=findings,

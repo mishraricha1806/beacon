@@ -21,23 +21,17 @@ def test_correlates_downstream_database_bottleneck_first():
         [
             finding("flow.runtime.downstream_db_bottleneck", "flow"),
             finding("database.runtime.latency.high", "database"),
-            finding(
-                "database.runtime.connection_pool.exhaustion", "database", "CRITICAL"
-            ),
+            finding("database.runtime.connection_pool.exhaustion", "database", "CRITICAL"),
             finding("api.runtime.latency_p95.high", "api"),
         ]
     )
 
     assert hypotheses
     assert (
-        hypotheses[0]["correlation_id"]
-        == "correlation.root_cause.downstream_database_bottleneck"
+        hypotheses[0]["correlation_id"] == "correlation.root_cause.downstream_database_bottleneck"
     )
     assert hypotheses[0]["confidence"] == "HIGH"
-    assert (
-        "database.runtime.connection_pool.exhaustion"
-        in hypotheses[0]["matched_rule_ids"]
-    )
+    assert "database.runtime.connection_pool.exhaustion" in hypotheses[0]["matched_rule_ids"]
 
 
 def test_readiness_summary_includes_root_cause_hypotheses():
@@ -68,9 +62,7 @@ def test_kafka_only_consumer_side_does_not_infer_database_bottleneck():
 
     correlation_ids = {hypothesis["correlation_id"] for hypothesis in hypotheses}
 
-    assert (
-        "correlation.root_cause.downstream_database_bottleneck" not in correlation_ids
-    )
+    assert "correlation.root_cause.downstream_database_bottleneck" not in correlation_ids
     assert "correlation.root_cause.kafka_consumer_observation" in correlation_ids
 
 
@@ -84,10 +76,7 @@ def test_kafka_single_broker_gets_kafka_native_hypothesis():
     )
 
     assert hypotheses
-    assert (
-        hypotheses[0]["correlation_id"]
-        == "correlation.root_cause.kafka_single_broker_topology"
-    )
+    assert hypotheses[0]["correlation_id"] == "correlation.root_cause.kafka_single_broker_topology"
 
 
 def test_kafka_schema_and_payload_risks_are_kafka_native():

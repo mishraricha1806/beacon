@@ -40,7 +40,9 @@ PyPI: beacon-readiness==0.1.0
 ├── pip install beacon-readiness
 
 GitHub Release: v0.1.0
-├── beacon-macos                    (170 MB)
+├── beacon-0.1.0-macos.pkg          (macOS installer)
+├── beacon-0.1.0-macos.pkg.sha256
+├── beacon-macos                    (raw macOS binary fallback)
 ├── beacon-linux                    (170 MB)  
 ├── beacon-windows.exe              (180 MB)
 ├── beacon_readiness-0.1.0-py3-none-any.whl
@@ -56,7 +58,14 @@ pip install beacon-readiness
 beacon scan ./infra
 ```
 
-### Option B: Standalone Binary
+### Option B: macOS Installer
+```bash
+wget https://github.com/your-org/beacon/releases/download/v0.1.0/beacon-0.1.0-macos.pkg
+sudo installer -pkg beacon-0.1.0-macos.pkg -target /
+beacon --help
+```
+
+### Option C: Standalone Binary
 ```bash
 # Download
 wget https://github.com/your-org/beacon/releases/download/v0.1.0/beacon-macos
@@ -193,4 +202,3 @@ Users:
 **Status**: ✅ Ready for production use  
 **Tested**: macOS, Linux (via GitHub Actions)  
 **Users**: Can install via `pip` or download binaries
-

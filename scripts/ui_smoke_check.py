@@ -29,8 +29,7 @@ def multipart_body(fields, files):
         chunks.append(f"--{boundary}\r\n".encode())
         chunks.append(
             (
-                f'Content-Disposition: form-data; name="{name}"; '
-                f'filename="{path.name}"\r\n'
+                f'Content-Disposition: form-data; name="{name}"; ' f'filename="{path.name}"\r\n'
             ).encode()
         )
         chunks.append(b"Content-Type: application/x-yaml\r\n\r\n")
@@ -63,9 +62,7 @@ def main():
 
         boundary, body = multipart_body(
             fields={"mode": "direct", "environment": "prod"},
-            files={
-                "static_config": ROOT / "examples" / "bad-infra" / "kafka-topics.yaml"
-            },
+            files={"static_config": ROOT / "examples" / "bad-infra" / "kafka-topics.yaml"},
         )
         request = urllib.request.Request(
             f"{base_url}/api/beacon",
@@ -80,9 +77,7 @@ def main():
         gate = summary["release_gate"]
         rule_ids = {finding["rule_id"] for finding in payload["findings"]}
 
-        require(
-            gate["question"] == "Is this production ready?", "bad release gate question"
-        )
+        require(gate["question"] == "Is this production ready?", "bad release gate question")
         require(gate["answer"] == "No", "bad-infra should not be production ready")
         require(gate["decision"] == "NOT READY", "bad-infra should be NOT READY")
         require(gate["why_not"], "release gate should explain why not")

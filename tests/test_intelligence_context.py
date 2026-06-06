@@ -78,10 +78,7 @@ def test_intelligence_context_topic_patterns_adjust_low_partition_findings():
 
     assert summary["environment"] == "prod"
     assert interpreted["severity"] == "INFO"
-    assert (
-        "topic pattern allows low partition count"
-        in interpreted["severity_adjustment_reason"]
-    )
+    assert "topic pattern allows low partition count" in interpreted["severity_adjustment_reason"]
 
 
 def test_intelligence_context_rule_override_is_deterministic():

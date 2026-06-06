@@ -43,9 +43,7 @@ def test_kafka_scenario_pack_unsafe_acls():
 def test_kafka_scenario_pack_lag_rebalance_history():
     from beacon.kafka_history import analyze_kafka_history_file
 
-    findings = analyze_kafka_history_file(
-        str(ROOT / "scenarios" / "lag-rebalance-history.yaml")
-    )
+    findings = analyze_kafka_history_file(str(ROOT / "scenarios" / "lag-rebalance-history.yaml"))
     ids = rule_ids(findings)
 
     assert "kafka.history.consumer_lag.growing" in ids

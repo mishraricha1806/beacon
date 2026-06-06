@@ -76,9 +76,7 @@ class TestSnapshotCorrelation:
             },
         ]
         # Growth: 50GB in 10 days = 5GB/day
-        growth_gb = (
-            snapshots[1]["disk_used_bytes"] - snapshots[0]["disk_used_bytes"]
-        ) / (1024**3)
+        growth_gb = (snapshots[1]["disk_used_bytes"] - snapshots[0]["disk_used_bytes"]) / (1024**3)
         days_elapsed = (snapshots[1]["timestamp"] - snapshots[0]["timestamp"]).days
         growth_per_day = growth_gb / days_elapsed
         assert growth_per_day == pytest.approx(5.0, abs=0.1)
@@ -117,12 +115,10 @@ class TestSnapshotCorrelation:
         ]
         # Partition 0 is becoming imbalanced
         partition_0_bytes_growth = (
-            snapshots[1]["partitions"][0]["bytes"]
-            - snapshots[0]["partitions"][0]["bytes"]
+            snapshots[1]["partitions"][0]["bytes"] - snapshots[0]["partitions"][0]["bytes"]
         )
         partition_1_bytes_growth = (
-            snapshots[1]["partitions"][1]["bytes"]
-            - snapshots[0]["partitions"][1]["bytes"]
+            snapshots[1]["partitions"][1]["bytes"] - snapshots[0]["partitions"][1]["bytes"]
         )
         assert partition_0_bytes_growth > partition_1_bytes_growth
 

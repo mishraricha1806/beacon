@@ -59,8 +59,7 @@ def check_kafka_lag_does_not_invent_db_bottleneck():
     hypotheses = summary.get("root_cause_hypotheses", [])
     require(
         all(
-            hypothesis["correlation_id"]
-            != "correlation.root_cause.downstream_database_bottleneck"
+            hypothesis["correlation_id"] != "correlation.root_cause.downstream_database_bottleneck"
             for hypothesis in hypotheses
         ),
         "Kafka lag alone incorrectly produced a downstream database hypothesis",
@@ -130,8 +129,7 @@ def check_retry_cascade_beats_generic_storage():
     )
 
     require(
-        summary["primary_hypothesis"]["correlation_id"]
-        == "correlation.root_cause.retry_cascade",
+        summary["primary_hypothesis"]["correlation_id"] == "correlation.root_cause.retry_cascade",
         "Retry cascade did not outrank generic storage pressure",
     )
     require(
@@ -192,10 +190,7 @@ def check_kafka_incident_scenario(
     )
     require(
         summary["incident_diagnosis"]["title"] == expected_incident_title,
-        (
-            f"{name} scenario incident title was "
-            f"{summary['incident_diagnosis']['title']!r}"
-        ),
+        (f"{name} scenario incident title was " f"{summary['incident_diagnosis']['title']!r}"),
     )
 
     print(f"kafka incident scenario ok: {name}")
@@ -398,13 +393,7 @@ def check_prometheus_kafka_jmx_contract():
     prometheus_connector.query_prometheus_map = fake_map
     try:
         findings = prometheus_connector.analyze_prometheus_config(
-            str(
-                ROOT
-                / "examples"
-                / "supported"
-                / "prometheus"
-                / "kafka-jmx-prometheus.yaml"
-            )
+            str(ROOT / "examples" / "supported" / "prometheus" / "kafka-jmx-prometheus.yaml")
         )
     finally:
         prometheus_connector.query_prometheus = original_query

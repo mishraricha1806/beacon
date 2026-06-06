@@ -69,9 +69,7 @@ def test_supported_examples_cover_runtime_snapshots():
 def test_supported_examples_cover_opentelemetry_export():
     from beacon.opentelemetry_connector import analyze_opentelemetry_file
 
-    findings = analyze_opentelemetry_file(
-        str(ROOT / "opentelemetry" / "checkout-otel.yaml")
-    )
+    findings = analyze_opentelemetry_file(str(ROOT / "opentelemetry" / "checkout-otel.yaml"))
     ids = rule_ids(findings)
 
     assert "opentelemetry.runtime.read_only_mode" in ids

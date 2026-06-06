@@ -60,10 +60,7 @@ class TestKafkaStaticAnalysis:
             ]
         }
         findings = evaluate_kafka_config(data, "test.yaml")
-        assert any(
-            f["severity"] == "HIGH" and "retention_bytes" in f["title"]
-            for f in findings
-        )
+        assert any(f["severity"] == "HIGH" and "retention_bytes" in f["title"] for f in findings)
 
     def test_missing_min_isr(self):
         """Test detection of missing min ISR (HIGH)."""
@@ -93,10 +90,7 @@ class TestKafkaStaticAnalysis:
             ]
         }
         findings = evaluate_kafka_config(data, "test.yaml")
-        assert any(
-            f["severity"] == "HIGH" and "unbounded" in f["title"].lower()
-            for f in findings
-        )
+        assert any(f["severity"] == "HIGH" and "unbounded" in f["title"].lower() for f in findings)
 
     def test_large_message_size(self):
         """Test detection of large max message size (HIGH)."""
@@ -109,10 +103,7 @@ class TestKafkaStaticAnalysis:
             ]
         }
         findings = evaluate_kafka_config(data, "test.yaml")
-        assert any(
-            f["severity"] == "HIGH" and "message" in f["title"].lower()
-            for f in findings
-        )
+        assert any(f["severity"] == "HIGH" and "message" in f["title"].lower() for f in findings)
 
     def test_high_storage_multiplier(self):
         """Test detection of high storage multiplier (HIGH)."""
@@ -127,8 +118,7 @@ class TestKafkaStaticAnalysis:
         }
         findings = evaluate_kafka_config(data, "test.yaml")
         assert any(
-            f["severity"] == "HIGH" and "storage multiplier" in f["title"].lower()
-            for f in findings
+            f["severity"] == "HIGH" and "storage multiplier" in f["title"].lower() for f in findings
         )
 
     def test_good_kafka_config(self):
@@ -173,8 +163,7 @@ class TestTerraformStaticAnalysis:
         }
         findings = evaluate_terraform_config(data, "main.tf")
         assert any(
-            f["severity"] == "CRITICAL" and "public access" in f["title"].lower()
-            for f in findings
+            f["severity"] == "CRITICAL" and "public access" in f["title"].lower() for f in findings
         )
 
     def test_s3_missing_encryption(self):
@@ -192,10 +181,7 @@ class TestTerraformStaticAnalysis:
             ]
         }
         findings = evaluate_terraform_config(data, "main.tf")
-        assert any(
-            f["severity"] == "HIGH" and "encryption" in f["title"].lower()
-            for f in findings
-        )
+        assert any(f["severity"] == "HIGH" and "encryption" in f["title"].lower() for f in findings)
 
     def test_s3_missing_versioning(self):
         """Test detection of missing S3 versioning (MEDIUM)."""
@@ -212,10 +198,7 @@ class TestTerraformStaticAnalysis:
             ]
         }
         findings = evaluate_terraform_config(data, "main.tf")
-        assert any(
-            f["severity"] == "MEDIUM" and "version" in f["title"].lower()
-            for f in findings
-        )
+        assert any(f["severity"] == "MEDIUM" and "version" in f["title"].lower() for f in findings)
 
     def test_iam_over_permissive(self):
         """Test detection of over-permissive IAM policy (HIGH)."""
@@ -280,9 +263,7 @@ class TestStaticScoringAndDecision:
 
     def test_score_calculation_with_critical(self):
         """Test score with critical findings."""
-        findings = [
-            finding("CRITICAL", "Critical issue", "High impact", "Fix now", "test.yaml")
-        ]
+        findings = [finding("CRITICAL", "Critical issue", "High impact", "Fix now", "test.yaml")]
         score = calculate_score(findings)
         assert score < 85  # 100 - 20 = 80
 
@@ -299,9 +280,6 @@ class TestStaticScoringAndDecision:
 
     def test_score_minimum_floor(self):
         """Test that score never goes below 0."""
-        findings = [
-            finding("CRITICAL", "Issue", "Impact", "Fix", "test.yaml")
-            for _ in range(10)
-        ]
+        findings = [finding("CRITICAL", "Issue", "Impact", "Fix", "test.yaml") for _ in range(10)]
         score = calculate_score(findings)
         assert score >= 0

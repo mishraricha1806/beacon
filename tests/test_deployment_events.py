@@ -40,9 +40,7 @@ deployment_events:
 
     rule_ids = {item["rule_id"] for item in findings}
     correlated = next(
-        item
-        for item in findings
-        if item["rule_id"] == "deployment.runtime.degradation_correlated"
+        item for item in findings if item["rule_id"] == "deployment.runtime.degradation_correlated"
     )
 
     assert "deployment.events.loaded" in rule_ids
@@ -50,9 +48,7 @@ deployment_events:
     assert correlated["severity"] == "HIGH"
     assert correlated["evidence"]["deployment_count"] == 1
     assert correlated["evidence"]["latest_deployment"]["service"] == "checkout-consumer"
-    assert correlated["evidence"]["matched_rule_ids"] == [
-        "kafka.consumer_group.lag.high"
-    ]
+    assert correlated["evidence"]["matched_rule_ids"] == ["kafka.consumer_group.lag.high"]
 
 
 def test_deployment_events_empty_input_is_low_signal(tmp_path):
@@ -93,9 +89,7 @@ deployment_events:
     assert "deployment.window.kafka_lag_regression" in rule_ids
 
     latency = next(
-        item
-        for item in findings
-        if item["rule_id"] == "deployment.window.api_latency_regression"
+        item for item in findings if item["rule_id"] == "deployment.window.api_latency_regression"
     )
     assert latency["evidence"]["before"] == 220
     assert latency["evidence"]["after"] == 1600
@@ -134,9 +128,7 @@ deployment_events:
         ],
     )
     correlated = next(
-        item
-        for item in findings
-        if item["rule_id"] == "deployment.runtime.degradation_correlated"
+        item for item in findings if item["rule_id"] == "deployment.runtime.degradation_correlated"
     )
 
     assert correlated["evidence"]["latest_deployment"]["service"] == "checkout-api"

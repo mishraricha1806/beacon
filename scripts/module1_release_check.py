@@ -76,9 +76,7 @@ def check_metadata():
         if required - set(data)
     }
 
-    require(
-        not missing_metadata, f"registered rules missing metadata: {missing_metadata}"
-    )
+    require(not missing_metadata, f"registered rules missing metadata: {missing_metadata}")
     require(
         not missing_curated,
         f"registered rules missing curated YAML metadata: {missing_curated}",
@@ -158,9 +156,7 @@ def check_static_examples(require_helm):
 
 
 def check_runtime_snapshot():
-    findings = analyze_runtime_snapshot_file(
-        str(SUPPORTED / "runtime" / "all-runtime.yaml")
-    )
+    findings = analyze_runtime_snapshot_file(str(SUPPORTED / "runtime" / "all-runtime.yaml"))
     ids = rule_ids(findings)
     expected = {
         "flow.runtime.cascading_latency",
@@ -180,20 +176,14 @@ def check_runtime_snapshot():
     )
 
     top = summary["root_cause_hypotheses"][0]
-    require(
-        top["confidence"] in {"MEDIUM", "HIGH"}, "top root-cause confidence is too weak"
-    )
-    require(
-        top["matched_rule_ids"], "top root-cause hypothesis has no matched rule ids"
-    )
+    require(top["confidence"] in {"MEDIUM", "HIGH"}, "top root-cause confidence is too weak")
+    require(top["matched_rule_ids"], "top root-cause hypothesis has no matched rule ids")
 
     print("runtime snapshot ok")
 
 
 def check_opentelemetry():
-    findings = analyze_opentelemetry_file(
-        str(SUPPORTED / "opentelemetry" / "checkout-otel.yaml")
-    )
+    findings = analyze_opentelemetry_file(str(SUPPORTED / "opentelemetry" / "checkout-otel.yaml"))
     ids = rule_ids(findings)
     expected = {
         "opentelemetry.runtime.read_only_mode",

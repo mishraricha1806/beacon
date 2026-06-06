@@ -22,9 +22,7 @@ def build_multipart(fields=None, files=None):
 
     for name, file_path in (files or {}).items():
         file_path = Path(file_path)
-        content_type = (
-            mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-        )
+        content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
         body.extend(f"--{boundary}\r\n".encode())
         body.extend(
             (
@@ -163,9 +161,7 @@ def test_ui_e2e_runtime_snapshot_upload_returns_root_cause_findings():
     assert "flow.runtime.cascading_latency" in rule_ids
     assert "database.runtime.connection_pool.exhaustion" in rule_ids
     assert payload["readiness_summary"]["root_cause_hypotheses"]
-    assert payload["diagnostic_summary"]["diagnostic_status"] == (
-        "ROOT_CAUSE_CANDIDATES_FOUND"
-    )
+    assert payload["diagnostic_summary"]["diagnostic_status"] == ("ROOT_CAUSE_CANDIDATES_FOUND")
     assert payload["diagnostic_summary"]["flow_bottleneck_rankings"]
 
 
@@ -232,9 +228,7 @@ def test_kafka_ui_passes_multiple_bootstrap_servers(monkeypatch):
         {},
     )
 
-    assert calls[0]["bootstrap_server"] == (
-        "broker-1:9092\nbroker-2:9092, broker-3:9092"
-    )
+    assert calls[0]["bootstrap_server"] == ("broker-1:9092\nbroker-2:9092, broker-3:9092")
 
 
 def test_kafka_ui_incident_scenario_returns_incident_diagnosis():
@@ -261,10 +255,7 @@ def test_kafka_ui_incident_scenario_returns_incident_diagnosis():
         result["diagnostic_summary"]["incident_diagnosis"]["evidence_quality"]["status"]
         == "ACTIONABLE"
     )
-    assert (
-        "Kafka incident demo: Quota / throttling pressure"
-        in result["request_scope"]["inputs"]
-    )
+    assert "Kafka incident demo: Quota / throttling pressure" in result["request_scope"]["inputs"]
 
 
 def test_kafka_ui_access_mode_uses_uploaded_access_config(monkeypatch):
@@ -318,9 +309,7 @@ def test_kafka_ui_combines_schema_registry_findings(monkeypatch):
         ]
 
     monkeypatch.setattr(ui, "analyze_kafka_cluster", fake_analyze_kafka_cluster)
-    monkeypatch.setattr(
-        ui, "analyze_schema_registry_config", fake_analyze_schema_registry_config
-    )
+    monkeypatch.setattr(ui, "analyze_schema_registry_config", fake_analyze_schema_registry_config)
 
     result = ui.run_kafka_check(
         {
@@ -392,9 +381,7 @@ def test_kafka_ui_uses_uploaded_schema_registry_config(monkeypatch):
 def test_kafka_ui_parses_expected_topic_subjects():
     from beacon.ui import parse_expected_topic_subjects
 
-    topics = parse_expected_topic_subjects(
-        "payments: payments-key, payments-value\norders\n"
-    )
+    topics = parse_expected_topic_subjects("payments: payments-key, payments-value\norders\n")
 
     assert topics == [
         {"name": "payments", "subjects": ["payments-key", "payments-value"]},
@@ -424,14 +411,12 @@ def test_beacon_ui_combines_generic_domain_inputs(monkeypatch):
     monkeypatch.setattr(
         ui,
         "scan_path",
-        lambda path: calls.append(("static", path))
-        or [finding("static.rule", "infra")],
+        lambda path: calls.append(("static", path)) or [finding("static.rule", "infra")],
     )
     monkeypatch.setattr(
         ui,
         "analyze_runtime_snapshot_file",
-        lambda path: calls.append(("snapshot", path))
-        or [finding("snapshot.rule", "runtime")],
+        lambda path: calls.append(("snapshot", path)) or [finding("snapshot.rule", "runtime")],
     )
     monkeypatch.setattr(
         ui,
@@ -454,14 +439,12 @@ def test_beacon_ui_combines_generic_domain_inputs(monkeypatch):
     monkeypatch.setattr(
         ui,
         "analyze_kafka_acl_file",
-        lambda path: calls.append(("acls", path))
-        or [finding("kafka.acl.rule", "kafka")],
+        lambda path: calls.append(("acls", path)) or [finding("kafka.acl.rule", "kafka")],
     )
     monkeypatch.setattr(
         ui,
         "analyze_kafka_history_file",
-        lambda path: calls.append(("history", path))
-        or [finding("kafka.history.rule", "kafka")],
+        lambda path: calls.append(("history", path)) or [finding("kafka.history.rule", "kafka")],
     )
 
     result = ui.run_beacon_check(
@@ -544,9 +527,7 @@ def test_beacon_ui_exposes_kafka_scope_and_filters(monkeypatch):
         == "checkout-consumer"
     )
     assert (
-        result["diagnostic_summary"]["consumer_group_diagnoses"][0]["evidence_quality"][
-            "status"
-        ]
+        result["diagnostic_summary"]["consumer_group_diagnoses"][0]["evidence_quality"]["status"]
         == "NEEDS_MORE_EVIDENCE"
     )
 
@@ -650,9 +631,7 @@ def test_beacon_ui_correlates_deployment_events_after_runtime_inputs(monkeypatch
                         "deployed_at": "2026-06-03T10:20:00Z",
                     },
                     "deployment_count": 1,
-                    "matched_rule_ids": [
-                        "api.runtime.deployment_correlated_degradation"
-                    ],
+                    "matched_rule_ids": ["api.runtime.deployment_correlated_degradation"],
                 },
                 "tags": [],
             }
@@ -716,9 +695,7 @@ def test_beacon_ui_does_not_run_kafka_without_kafka_inputs(monkeypatch):
     from beacon import ui
 
     calls = []
-    monkeypatch.setattr(
-        ui, "analyze_kafka_cluster", lambda **kwargs: calls.append(kwargs) or []
-    )
+    monkeypatch.setattr(ui, "analyze_kafka_cluster", lambda **kwargs: calls.append(kwargs) or [])
 
     result = ui.run_beacon_check({"mode": "direct"}, {})
 
@@ -759,9 +736,7 @@ def test_beacon_ui_passes_kafka_churn_sampling_options(monkeypatch):
     from beacon import ui
 
     calls = []
-    monkeypatch.setattr(
-        ui, "analyze_kafka_cluster", lambda **kwargs: calls.append(kwargs) or []
-    )
+    monkeypatch.setattr(ui, "analyze_kafka_cluster", lambda **kwargs: calls.append(kwargs) or [])
 
     ui.run_beacon_check(
         {
