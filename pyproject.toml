@@ -4,15 +4,26 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "beacon-readiness"
-version = "0.1.0"
+version = "0.1.2"
 description = "Production-readiness intelligence for distributed systems"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "Proprietary"}
 authors = [
-    {name = "Beacon Team", email = "team@beacon.ai"}
+    {name = "Richa Mishra", email = "mishraricha1806@gmail.com"}
 ]
-keywords = ["kafka", "kubernetes", "infrastructure", "readiness", "diagnostics", "production"]
+keywords = [
+    "kafka",
+    "kubernetes",
+    "terraform",
+    "infrastructure",
+    "readiness",
+    "diagnostics",
+    "production",
+    "platform-engineering",
+    "sre",
+    "devops"
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -28,7 +39,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: System :: Monitoring",
     "Topic :: System :: Networking",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Libraries :: Python Modules"
 ]
 
 dependencies = [
@@ -37,7 +49,7 @@ dependencies = [
     "python-hcl2>=4.0.0",
     "rich>=13.0.0",
     "jinja2>=3.0.0",
-    "confluent-kafka>=2.0.0",
+    "confluent-kafka>=2.0.0"
 ]
 
 [project.optional-dependencies]
@@ -46,34 +58,36 @@ dev = [
     "pytest-cov>=4.0.0",
     "black>=23.0.0",
     "ruff>=0.1.0",
-    "mypy>=1.0.0",
+    "mypy>=1.0.0"
 ]
 build = [
-    "pyinstaller>=6.0.0",
+    "pyinstaller>=6.0.0"
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-org/beacon"
-Documentation = "https://github.com/your-org/beacon/blob/main/README.md"
-Repository = "https://github.com/your-org/beacon"
-Issues = "https://github.com/your-org/beacon/issues"
+Homepage = "https://github.com/mishraricha1806/beacon"
+Documentation = "https://github.com/mishraricha1806/beacon/blob/main/README.md"
+Repository = "https://github.com/mishraricha1806/beacon"
+Issues = "https://github.com/mishraricha1806/beacon/issues"
 
 [project.scripts]
 beacon = "beacon.cli:app"
 
-[tool.setuptools]
-packages = ["beacon"]
+[tool.setuptools.packages.find]
+include = ["beacon*"]
 
 [tool.setuptools.package-data]
 beacon = ["py.typed"]
 
 [tool.black]
 line-length = 100
-target-version = ['py39', 'py310', 'py311', 'py312']
+target-version = ["py39", "py310", "py311", "py312"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+
+[tool.ruff.lint]
 select = ["E", "F", "W", "I"]
 
 [tool.pytest.ini_options]
@@ -89,4 +103,3 @@ python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
-

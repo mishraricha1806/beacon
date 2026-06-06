@@ -1,4 +1,4 @@
-name: Release & Package Distribution
+name: Release Binary Distribution
 
 on:
   push:
@@ -7,13 +7,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version to build (e.g., v0.1.0)"
+        description: "Version to build, for example v0.1.2"
         required: true
 
 jobs:
   test:
     name: Test Suite
     runs-on: ubuntu-latest
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -32,45 +33,18 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
+          python -m pip install pytest
 
-      - name: Run tests
+      - name: Run release checks
         run: python scripts/release_check_all.py --require-helm
-
-  build-pypi:
-    name: Build PyPI Package
-    runs-on: ubuntu-latest
-    needs: test
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install build dependencies
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install build twine
-
-      - name: Build distribution
-        run: python -m build
-
-      - name: Check distribution
-        run: python -m twine check dist/*
-
-      - name: Upload distribution artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-distributions
-          path: dist/
 
   build-binaries:
     name: Build Standalone Binaries
     runs-on: ${{ matrix.os }}
     needs: test
+
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -82,6 +56,7 @@ jobs:
           - os: windows-latest
             platform: windows
             artifact-name: beacon-windows.exe
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -91,7 +66,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install binary build dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
@@ -100,113 +75,88 @@ jobs:
       - name: Build binary
         run: python scripts/build_binaries.py ${{ matrix.platform }}
 
-      - name: Create release notes
-        run: |
-          echo "# Beacon ${{ matrix.platform }} Binary" > release-notes.txt
-          echo "" >> release-notes.txt
-          echo "Download and extract to use the standalone Beacon CLI." >> release-notes.txt
-          echo "" >> release-notes.txt
-          echo "Usage:" >> release-notes.txt
-          echo "\`\`\`bash" >> release-notes.txt
-          echo "./${{ matrix.artifact-name }} scan ./path/to/infrastructure" >> release-notes.txt
-          echo "./${{ matrix.artifact-name }} diagnose kafka --bootstrap-server localhost:9092" >> release-notes.txt
-          echo "\`\`\`" >> release-notes.txt
-
-      - name: Upload binary artifacts
+      - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
           path: dist-binaries/${{ matrix.artifact-name }}
 
-  publish-pypi:
-    name: Publish to PyPI
-    runs-on: ubuntu-latest
-    needs: build-pypi
-    if: startsWith(github.ref, 'refs/tags/')
-    environment:
-      name: pypi
-      url: https://pypi.org/project/beacon-readiness/
-    permissions:
-      id-token: write
-    steps:
-      - name: Download distribution artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: python-distributions
-          path: dist/
-
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          verbose: true
-
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [build-pypi, build-binaries, publish-pypi]
+    needs:
+      - build-binaries
+
     if: startsWith(github.ref, 'refs/tags/')
+
     permissions:
       contents: write
+
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download all binary artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-artifacts/
 
       - name: Create release notes
         run: |
-          cat > release-notes.md << 'EOF'
-          # Beacon Release Notes
-          
-          ## Installation
-          
-          ### pip (Recommended)
-          
+          cat > release-notes.md << EOF
+          # Beacon ${GITHUB_REF_NAME}
+
+          Beacon is a production-readiness intelligence tool for modern infrastructure.
+
+          ## Distribution
+
+          This release provides standalone binaries only.
+
+          Source code, wheel files, and source distributions are not included in this release.
+
+          ## Downloads
+
+          - macOS: \`beacon-macos\`
+          - Linux: \`beacon-linux\`
+          - Windows: \`beacon-windows.exe\`
+
+          ## Usage
+
+          ### macOS
+
           \`\`\`bash
-          pip install beacon-readiness
-          beacon --help
-          \`\`\`
-          
-          ### Standalone Binaries
-          
-          Download the binary for your platform and make it executable:
-          
-          **macOS:**
-          \`\`\`bash
-          wget https://github.com/your-org/beacon/releases/download/${{ github.ref_name }}/beacon-macos
           chmod +x beacon-macos
           ./beacon-macos --help
           \`\`\`
-          
-          **Linux:**
+
+          ### Linux
+
           \`\`\`bash
-          wget https://github.com/your-org/beacon/releases/download/${{ github.ref_name }}/beacon-linux
           chmod +x beacon-linux
           ./beacon-linux --help
           \`\`\`
-          
-          **Windows:**
-          \`\`\`bash
-          # Download beacon-windows.exe from the release page
+
+          ### Windows
+
+          \`\`\`powershell
           beacon-windows.exe --help
           \`\`\`
-          
-          ## Features
-          
-          - Static production readiness analysis
-          - Live Kafka diagnostics
-          - Kubernetes manifest analysis
+
+          ## Module 1 Features
+
+          - Static production-readiness analysis
+          - Kafka configuration readiness
+          - Kubernetes manifest readiness
+          - Terraform infrastructure scanning
+          - Object storage readiness checks
+          - IAM risk checks
           - Runtime snapshot evaluation
-          - Cross-system flow diagnostics
           - HTML and JSON reporting
-          
+          - Module 1 release validation
+
           ## Documentation
-          
-          See the [README](https://github.com/your-org/beacon) for detailed documentation.
-          
+
+          https://github.com/mishraricha1806/beacon
           EOF
 
       - name: Create GitHub Release
@@ -216,8 +166,6 @@ jobs:
             release-artifacts/beacon-macos/beacon-macos
             release-artifacts/beacon-linux/beacon-linux
             release-artifacts/beacon-windows.exe/beacon-windows.exe
-            release-artifacts/python-distributions/*
           body_path: release-notes.md
           draft: false
           prerelease: false
-
