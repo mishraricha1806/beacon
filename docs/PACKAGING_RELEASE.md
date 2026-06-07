@@ -5,7 +5,8 @@ Beacon should be released as installer and binary artifacts, not as source.
 ## Release Model
 
 - Source repository: private.
-- Public artifacts: GitHub Releases only.
+- Source repository releases: internal only.
+- Public artifacts: publish from an artifact-only distribution repository.
 - macOS primary artifact: `.pkg` installer.
 - Linux artifact: standalone `beacon-linux` binary.
 - Windows artifact: standalone `beacon-windows.exe` binary.
@@ -14,6 +15,10 @@ Beacon should be released as installer and binary artifacts, not as source.
 Do not publish source distributions for private-source releases. Avoid PyPI unless
 you intentionally want Python package contents exposed to users; Python wheels can
 include readable project modules.
+
+Do not share GitHub Releases from the private source repository with users. GitHub
+automatically attaches `Source code (zip)` and `Source code (tar.gz)` archives to
+tag-based releases. Those archives contain the repository contents.
 
 ## Build Locally
 
@@ -52,7 +57,7 @@ The package helper also exposes:
 Wheel and source commands remain for internal development only. They are not part
 of the recommended private-source release path.
 
-## Automated Release
+## Automated Build
 
 Push a version tag:
 
@@ -61,20 +66,26 @@ git tag -a v0.1.2 -m "Release v0.1.2"
 git push origin v0.1.2
 ```
 
-The release workflow runs the release checks, builds the platform binaries, wraps
-the macOS binary into a `.pkg`, and publishes only binary/installer artifacts to
-GitHub Releases.
+The workflow runs the release checks, builds the platform binaries, wraps the
+macOS binary into a `.pkg`, and uploads build artifacts to GitHub Actions.
+
+The source repository workflow intentionally does not create an external GitHub
+Release by default.
 
 ## Release Artifacts
 
+Publish these files from a separate distribution repository:
+
 ```text
-GitHub Release
-├── beacon-<version>-macos.pkg
-├── beacon-<version>-macos.pkg.sha256
-├── beacon-macos
-├── beacon-linux
-└── beacon-windows.exe
+beacon-<version>-macos.pkg
+beacon-<version>-macos.pkg.sha256
+beacon-macos
+beacon-linux
+beacon-windows.exe
 ```
+
+See [PUBLIC_DISTRIBUTION.md](PUBLIC_DISTRIBUTION.md) for the artifact-only
+sharing flow.
 
 ## macOS Install
 

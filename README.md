@@ -25,9 +25,11 @@ The end-to-end project demo is documented in [docs/PROJECT_DEMO.md](docs/PROJECT
 The combined release gate is codified in `scripts/release_check_all.py` and `.github/workflows/module1-release.yml`.
 It runs Module 1, Module 2, Module 3, the full test suite, and diff hygiene.
 
-Beacon's recommended distribution model is private source with public installer
-and binary artifacts. Use `docs/PACKAGING_RELEASE.md` for release steps and
-`docs/MACOS_INSTALLER.md` for the macOS `.pkg` installer flow.
+Beacon's recommended distribution model is private source with installer and
+binary artifacts published from an artifact-only distribution repo. Use
+`docs/PACKAGING_RELEASE.md` for release steps, `docs/PUBLIC_DISTRIBUTION.md` to
+share without source code, and `docs/MACOS_INSTALLER.md` for the macOS `.pkg`
+installer flow.
 
 ## Release Scope
 

@@ -17,7 +17,10 @@ git push origin v0.1.2
 
 The tag triggers `.github/workflows/release.yml`.
 
-## Published Artifacts
+The source repository workflow builds artifacts. Do not share a release from this
+repository, because GitHub adds automatic source-code archives to tag releases.
+
+## Shareable Artifacts
 
 ```text
 beacon-<version>-macos.pkg
@@ -29,6 +32,9 @@ beacon-windows.exe
 
 Source archives, source distributions, and wheels are not part of the
 recommended private-source release.
+
+Publish these files from a separate artifact-only distribution repository. See
+[PUBLIC_DISTRIBUTION.md](PUBLIC_DISTRIBUTION.md).
 
 ## Install
 
@@ -77,5 +83,6 @@ scripts/build_binaries.py
 scripts/build_macos_pkg.py
 scripts/package.sh
 docs/PACKAGING_RELEASE.md
+docs/PUBLIC_DISTRIBUTION.md
 docs/MACOS_INSTALLER.md
 ```

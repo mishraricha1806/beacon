@@ -1,4 +1,4 @@
-# GitHub Release Notes Template
+# Distribution Repo Release Notes Template
 
 ## Beacon v<version>
 
@@ -6,8 +6,11 @@ Beacon provides production-readiness intelligence for modern infrastructure.
 
 ## Distribution
 
-This release is distributed as installer and binary artifacts only. Source code,
-Python wheels, and source distributions are not included in the public release.
+Use this template only in the artifact-only distribution repository.
+
+This release is distributed as installer and binary artifacts only. The Beacon
+source repository release should not be shared because GitHub automatically adds
+source-code archives to tag releases.
 
 ## Downloads
 
@@ -65,4 +68,5 @@ beacon-windows.exe --help
 
 - `INSTALL.md`
 - `docs/PACKAGING_RELEASE.md`
+- `docs/PUBLIC_DISTRIBUTION.md`
 - `docs/MACOS_INSTALLER.md`

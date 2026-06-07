@@ -3,11 +3,11 @@
 Beacon's recommended release model is:
 
 ```text
-private source repo -> public GitHub Release artifacts
+private source repo -> build artifacts -> public artifact-only distribution repo
 ```
 
-Users receive installers and standalone binaries. They do not need repository
-access.
+Users receive installers and standalone binaries. They do not need source
+repository access.
 
 ## Repository
 
@@ -24,7 +24,10 @@ The release workflow lives at:
 ```
 
 It runs release checks, builds platform binaries, builds the macOS `.pkg`, and
-uploads only binary/installer artifacts to GitHub Releases.
+uploads binary/installer artifacts to the workflow run.
+
+Do not share releases from the source repository. GitHub automatically attaches
+source-code archives to tag-based releases.
 
 No PyPI token is required for the private-source release path.
 
@@ -55,9 +58,9 @@ git tag -a v0.1.2 -m "Release v0.1.2"
 git push origin v0.1.2
 ```
 
-## Verify GitHub Release
+## Verify Build Artifacts
 
-The release should include:
+The workflow artifacts should include:
 
 ```text
 beacon-<version>-macos.pkg
@@ -67,8 +70,8 @@ beacon-linux
 beacon-windows.exe
 ```
 
-It should not include source distributions or wheels unless you intentionally
-change the distribution model.
+Publish those files from a separate artifact-only distribution repository. See
+[PUBLIC_DISTRIBUTION.md](PUBLIC_DISTRIBUTION.md).
 
 ## User Install Paths
 
