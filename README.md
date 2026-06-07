@@ -92,6 +92,44 @@ Beacon focuses on:
 
 ---
 
+## Project-Local Workflow
+
+Beacon can run from a project-local `beacon.yaml`, so teams do not need to
+remember long scan commands.
+
+Create a starter config:
+
+```bash
+beacon init
+```
+
+Check local setup:
+
+```bash
+beacon doctor
+```
+
+Run the configured readiness scan:
+
+```bash
+beacon readiness
+```
+
+Run a named Beacon workflow:
+
+```bash
+beacon run prod-check
+beacon run kafka-incident-demo
+```
+
+Beacon discovers `beacon.yaml`, `beacon.yml`, or `.beacon.yaml` by walking from
+the current directory up to parent directories.
+
+See [docs/PROJECT_LOCAL_CONFIG.md](docs/PROJECT_LOCAL_CONFIG.md) for the config
+schema and examples.
+
+---
+
 ## Current Capabilities
 
 ### Infrastructure Review

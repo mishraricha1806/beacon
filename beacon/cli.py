@@ -7,6 +7,8 @@
 import logging
 import os
 import time
+from pathlib import Path
+import shutil
 
 import typer
 
@@ -29,6 +31,18 @@ from rich.table import Table
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.intelligence.context import load_intelligence_context
 from beacon.policy import load_policy, apply_policy_to_findings
+from beacon.project_config import (
+    as_list,
+    config_context_path,
+    config_environment,
+    config_readiness_includes,
+    config_report_options,
+    config_tasks,
+    discover_config,
+    load_project_config,
+    resolve_config_path,
+    starter_config,
+)
 
 
 from beacon.readiness.readiness_reporter import print_readiness_summary
@@ -42,7 +56,7 @@ diagnose_app = typer.Typer(help="Runtime operational diagnostics.")
 
 app.add_typer(diagnose_app, name="diagnose")
 
-readiness_app = typer.Typer(help="Production readiness analysis.")
+readiness_app = typer.Typer(help="Production readiness analysis.", invoke_without_command=True)
 
 app.add_typer(readiness_app, name="readiness")
 
@@ -143,9 +157,7 @@ def collect_all_domain_findings(
     findings = []
 
     if static_path:
-        findings.extend(
-            collect_domain_findings("static", lambda: scan_path(static_path))
-        )
+        findings.extend(collect_domain_findings("static", lambda: scan_path(static_path)))
 
     if snapshot_path:
         findings.extend(
@@ -155,17 +167,13 @@ def collect_all_domain_findings(
         )
 
     if flow_path:
-        findings.extend(
-            collect_domain_findings("flow", lambda: analyze_flow_file(flow_path))
-        )
+        findings.extend(collect_domain_findings("flow", lambda: analyze_flow_file(flow_path)))
 
     if prometheus_path:
         findings.extend(
             collect_domain_findings(
                 "prometheus",
-                lambda: analyze_prometheus_config(
-                    prometheus_path, timeout=prometheus_timeout
-                ),
+                lambda: analyze_prometheus_config(prometheus_path, timeout=prometheus_timeout),
             )
         )
 
@@ -188,9 +196,7 @@ def collect_all_domain_findings(
 
     if kafka_acl_path:
         findings.extend(
-            collect_domain_findings(
-                "kafka_acls", lambda: analyze_kafka_acl_file(kafka_acl_path)
-            )
+            collect_domain_findings("kafka_acls", lambda: analyze_kafka_acl_file(kafka_acl_path))
         )
 
     if kafka_history_path:
@@ -264,6 +270,176 @@ def configure_logging():
         level=getattr(logging, level_name, logging.WARNING),
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+
+
+def run_configured_readiness(config, config_path, environment=None, output=None):
+    report_options = config_report_options(config)
+    if output:
+        report_options["output"] = output
+
+    effective_environment = environment or config_environment(config)
+    context_path = config_context_path(config, config_path)
+    includes = config_readiness_includes(config, config_path)
+
+    findings = []
+    for include_path in includes:
+        LOGGER.info("cli.config.readiness.include path=%s", include_path)
+        findings.extend(scan_path(include_path))
+
+    if report_options["output"] != "json":
+        typer.echo(f"Found {config_path}")
+        typer.echo(f"Scanning {len(includes)} configured path(s)...")
+
+    emit_readiness(
+        findings,
+        html=report_options["html"],
+        open_report=report_options["open_report"],
+        output=report_options["output"],
+        environment=effective_environment,
+        context_path=context_path,
+    )
+
+
+def run_configured_task(config, config_path, task_name, output=None):
+    tasks = config_tasks(config)
+    task = tasks.get(task_name)
+    if task is None:
+        available = ", ".join(sorted(tasks)) or "none"
+        raise typer.BadParameter(f"Unknown Beacon task '{task_name}'. Available tasks: {available}")
+    if not isinstance(task, dict):
+        raise typer.BadParameter(f"Task '{task_name}' must be a YAML mapping.")
+
+    command = task.get("command")
+    if command == "readiness":
+        run_configured_readiness(
+            config,
+            config_path,
+            environment=task.get("environment"),
+            output=output,
+        )
+        return
+
+    html = bool(task.get("html", False))
+    open_report = bool(task.get("open", False))
+    task_output = output or task.get("output") or "terminal"
+
+    if command == "readiness static":
+        path = task.get("path")
+        if not path:
+            raise typer.BadParameter(f"Task '{task_name}' requires path.")
+        readiness_static(
+            path=resolve_config_path(config_path, path),
+            environment=task.get("environment") or config_environment(config),
+            context_path=task.get("context")
+            and resolve_config_path(config_path, task.get("context")),
+            html=html,
+            open_report=open_report,
+            output=task_output,
+        )
+        return
+
+    if command == "diagnose kafka-runtime":
+        path = task.get("path")
+        if not path:
+            raise typer.BadParameter(f"Task '{task_name}' requires path.")
+        diagnose_kafka_runtime(
+            path=resolve_config_path(config_path, path),
+            html=html,
+            open_report=open_report,
+            output=task_output,
+        )
+        return
+
+    if command == "diagnose flow":
+        path = task.get("path")
+        if not path:
+            raise typer.BadParameter(f"Task '{task_name}' requires path.")
+        diagnose_flow(
+            path=resolve_config_path(config_path, path),
+            html=html,
+            open_report=open_report,
+            output=task_output,
+        )
+        return
+
+    raise typer.BadParameter(
+        f"Task '{task_name}' uses unsupported command '{command}'. "
+        "Supported commands: readiness, readiness static, diagnose kafka-runtime, diagnose flow."
+    )
+
+
+@app.command("init")
+def init_project(
+    force: bool = typer.Option(False, "--force", help="Overwrite existing beacon.yaml."),
+):
+    """Create a starter beacon.yaml for project-local Beacon workflows."""
+    path = Path("beacon.yaml")
+    if path.exists() and not force:
+        typer.echo("beacon.yaml already exists. Use --force to overwrite.")
+        raise typer.Exit(code=1)
+
+    path.write_text(starter_config(), encoding="utf-8")
+    Path("reports").mkdir(exist_ok=True)
+    typer.echo("Created beacon.yaml")
+    typer.echo("Created reports/")
+
+
+@app.command("doctor")
+def doctor(config: str = typer.Option(None, "--config", help="Path to beacon.yaml.")):
+    """Check local Beacon project configuration and optional tool availability."""
+    try:
+        data, config_path = load_project_config(config)
+    except Exception as error:
+        typer.echo(f"[FAIL] Could not load Beacon config: {error}")
+        raise typer.Exit(code=1)
+
+    if config_path:
+        typer.echo(f"[OK] Beacon config found: {config_path}")
+    else:
+        typer.echo("[WARN] No beacon.yaml found in this directory tree")
+        data = {}
+
+    reports_path = Path("reports")
+    reports_path.mkdir(exist_ok=True)
+    typer.echo(
+        "[OK] reports directory writable"
+        if os.access(reports_path, os.W_OK)
+        else "[FAIL] reports directory not writable"
+    )
+
+    if shutil.which("helm"):
+        typer.echo("[OK] helm found")
+    else:
+        typer.echo("[WARN] Helm not found; Helm chart rendering will be blocked or skipped")
+
+    if shutil.which("kubectl"):
+        typer.echo("[OK] kubectl found")
+    else:
+        typer.echo("[WARN] kubectl not found; live Kubernetes diagnostics need kubectl")
+
+    if data and config_path:
+        for include_path in config_readiness_includes(data, config_path):
+            path = Path(include_path)
+            status = "[OK]" if path.exists() else "[FAIL]"
+            typer.echo(f"{status} readiness include path: {path}")
+
+        for task_name in sorted(config_tasks(data)):
+            typer.echo(f"[OK] task configured: {task_name}")
+
+
+@app.command("run")
+def run_task(
+    task_name: str = typer.Argument(..., help="Task name from beacon.yaml."),
+    config: str = typer.Option(None, "--config", help="Path to beacon.yaml."),
+    output: str = typer.Option(None, help="Override output format."),
+):
+    """Run a named Beacon workflow from beacon.yaml."""
+    data, config_path = load_project_config(config)
+    if not config_path:
+        typer.echo("No beacon.yaml found. Run `beacon init` first.")
+        raise typer.Exit(code=1)
+
+    run_configured_task(data, config_path, task_name, output=output)
 
 
 @rules_app.command("list")
@@ -369,9 +545,7 @@ def diagnose_opentelemetry(
 
 @diagnose_app.command("schema-registry")
 def diagnose_schema_registry(
-    path: str = typer.Argument(
-        ..., help="Path to Schema Registry collector config YAML."
-    ),
+    path: str = typer.Argument(..., help="Path to Schema Registry collector config YAML."),
     timeout: int = typer.Option(5, help="Schema Registry query timeout in seconds."),
     html: bool = typer.Option(True, help="Generate browser-based HTML report."),
     open_report: bool = typer.Option(True, help="Open HTML report in browser."),
@@ -394,9 +568,7 @@ def diagnose_kafka(
         None, help="Path to generic Kafka access profile config YAML."
     ),
     topic: str = typer.Option(None, help="Analyze only a specific topic."),
-    consumer_group: str = typer.Option(
-        None, help="Analyze only a specific consumer group."
-    ),
+    consumer_group: str = typer.Option(None, help="Analyze only a specific consumer group."),
     max_topics: int = typer.Option(50, help="Maximum topics to analyze."),
     max_groups: int = typer.Option(20, help="Maximum consumer groups to analyze."),
     churn_samples: int = typer.Option(
@@ -456,9 +628,7 @@ def diagnose_kafka_history(
 
 @diagnose_app.command("kafka-runtime")
 def diagnose_kafka_runtime(
-    path: str = typer.Argument(
-        ..., help="Path to Kafka runtime snapshot YAML or JSON."
-    ),
+    path: str = typer.Argument(..., help="Path to Kafka runtime snapshot YAML or JSON."),
     html: bool = typer.Option(True, help="Generate browser-based HTML report."),
     open_report: bool = typer.Option(True, help="Open HTML report in browser."),
     output: str = typer.Option("terminal", help="Output format: terminal or json."),
@@ -497,9 +667,7 @@ def diagnose_flow(
 
 @diagnose_app.command("kubernetes")
 def diagnose_kubernetes(
-    namespace: str = typer.Option(
-        None, help="Namespace to analyze, defaults to all namespaces."
-    ),
+    namespace: str = typer.Option(None, help="Namespace to analyze, defaults to all namespaces."),
     context: str = typer.Option(None, help="kubectl context to use."),
     kubeconfig: str = typer.Option(None, help="Path to kubeconfig."),
     html: bool = typer.Option(True, help="Generate browser-based HTML report."),
@@ -608,6 +776,24 @@ def diagnose_all(
     )
 
     emit_diagnostics(findings, html=html, open_report=open_report, output=output)
+
+
+@readiness_app.callback()
+def readiness_default(
+    ctx: typer.Context,
+    config: str = typer.Option(None, "--config", help="Path to beacon.yaml."),
+    output: str = typer.Option(None, help="Override output format."),
+):
+    """Run project-local readiness when no subcommand is provided."""
+    if ctx.invoked_subcommand is not None:
+        return
+
+    data, config_path = load_project_config(config)
+    if not config_path:
+        typer.echo("No beacon.yaml found. Run `beacon init` or use a subcommand.")
+        raise typer.Exit(code=1)
+
+    run_configured_readiness(data, config_path, output=output)
 
 
 @readiness_app.command("kafka")
@@ -1055,9 +1241,7 @@ def readiness_opentelemetry(
 
 @readiness_app.command("schema-registry")
 def readiness_schema_registry(
-    path: str = typer.Argument(
-        ..., help="Path to Schema Registry collector config YAML."
-    ),
+    path: str = typer.Argument(..., help="Path to Schema Registry collector config YAML."),
     timeout: int = typer.Option(5, help="Schema Registry query timeout in seconds."),
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."

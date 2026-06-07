@@ -1,0 +1,36 @@
+project: beacon-demo
+environment: dev
+criticality: medium
+
+readiness:
+  include:
+    - ./examples/bad-infra
+  exclude:
+    - ./reports
+    - ./.terraform
+
+intelligence:
+  context: ./examples/supported/intelligence/context.yaml
+
+report:
+  format:
+    - terminal
+    - html
+  open: false
+
+tasks:
+  prod-check:
+    command: readiness
+    environment: prod
+
+  dev-check:
+    command: readiness
+    environment: dev
+
+  kafka-incident-demo:
+    command: diagnose kafka-runtime
+    path: ./examples/supported/kafka/scenarios/quota-throttle-runtime.yaml
+
+  flow-demo:
+    command: diagnose flow
+    path: ./examples/supported/runtime/flow-runtime.yaml
