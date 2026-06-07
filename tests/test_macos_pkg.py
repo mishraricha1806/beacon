@@ -36,6 +36,8 @@ def test_macos_pkg_help_mentions_installer_options():
     assert "--binary-path" in result.stdout
     assert "--skip-binary-build" in result.stdout
     assert "--identifier" in result.stdout
+    assert "--sign-identity" in result.stdout
+    assert "--notarize" in result.stdout
 
 
 def test_release_workflow_publishes_macos_pkg():
@@ -44,6 +46,8 @@ def test_release_workflow_publishes_macos_pkg():
     )
 
     assert "python scripts/build_macos_pkg.py --skip-binary-build" in workflow
+    assert "MACOS_INSTALLER_CERTIFICATE_BASE64" in workflow
+    assert "APPLE_APP_SPECIFIC_PASSWORD" in workflow
     assert "dist-binaries/*.pkg" in workflow
     assert "release-artifacts/beacon-macos/*.pkg" in workflow
 

@@ -95,6 +95,9 @@ def build_pkg(args):
     require_tool("pkgbuild")
     require_tool("productbuild")
 
+    if args.notarize:
+        require_tool("xcrun")
+
     version = args.version or read_version()
     output_dir = Path(args.output_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -130,14 +133,14 @@ def build_pkg(args):
         ]
     )
 
-    run(
-        [
-            "productbuild",
-            "--package",
-            str(component_pkg),
-            str(final_pkg),
-        ]
-    )
+    productbuild_command = ["productbuild", "--package", str(component_pkg)]
+    if args.sign_identity:
+        productbuild_command.extend(["--sign", args.sign_identity])
+    productbuild_command.append(str(final_pkg))
+    run(productbuild_command)
+
+    if args.notarize:
+        notarize_pkg(final_pkg, args)
 
     checksum = sha256_file(final_pkg)
     checksum_file = output_dir / f"{final_pkg.name}.sha256"
@@ -147,8 +150,34 @@ def build_pkg(args):
     print(f"  Package:  {final_pkg}")
     print(f"  SHA256:   {checksum}")
     print("  Installs: /usr/local/bin/beacon")
+    if args.sign_identity:
+        print(f"  Signed:   {args.sign_identity}")
+    if args.notarize:
+        print("  Notarized and stapled: yes")
 
     return final_pkg
+
+
+def notarize_pkg(pkg_path, args):
+    if not args.apple_id or not args.apple_team_id or not args.apple_password:
+        raise RuntimeError("--notarize requires --apple-id, --apple-team-id, and --apple-password.")
+
+    run(
+        [
+            "xcrun",
+            "notarytool",
+            "submit",
+            str(pkg_path),
+            "--apple-id",
+            args.apple_id,
+            "--team-id",
+            args.apple_team_id,
+            "--password",
+            args.apple_password,
+            "--wait",
+        ]
+    )
+    run(["xcrun", "stapler", "staple", str(pkg_path)])
 
 
 def parse_args():
@@ -172,6 +201,21 @@ def parse_args():
         "--output-dir",
         default=str(DEFAULT_OUTPUT_DIR),
         help="Directory for final .pkg output.",
+    )
+    parser.add_argument(
+        "--sign-identity",
+        help="Developer ID Installer identity used by productbuild signing.",
+    )
+    parser.add_argument(
+        "--notarize",
+        action="store_true",
+        help="Submit the signed package to Apple notarization and staple it.",
+    )
+    parser.add_argument("--apple-id", help="Apple ID used for notarization.")
+    parser.add_argument("--apple-team-id", help="Apple Developer Team ID.")
+    parser.add_argument(
+        "--apple-password",
+        help="Apple app-specific password used by notarytool.",
     )
     return parser.parse_args()
 
