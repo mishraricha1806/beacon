@@ -186,3 +186,91 @@ jobs:
           body_path: release-notes.md
           draft: false
           prerelease: false
+
+  publish-distribution-release:
+    name: Publish Artifact-Only Distribution Release
+    runs-on: ubuntu-latest
+    needs:
+      - build-binaries
+
+    if: ${{ startsWith(github.ref, 'refs/tags/') && vars.DISTRIBUTION_REPO != '' }}
+
+    steps:
+      - name: Download all binary artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts/
+
+      - name: Create distribution release notes
+        run: |
+          cat > release-notes.md << EOF
+          # Beacon ${GITHUB_REF_NAME}
+
+          Beacon provides production-readiness intelligence for distributed systems.
+
+          ## Downloads
+
+          - macOS installer: \`beacon-${GITHUB_REF_NAME#v}-macos.pkg\`
+          - macOS checksum: \`beacon-${GITHUB_REF_NAME#v}-macos.pkg.sha256\`
+          - macOS raw binary fallback: \`beacon-macos\`
+          - Linux binary: \`beacon-linux\`
+          - Windows binary: \`beacon-windows.exe\`
+
+          ## Install
+
+          macOS:
+
+          \`\`\`bash
+          sudo installer -pkg beacon-${GITHUB_REF_NAME#v}-macos.pkg -target /
+          beacon --help
+          \`\`\`
+
+          Linux:
+
+          \`\`\`bash
+          chmod +x beacon-linux
+          ./beacon-linux --help
+          \`\`\`
+
+          Windows:
+
+          \`\`\`powershell
+          beacon-windows.exe --help
+          \`\`\`
+
+          ## Source Privacy
+
+          This distribution repository contains only release artifacts and public
+          installation notes. Beacon source code is not published here.
+          EOF
+
+      - name: Publish release to artifact-only repository
+        env:
+          GH_TOKEN: ${{ secrets.DISTRIBUTION_REPO_TOKEN }}
+          DISTRIBUTION_REPO: ${{ vars.DISTRIBUTION_REPO }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${GH_TOKEN}" ]; then
+            echo "DISTRIBUTION_REPO_TOKEN secret is required"
+            exit 1
+          fi
+
+          files=(
+            release-artifacts/beacon-macos/*.pkg
+            release-artifacts/beacon-macos/*.pkg.sha256
+            release-artifacts/beacon-macos/beacon-macos
+            release-artifacts/beacon-linux/beacon-linux
+            release-artifacts/beacon-windows.exe/beacon-windows.exe
+          )
+
+          if gh release view "${RELEASE_TAG}" --repo "${DISTRIBUTION_REPO}" > /dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" "${files[@]}" --repo "${DISTRIBUTION_REPO}" --clobber
+          else
+            gh release create "${RELEASE_TAG}" "${files[@]}" \
+              --repo "${DISTRIBUTION_REPO}" \
+              --title "Beacon ${RELEASE_TAG}" \
+              --notes-file release-notes.md
+          fi

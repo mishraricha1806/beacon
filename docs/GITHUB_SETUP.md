@@ -31,6 +31,27 @@ source-code archives to tag-based releases.
 
 No PyPI token is required for the private-source release path.
 
+## Distribution Repo Automation
+
+Create a separate artifact-only repo, for example:
+
+```text
+mishraricha1806/beacon-distribution
+```
+
+In the private source repo, configure:
+
+```text
+Actions variable:
+DISTRIBUTION_REPO=mishraricha1806/beacon-distribution
+
+Actions secret:
+DISTRIBUTION_REPO_TOKEN=<token with Contents: Read and write on the distribution repo>
+```
+
+When a version tag is pushed, the workflow builds artifacts from the source repo
+and publishes the shareable release to the distribution repo.
+
 ## Local Release Check
 
 Run before tagging:

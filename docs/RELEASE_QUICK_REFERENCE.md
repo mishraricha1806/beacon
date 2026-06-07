@@ -9,6 +9,13 @@ python3 scripts/release_check_all.py --require-helm
 
 ## Create A Release
 
+First configure:
+
+```text
+DISTRIBUTION_REPO=mishraricha1806/beacon-distribution
+DISTRIBUTION_REPO_TOKEN=<token with Contents: Read and write>
+```
+
 ```bash
 git status
 git tag -a v0.1.2 -m "Release v0.1.2"

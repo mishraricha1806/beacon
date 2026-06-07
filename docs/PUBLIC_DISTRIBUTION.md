@@ -48,6 +48,34 @@ The distribution repo release will still show GitHub's automatic source archives
 but those archives will contain only the distribution repo contents, not Beacon's
 application source code.
 
+## Automated Distribution Release
+
+The source repo workflow can publish artifacts directly to the distribution repo.
+
+Create a public or private artifact-only repo, for example:
+
+```text
+mishraricha1806/beacon-distribution
+```
+
+In the private source repo, add this GitHub Actions variable:
+
+```text
+DISTRIBUTION_REPO=mishraricha1806/beacon-distribution
+```
+
+Add this GitHub Actions secret:
+
+```text
+DISTRIBUTION_REPO_TOKEN=<token with Contents: Read and write on the distribution repo>
+```
+
+Then push a new version tag from the source repo. The workflow will build Beacon
+from source, download the binary artifacts inside Actions, and create/update a
+release in the distribution repo.
+
+Do not create the public release in the source repo.
+
 ## Fix If A Source Repo Release Was Already Created
 
 Do not share that source-repo release link. Delete it or mark it internal.
