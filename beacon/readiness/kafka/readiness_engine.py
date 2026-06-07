@@ -5,7 +5,10 @@ from beacon.scoring import (
 from beacon.correlations.root_cause import correlate_findings
 from beacon.intelligence.context import context_summary
 from beacon.kafka_report import build_kafka_report
-from beacon.readiness.distributed import build_distributed_system_readiness
+from beacon.readiness.distributed import (
+    build_distributed_system_readiness,
+    build_environment_readiness_model,
+)
 from beacon.readiness.interpretation import (
     build_business_categories,
     interpret_findings,
@@ -24,7 +27,9 @@ DEFAULT_CATEGORIES = {
 }
 
 
-def calculate_readiness(findings, environment=None, intelligence_context=None):
+def calculate_readiness(
+    findings, environment=None, intelligence_context=None, environment_model=None
+):
     interpretation = interpret_findings(
         findings,
         environment=environment,
@@ -80,6 +85,7 @@ def calculate_readiness(findings, environment=None, intelligence_context=None):
         "release_gate": None,
         "architect_assessment": None,
         "distributed_system_readiness": None,
+        "environment_readiness": None,
         "root_cause_hypotheses": [],
         "kafka_report": None,
     }
@@ -110,15 +116,16 @@ def calculate_readiness(findings, environment=None, intelligence_context=None):
     summary["recommended_action"] = build_recommended_action(summary)
     summary["primary_risk_area"] = determine_primary_risk_area(summary)
     summary["production_decision"] = determine_production_decision(summary)
-    summary["top_reasons"] = build_top_reasons(
-        interpreted_findings, summary["grouped_risks"]
-    )
+    summary["top_reasons"] = build_top_reasons(interpreted_findings, summary["grouped_risks"])
     summary["next_best_actions"] = build_next_best_actions(summary)
     summary["release_gate"] = build_release_gate(summary)
     summary["architect_assessment"] = build_architect_assessment(summary)
     summary["root_cause_hypotheses"] = correlate_findings(interpreted_findings)
     summary["distributed_system_readiness"] = build_distributed_system_readiness(
         interpreted_findings, summary
+    )
+    summary["environment_readiness"] = build_environment_readiness_model(
+        environment_model, summary["distributed_system_readiness"]
     )
     summary["kafka_report"] = build_kafka_report(sort_findings(interpreted_findings))
     return summary
@@ -128,12 +135,12 @@ def build_release_gate(summary):
     decision = summary.get("production_decision")
     if summary.get("score_status") == "BLOCKED_BY_ANALYSIS_ERROR":
         answer = "Analysis blocked"
-        business_risk = "Beacon could not complete the scan because one or more inputs or collectors failed."
+        business_risk = (
+            "Beacon could not complete the scan because one or more inputs or collectors failed."
+        )
     elif decision == "READY":
         answer = "Yes"
-        business_risk = (
-            "No material production-readiness blocker was found in the scanned inputs."
-        )
+        business_risk = "No material production-readiness blocker was found in the scanned inputs."
     elif decision == "READY WITH RISKS":
         answer = "Yes, with risks"
         business_risk = (
@@ -212,10 +219,7 @@ def classify_finding(title, impact):
     ):
         return "operational_safety"
 
-    if any(
-        word in text
-        for word in ["replay", "recovery", "versioning", "overwrite", "delete"]
-    ):
+    if any(word in text for word in ["replay", "recovery", "versioning", "overwrite", "delete"]):
         return "recovery_readiness"
 
     return "operational_safety"
@@ -273,9 +277,7 @@ def build_recommended_action(summary):
         return "Resolve all critical findings before production rollout."
 
     if summary["high"] > 0:
-        return (
-            "Review and fix high-risk operational findings before production approval."
-        )
+        return "Review and fix high-risk operational findings before production approval."
 
     if summary["medium"] > 0:
         return "Address medium-risk findings or document accepted operational risk."
@@ -298,9 +300,7 @@ def determine_production_decision(summary):
     findings = []
 
     for severity in ("error", "critical", "high", "medium", "low", "info"):
-        findings.extend(
-            {"severity": severity.upper()} for _ in range(summary[severity])
-        )
+        findings.extend({"severity": severity.upper()} for _ in range(summary[severity]))
 
     return production_readiness_decision(findings, summary["score"])
 
@@ -387,9 +387,7 @@ def build_architect_assessment(summary):
         "accepted_assumptions": build_accepted_assumptions(summary),
         "context_gaps": build_context_gaps(summary, material_risks),
         "material_risks": [architect_risk_item(risk) for risk in material_risks[:5]],
-        "deemphasized_signals": [
-            architect_risk_item(risk) for risk in informational_risks[:5]
-        ],
+        "deemphasized_signals": [architect_risk_item(risk) for risk in informational_risks[:5]],
         "investigate_now": build_investigate_now(material_risks),
         "first_actions": build_first_actions(summary, material_risks),
         "score_explanation": build_score_explanation(summary),
@@ -473,10 +471,7 @@ def build_context_gaps(summary, material_risks):
             "No organization intelligence context was loaded, so Beacon cannot know accepted dev/test exceptions, topic ownership standards, or approved topic-pattern exceptions."
         )
 
-    if (
-        summary.get("environment") != "prod"
-        and "kafka.single_broker_cluster" in risk_keys
-    ):
+    if summary.get("environment") != "prod" and "kafka.single_broker_cluster" in risk_keys:
         gaps.append(
             "Confirm whether this Kafka cluster is intentionally single-broker for non-production use."
         )

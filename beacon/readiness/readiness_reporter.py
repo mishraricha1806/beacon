@@ -12,12 +12,8 @@ def print_readiness_summary(summary):
             f"[bold]Production Readiness Score:[/bold] BLOCKED ({summary['score']}/100 raw signal score)"
         )
     else:
-        console.print(
-            f"[bold]Production Readiness Score:[/bold] {summary['score']}/100"
-        )
-    console.print(
-        f"[bold]Operational Survivability:[/bold] {summary['survivability']}\n"
-    )
+        console.print(f"[bold]Production Readiness Score:[/bold] {summary['score']}/100")
+    console.print(f"[bold]Operational Survivability:[/bold] {summary['survivability']}\n")
 
     if summary.get("release_gate"):
         gate = summary["release_gate"]
@@ -74,15 +70,42 @@ def print_readiness_summary(summary):
     console.print(f"[bold]Production Decision:[/bold] {summary['production_decision']}")
     console.print(f"[bold]Primary Risk Area:[/bold] {summary['primary_risk_area']}\n")
 
+    if summary.get("environment_readiness"):
+        environment = summary["environment_readiness"]
+        console.print("[bold]Environment Readiness:[/bold]")
+        console.print(f"- Environment: {environment['name']}")
+        if environment.get("profile"):
+            console.print(f"- Profile: {environment['profile']}")
+        if environment.get("criticality"):
+            console.print(f"- Criticality: {environment['criticality']}")
+        if environment.get("owner"):
+            console.print(f"- Owner: {environment['owner']}")
+        console.print(f"- Verdict: {environment['verdict']}")
+        console.print(f"- Confidence: {environment['confidence']}")
+        if environment.get("business_flows"):
+            console.print("- Business flows: " + ", ".join(environment["business_flows"][:3]))
+        if environment.get("dependency_domains"):
+            console.print("- Dependencies: " + ", ".join(environment["dependency_domains"]))
+        if environment.get("blocked_dimensions"):
+            console.print("- Blocked/high-risk domains:")
+            for dimension in environment["blocked_dimensions"][:4]:
+                console.print(
+                    f"  - {dimension['title']} ({dimension['status']}, "
+                    f"{dimension['max_severity']})"
+                )
+        if environment.get("coverage_gaps"):
+            console.print("- Coverage gaps:")
+            for gap in environment["coverage_gaps"][:3]:
+                console.print(f"  - {gap}")
+        console.print()
+
     if summary.get("distributed_system_readiness"):
         distributed = summary["distributed_system_readiness"]
         console.print("[bold]Distributed System Readiness:[/bold]")
         console.print(f"- Verdict: {distributed['verdict']}")
         console.print(f"- Confidence: {distributed['confidence']}")
         if distributed.get("domains_observed"):
-            console.print(
-                "- Domains observed: " + ", ".join(distributed["domains_observed"])
-            )
+            console.print("- Domains observed: " + ", ".join(distributed["domains_observed"]))
         if distributed.get("critical_paths"):
             console.print("- Critical paths:")
             for path in distributed["critical_paths"][:3]:
@@ -117,9 +140,7 @@ def print_readiness_summary(summary):
             console.print("- Material risks:")
             for risk in assessment["material_risks"][:3]:
                 affected = risk.get("affected_count", 0)
-                console.print(
-                    f"  - {risk['severity']}: {risk['title']} " f"({affected} affected)"
-                )
+                console.print(f"  - {risk['severity']}: {risk['title']} " f"({affected} affected)")
 
         if assessment.get("context_gaps"):
             console.print("- Context gaps:")
@@ -177,9 +198,7 @@ def print_readiness_summary(summary):
     table.add_column("Finding Count")
 
     for category, data in summary["categories"].items():
-        table.add_row(
-            category.replace("_", " ").title(), data["risk"], str(data["findings"])
-        )
+        table.add_row(category.replace("_", " ").title(), data["risk"], str(data["findings"]))
 
     console.print("[bold]Top Reasons:[/bold]")
     for reason in summary["top_reasons"]:

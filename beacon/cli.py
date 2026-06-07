@@ -35,6 +35,8 @@ from beacon.project_config import (
     as_list,
     config_context_path,
     config_environment,
+    config_environment_model,
+    config_live_inputs,
     config_readiness_includes,
     config_report_options,
     config_tasks,
@@ -76,6 +78,7 @@ def emit_readiness(
     output="terminal",
     environment=None,
     context_path=None,
+    environment_model=None,
 ):
     findings = apply_runtime_policy(findings)
     intelligence_context = load_intelligence_context(context_path)
@@ -83,6 +86,7 @@ def emit_readiness(
         findings,
         environment=environment,
         intelligence_context=intelligence_context,
+        environment_model=environment_model,
     )
 
     emit_readiness_report(
@@ -280,11 +284,16 @@ def run_configured_readiness(config, config_path, environment=None, output=None)
     effective_environment = environment or config_environment(config)
     context_path = config_context_path(config, config_path)
     includes = config_readiness_includes(config, config_path)
+    live_inputs = config_live_inputs(config, config_path)
 
     findings = []
     for include_path in includes:
         LOGGER.info("cli.config.readiness.include path=%s", include_path)
         findings.extend(scan_path(include_path))
+
+    if any(value for value in live_inputs.values()):
+        configured_findings = collect_all_domain_findings(**live_inputs)
+        findings.extend(configured_findings)
 
     if report_options["output"] != "json":
         typer.echo(f"Found {config_path}")
@@ -297,6 +306,7 @@ def run_configured_readiness(config, config_path, environment=None, output=None)
         output=report_options["output"],
         environment=effective_environment,
         context_path=context_path,
+        environment_model=config_environment_model(config),
     )
 
 
@@ -418,6 +428,15 @@ def doctor(config: str = typer.Option(None, "--config", help="Path to beacon.yam
         typer.echo("[WARN] kubectl not found; live Kubernetes diagnostics need kubectl")
 
     if data and config_path:
+        environment_model = config_environment_model(data)
+        typer.echo(f"[OK] environment model: {environment_model['name']}")
+        if environment_model.get("business_flows"):
+            typer.echo("[OK] business flows: " + ", ".join(environment_model["business_flows"][:3]))
+        if environment_model.get("dependency_domains"):
+            typer.echo(
+                "[OK] dependency domains: " + ", ".join(environment_model["dependency_domains"])
+            )
+
         for include_path in config_readiness_includes(data, config_path):
             path = Path(include_path)
             status = "[OK]" if path.exists() else "[FAIL]"

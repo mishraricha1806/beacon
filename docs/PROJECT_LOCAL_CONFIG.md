@@ -30,8 +30,28 @@ beacon.yml
 
 ```yaml
 project: loan-service
-environment: prod
-criticality: high
+environment:
+  name: prod-us-east
+  profile: prod
+  criticality: high
+  owner: lending-platform
+  rto: 30m
+  rpo: 5m
+  business_flows:
+    - loan-application
+  services:
+    - loan-api
+    - loan-decision-worker
+  dependencies:
+    kafka:
+      clusters:
+        - lending-events
+    kubernetes:
+      clusters:
+        - prod-us-east
+    database:
+      instances:
+        - loan-db
 
 readiness:
   include:
@@ -50,6 +70,18 @@ report:
     - terminal
     - html
   open: false
+
+live:
+  runtime:
+    snapshot: ./runtime/all-runtime.yaml
+    flow: ./runtime/flow-runtime.yaml
+    deployment_events: ./deployments/events.yaml
+  kafka:
+    access_config: ./kafka/access-profiles.yaml
+    acls: ./kafka/acls.yaml
+    history: ./kafka/history.yaml
+  schema_registry:
+    config: ./kafka/schema-registry.yaml
 
 tasks:
   prod-check:
@@ -86,3 +118,31 @@ beacon run kafka-incident-demo
 
 `beacon run` only supports known Beacon workflows. It does not execute arbitrary
 shell commands from `beacon.yaml`.
+
+## Full Environment Readiness
+
+For full environment readiness, define:
+
+- environment name/profile/criticality
+- owner and recovery targets
+- business flows
+- services
+- dependency domains
+- static readiness paths
+- runtime/live evidence profiles
+
+Then `beacon readiness` produces both:
+
+```text
+Environment Readiness
+Distributed System Readiness
+```
+
+The environment model helps Beacon answer broader questions:
+
+```text
+Which business flow is at risk?
+Which dependency domains are covered?
+Which domains are blocked or high risk?
+What evidence is still missing before this environment can be trusted?
+```

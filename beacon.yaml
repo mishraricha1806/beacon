@@ -1,6 +1,26 @@
 project: beacon-demo
-environment: dev
-criticality: medium
+environment:
+  name: dev
+  profile: dev
+  criticality: medium
+  owner: platform-team
+  rto: 4h
+  rpo: 24h
+  business_flows:
+    - demo-checkout
+  services:
+    - checkout-api
+    - payment-worker
+  dependencies:
+    kafka:
+      clusters:
+        - demo-kafka
+    kubernetes:
+      clusters:
+        - local-dev
+    storage:
+      buckets:
+        - customer-exports
 
 readiness:
   include:
@@ -17,6 +37,18 @@ report:
     - terminal
     - html
   open: false
+
+live:
+  runtime:
+    snapshot: ./examples/supported/runtime/all-runtime.yaml
+    flow: ./examples/supported/runtime/flow-runtime.yaml
+    deployment_events: ./examples/supported/deployments/events.yaml
+    opentelemetry: ./examples/supported/opentelemetry/checkout-otel.yaml
+  kafka:
+    acls: ./examples/supported/kafka/acls.yaml
+    history: ./examples/supported/kafka/history.yaml
+  schema_registry:
+    config: ./examples/supported/kafka/schema-registry.yaml
 
 tasks:
   prod-check:

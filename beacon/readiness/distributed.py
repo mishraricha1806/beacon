@@ -63,9 +63,7 @@ def build_distributed_system_readiness(findings, summary):
     findings = findings or []
     domains = sorted({normalize_domain(finding.get("domain")) for finding in findings})
     domains = [domain for domain in domains if domain]
-    dimensions = [
-        dimension_status(dimension, findings) for dimension in SYSTEM_DIMENSIONS
-    ]
+    dimensions = [dimension_status(dimension, findings) for dimension in SYSTEM_DIMENSIONS]
     observed_dimensions = [item for item in dimensions if item["observed"]]
     release_blockers = distributed_release_blockers(findings)
 
@@ -82,6 +80,96 @@ def build_distributed_system_readiness(findings, summary):
         "coverage_gaps": distributed_coverage_gaps(dimensions),
         "critical_paths": infer_critical_paths(domains),
     }
+
+
+def build_environment_readiness_model(environment_model, distributed_readiness):
+    environment_model = environment_model or {}
+    distributed_readiness = distributed_readiness or {}
+    dimensions = distributed_readiness.get("dimensions") or []
+    observed = [dimension for dimension in dimensions if dimension.get("observed")]
+    blocked = [
+        dimension for dimension in observed if dimension.get("status") in {"BLOCKED", "HIGH_RISK"}
+    ]
+
+    service_count = environment_model.get("service_count", 0)
+    dependency_domains = environment_model.get("dependency_domains") or []
+    business_flows = environment_model.get("business_flows") or []
+
+    if not environment_model:
+        verdict = "No explicit environment model was provided."
+        confidence = "LOW"
+    elif blocked:
+        verdict = "Environment is not ready; one or more observed readiness domains are blocked or high risk."
+        confidence = environment_model_confidence(environment_model, observed)
+    elif observed:
+        verdict = "Environment model was evaluated with no observed blocked readiness domains."
+        confidence = environment_model_confidence(environment_model, observed)
+    else:
+        verdict = "Environment model loaded, but no readiness domains were observed."
+        confidence = "LOW"
+
+    return {
+        "name": environment_model.get("name") or "unknown",
+        "profile": environment_model.get("profile"),
+        "criticality": environment_model.get("criticality"),
+        "owner": environment_model.get("owner"),
+        "rto": environment_model.get("rto"),
+        "rpo": environment_model.get("rpo"),
+        "business_flows": business_flows,
+        "service_count": service_count,
+        "dependency_domains": dependency_domains,
+        "observed_dimension_count": len(observed),
+        "dimension_count": len(dimensions),
+        "blocked_dimensions": [
+            {
+                "title": dimension.get("title"),
+                "status": dimension.get("status"),
+                "max_severity": dimension.get("max_severity"),
+                "finding_count": dimension.get("finding_count"),
+            }
+            for dimension in blocked
+        ],
+        "verdict": verdict,
+        "confidence": confidence,
+        "coverage_gaps": environment_coverage_gaps(environment_model, distributed_readiness),
+    }
+
+
+def environment_model_confidence(environment_model, observed_dimensions):
+    score = 0
+    if environment_model.get("services"):
+        score += 1
+    if environment_model.get("dependencies"):
+        score += 1
+    if environment_model.get("business_flows"):
+        score += 1
+    if environment_model.get("rto") or environment_model.get("rpo"):
+        score += 1
+    if len(observed_dimensions) >= 5:
+        score += 2
+    elif len(observed_dimensions) >= 3:
+        score += 1
+
+    if score >= 5:
+        return "HIGH"
+    if score >= 3:
+        return "MEDIUM"
+    return "LOW"
+
+
+def environment_coverage_gaps(environment_model, distributed_readiness):
+    gaps = []
+    if not environment_model.get("services"):
+        gaps.append("Add services to the environment model.")
+    if not environment_model.get("dependencies"):
+        gaps.append("Add dependency domains such as Kafka, Kubernetes, database, and storage.")
+    if not environment_model.get("business_flows"):
+        gaps.append("Add business flows so Beacon can map technical risk to user impact.")
+    if not environment_model.get("rto") and not environment_model.get("rpo"):
+        gaps.append("Add RTO/RPO targets for recovery readiness.")
+
+    gaps.extend(distributed_readiness.get("coverage_gaps") or [])
+    return gaps[:6]
 
 
 def dimension_status(dimension, findings):
@@ -136,9 +224,7 @@ def distributed_confidence(summary, observed_dimensions):
 
 def distributed_release_blockers(findings):
     blockers = [
-        finding
-        for finding in findings
-        if finding.get("severity") in {"ERROR", "CRITICAL", "HIGH"}
+        finding for finding in findings if finding.get("severity") in {"ERROR", "CRITICAL", "HIGH"}
     ]
     return [
         {
@@ -173,9 +259,7 @@ def infer_critical_paths(domains):
     }.issubset(domain_set):
         paths.append("API -> Kafka -> Consumer -> Database")
 
-    if {"deployment", "api"}.issubset(domain_set) or {"deployment", "flow"}.issubset(
-        domain_set
-    ):
+    if {"deployment", "api"}.issubset(domain_set) or {"deployment", "flow"}.issubset(domain_set):
         paths.append("Deployment -> API/runtime degradation")
 
     if {"kubernetes", "api"}.issubset(domain_set):
@@ -184,9 +268,7 @@ def infer_critical_paths(domains):
     if {"kafka", "schema_registry"}.issubset(domain_set):
         paths.append("Producer schema change -> Kafka topic -> consumer compatibility")
 
-    if {"cloud", "iam"}.issubset(domain_set) or {"cloud", "storage"}.issubset(
-        domain_set
-    ):
+    if {"cloud", "iam"}.issubset(domain_set) or {"cloud", "storage"}.issubset(domain_set):
         paths.append("Cloud access/storage -> production blast radius")
 
     return paths or ["No complete cross-domain critical path was inferred yet."]
