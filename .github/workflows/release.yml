@@ -258,6 +258,35 @@ jobs:
             exit 1
           fi
 
+          branch_count="$(gh api "repos/${DISTRIBUTION_REPO}/branches" --jq 'length')"
+          target_branch="$(gh api "repos/${DISTRIBUTION_REPO}" --jq '.default_branch // "main"')"
+          if [ -z "${target_branch}" ] || [ "${target_branch}" = "null" ]; then
+            target_branch="main"
+          fi
+
+          if [ "${branch_count}" = "0" ]; then
+            echo "Distribution repository is empty; creating initial ${target_branch} branch."
+            bootstrap_dir="$(mktemp -d)"
+            git init -b "${target_branch}" "${bootstrap_dir}"
+            cd "${bootstrap_dir}"
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            printf '%s\n' \
+              '# Beacon' \
+              '' \
+              'Production-readiness intelligence for distributed systems.' \
+              '' \
+              'Download the latest Beacon installer or binary from Releases.' \
+              '' \
+              'This repository contains distribution artifacts only. Beacon source code is not published here.' \
+              > README.md
+            git add README.md
+            git commit -m "Initialize Beacon distribution repository"
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${DISTRIBUTION_REPO}.git"
+            git push origin "${target_branch}"
+            cd -
+          fi
+
           files=(
             release-artifacts/beacon-macos/*.pkg
             release-artifacts/beacon-macos/*.pkg.sha256
@@ -271,6 +300,7 @@ jobs:
           else
             gh release create "${RELEASE_TAG}" "${files[@]}" \
               --repo "${DISTRIBUTION_REPO}" \
+              --target "${target_branch}" \
               --title "Beacon ${RELEASE_TAG}" \
               --notes-file release-notes.md
           fi
