@@ -1,0 +1,75 @@
+kafka_runtime:
+  broker_disk_usage_percent: 84
+  disk_growth_percent_7d: 28
+  retention_bytes_configured: false
+  cleanup_policy_configured: true
+  producer_rate_increased: true
+  consumer_lag_increasing: true
+  avg_message_size_increased: true
+  under_replicated_partitions: 0
+  broker_count: 3
+  partition_count: 18
+  replication_factor: 3
+
+api_runtime:
+  services:
+    - name: payment-api
+      latency_p95_ms: 1600
+      error_rate_percent: 4
+      timeout_rate_percent: 3
+      retry_rate_percent: 14
+      saturation_percent: 88
+      recent_deployment: true
+
+database_runtime:
+  databases:
+    - name: payment-db
+      engine: postgres
+      latency_ms: 950
+      connection_pool_utilization_percent: 96
+      lock_waits_high: true
+      replication_lag_seconds: 120
+      storage_used_percent: 82
+
+storage_runtime:
+  resources:
+    - name: payment-broker-volume
+      type: block_volume
+      used_percent: 84
+      growth_percent_7d: 28
+      iops_saturation_percent: 86
+      backup_age_hours: 36
+
+flow_runtime:
+  name: black-friday-payment-flow
+  signals:
+    kafka_consumer_lag_increasing: true
+    kafka_broker_unhealthy: false
+    db_latency_ms: 950
+    api_timeout_rate_percent: 3
+    consumer_retry_rate_percent: 14
+  components:
+    payment-api:
+      type: api
+      signals:
+        latency_p95_ms: 1600
+        timeout_rate_percent: 3
+      depends_on:
+        - payments-topic
+    payments-topic:
+      type: kafka_topic
+      signals:
+        consumer_lag_increasing: true
+      depends_on:
+        - payment-processor
+    payment-processor:
+      type: consumer
+      signals:
+        retry_rate_percent: 14
+      depends_on:
+        - payment-db
+    payment-db:
+      type: database
+      signals:
+        latency_ms: 950
+        connection_pool_utilization_percent: 96

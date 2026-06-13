@@ -20,10 +20,6 @@ LABEL description="Beacon - Production-readiness intelligence for distributed sy
 WORKDIR /workspace
 
 COPY --from=builder /src/dist-binaries/beacon-linux /usr/local/bin/beacon
-COPY beacon.yaml ./beacon.yaml
-COPY examples ./examples
-COPY docs/PROJECT_DEMO.md ./docs/PROJECT_DEMO.md
-COPY docs/STATIC_READINESS_DEMO.md ./docs/STATIC_READINESS_DEMO.md
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \
@@ -33,7 +29,7 @@ RUN chmod +x /usr/local/bin/beacon
 EXPOSE 8765
 
 ENTRYPOINT ["beacon"]
-CMD ["readiness", "--output", "terminal"]
+CMD ["--help"]
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=1 \
   CMD beacon --help >/dev/null || exit 1

@@ -1,0 +1,57 @@
+kafka:
+  topics:
+    - name: payments
+      replication_factor: 1
+      partitions: 1
+      retention_ms: -1
+      retention_bytes:
+      cleanup_policy:
+      min_insync_replicas:
+      max_message_bytes: 20971520
+      owner: payments-platform
+    - name: transactions
+      replication_factor: 2
+      partitions: 2
+      retention_bytes:
+      cleanup_policy: delete
+      min_insync_replicas: 1
+      max_message_bytes: 5242880
+      owner: payments-platform
+    - name: payment-events
+      replication_factor: 3
+      partitions: 12
+      retention_bytes: 536870912000
+      cleanup_policy: delete
+      min_insync_replicas: 2
+      max_message_bytes: 1048576
+      owner: payments-platform
+  brokers:
+    - id: 1
+      default_replication_factor: 1
+      offsets_topic_replication_factor: 1
+      transaction_state_log_replication_factor: 1
+      auto_create_topics_enable: true
+      broker_rack:
+      security_protocol: PLAINTEXT
+      unclean_leader_election_enable: true
+  producers:
+    - name: payment-api-producer
+      topic: payments
+      acks: 1
+      enable_idempotence: false
+      retries: 3
+      max_in_flight_requests_per_connection: 10
+      compression_type: none
+  consumers:
+    - name: payment-processor
+      topic: payments
+      group_id: payment-processor
+      partitions: 1
+      consumer_concurrency: 8
+      enable_auto_commit: true
+      auto_offset_reset: latest
+      max_poll_interval_ms: 30000
+      session_timeout_ms: 10000
+      heartbeat_interval_ms: 5000
+      retry_max_attempts: 6
+      dlq_topic:

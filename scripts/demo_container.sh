@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-IMAGE="${BEACON_IMAGE:-beacon-demo:local}"
+IMAGE="${BEACON_IMAGE:-beacon:local}"
 PORT="${BEACON_PORT:-8765}"
 MODE="${1:-ui}"
 
@@ -14,7 +14,7 @@ if ! command -v docker >/dev/null 2>&1; then
   exit 1
 fi
 
-section "Build private-source Beacon demo image"
+section "Build private-source Beacon image"
 docker build -t "$IMAGE" .
 
 case "$MODE" in
@@ -25,15 +25,19 @@ case "$MODE" in
     ;;
   readiness)
     section "Run project-local readiness"
-    docker run --rm "$IMAGE" readiness --output terminal
+    docker run --rm -v "$PWD:/workspace/project:ro" "$IMAGE" readiness \
+      --config /workspace/project/beacon.yaml \
+      --output terminal
     ;;
   demo)
     section "Run static readiness demo"
-    docker run --rm "$IMAGE" readiness static examples/bad-infra --no-html --no-open-report
+    docker run --rm -v "$PWD:/workspace/project:ro" "$IMAGE" readiness static \
+      /workspace/project/examples/bad-infra \
+      --no-html \
+      --no-open-report
     ;;
   *)
     echo "Usage: $0 [ui|readiness|demo]"
     exit 1
     ;;
 esac
-

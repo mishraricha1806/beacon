@@ -544,20 +544,22 @@ JSON:
 
 ---
 
-## 7. Docker Demo Without Sharing Source Code
+## 7. Docker Distribution Without Sharing Source Code
 
 This is the best path when you do not want to distribute a macOS `.pkg` or share source code.
 
-Build local demo image:
+The published product image should contain only the compiled Beacon binary and required runtime certificates. It should not bundle the source tree, demo examples, docs, or a project-specific `beacon.yaml`.
+
+Build local product image:
 
 ```bash
-docker build -t beacon-demo:local .
+docker build -t beacon:local .
 ```
 
 Run UI:
 
 ```bash
-docker run --rm -p 8765:8765 beacon-demo:local ui --host 0.0.0.0 --port 8765
+docker run --rm -p 8765:8765 beacon:local ui --host 0.0.0.0 --port 8765
 ```
 
 Open:
@@ -569,7 +571,9 @@ http://127.0.0.1:8765/
 Run demo static scan:
 
 ```bash
-docker run --rm beacon-demo:local readiness static /workspace/examples/bad-infra --no-html --no-open-report
+docker run --rm \
+  -v "$PWD:/workspace/project:ro" \
+  beacon:local readiness static /workspace/project/examples/bad-infra --no-html --no-open-report
 ```
 
 Scan a user's local project:
@@ -577,7 +581,7 @@ Scan a user's local project:
 ```bash
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
-  beacon-demo:local readiness static /workspace/project --no-html --no-open-report
+  beacon:local readiness static /workspace/project --no-html --no-open-report
 ```
 
 Shortcut script from this repo:
@@ -588,14 +592,93 @@ Shortcut script from this repo:
 ./scripts/demo_container.sh demo
 ```
 
+### Publish the Docker Image to GHCR
+
+Create a GitHub token with package publishing permission.
+
+For a classic personal access token, enable:
+
+```text
+write:packages
+read:packages
+```
+
+If the package is linked to a private repository, the token may also need:
+
+```text
+repo
+```
+
+Then publish:
+
+```bash
+export GHCR_TOKEN="<your-github-token>"
+export GHCR_OWNER="mishraricha1806"
+export BEACON_IMAGE="ghcr.io/mishraricha1806/beacon"
+
+./scripts/publish_container.sh
+```
+
+This pushes:
+
+```text
+ghcr.io/mishraricha1806/beacon:<version>
+ghcr.io/mishraricha1806/beacon:latest
+```
+
+User command after publishing:
+
+```bash
+docker run --rm -p 8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8765/
+```
+
 Why Docker is the best fast-sharing path:
 
 - no Apple Developer account
 - no macOS notarization
 - works on macOS, Linux, and Windows with Docker Desktop
 - source code does not need to be distributed in the final runtime image
+- demo examples do not need to be bundled in the final runtime image
 - users can run locally
 - easy to demo UI and CLI
+
+### Public Distribution Repo vs Private Source Repo
+
+Recommended setup:
+
+```text
+Private repo:
+- real Beacon source code
+- implementation
+- tests
+- build pipeline
+- private issue history
+
+Public distribution repo:
+- README
+- screenshots
+- quick-start commands
+- container image links
+- release notes
+- sample input files only if they are safe
+- no source code
+```
+
+Use the private repo as the source of truth. Use the public repo as a product landing and distribution page.
+
+For GitHub Container Registry, the image can be published from the private repo and made public separately. The public distribution repo can link to the image:
+
+```text
+ghcr.io/mishraricha1806/beacon:latest
+```
+
+This gives users easy access without exposing the implementation.
 
 ---
 
@@ -769,7 +852,7 @@ For a first-time audience:
 5. Show Docker version:
 
    ```bash
-   docker run --rm -p 8765:8765 beacon-demo:local ui --host 0.0.0.0 --port 8765
+   docker run --rm -p 8765:8765 beacon:local ui --host 0.0.0.0 --port 8765
    ```
 
 6. Close with:
@@ -777,4 +860,3 @@ For a first-time audience:
    ```text
    Beacon is a production-readiness gate first, then runtime intelligence second.
    ```
-
