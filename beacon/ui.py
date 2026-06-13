@@ -1,5 +1,5 @@
 import argparse
-import cgi
+import errno
 import json
 import logging
 import tempfile
@@ -13,6 +13,7 @@ from beacon.kafka_runtime_connector import analyze_kafka_cluster
 from beacon.kubernetes_runtime_connector import analyze_kubernetes_cluster
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.policy import apply_policy_to_findings, load_policy
+from beacon.readiness.correlations import augment_readiness_findings
 from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.deployment_events import analyze_deployment_events_file
@@ -508,6 +509,10 @@ HTML = """<!doctype html>
           </div>
         </div>
         <div class="hint">Use 3 samples with a short interval to catch rebalance/member churn during a live incident.</div>
+
+        <label for="kafka_request_timeout_ms">Kafka request timeout ms</label>
+        <input id="kafka_request_timeout_ms" name="kafka_request_timeout_ms" type="number" value="15000" min="1000" max="300000">
+        <div class="hint">Increase this only for slow enterprise clusters; lower values fail faster during demos.</div>
 
         <label for="deployment_events">Deployment events</label>
         <input id="deployment_events" name="deployment_events" type="file">
@@ -1143,6 +1148,12 @@ class BeaconUIHandler(BaseHTTPRequestHandler):
 
 
 def parse_multipart(handler):
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", DeprecationWarning)
+        import cgi
+
     form = cgi.FieldStorage(
         fp=handler.rfile,
         headers=handler.headers,
@@ -1171,9 +1182,7 @@ def parse_multipart(handler):
 
 def save_temp_upload(filename, content):
     suffix = "-" + filename.replace("/", "_")
-    temp = tempfile.NamedTemporaryFile(
-        prefix="beacon-kafka-ui-", suffix=suffix, delete=False
-    )
+    temp = tempfile.NamedTemporaryFile(prefix="beacon-kafka-ui-", suffix=suffix, delete=False)
     with temp:
         temp.write(content)
     return temp.name
@@ -1223,9 +1232,7 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
         before = len(findings)
         LOGGER.info("ui.flow.start id=%s path=%s", request_id, files["flow_snapshot"])
         findings.extend(analyze_flow_file(files["flow_snapshot"]))
-        LOGGER.info(
-            "ui.flow.complete id=%s added=%s", request_id, len(findings) - before
-        )
+        LOGGER.info("ui.flow.complete id=%s added=%s", request_id, len(findings) - before)
 
     if files.get("prometheus_config"):
         before = len(findings)
@@ -1266,9 +1273,7 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
         before = len(findings)
         LOGGER.info("ui.kafka.start id=%s", request_id)
         findings.extend(run_kafka_collector(fields, files))
-        LOGGER.info(
-            "ui.kafka.complete id=%s added=%s", request_id, len(findings) - before
-        )
+        LOGGER.info("ui.kafka.complete id=%s added=%s", request_id, len(findings) - before)
 
     if files.get("kafka_acl_export"):
         before = len(findings)
@@ -1380,9 +1385,7 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
             files["deployment_events"],
         )
         findings.extend(
-            analyze_deployment_events_file(
-                files["deployment_events"], existing_findings=findings
-            )
+            analyze_deployment_events_file(files["deployment_events"], existing_findings=findings)
         )
         LOGGER.info(
             "ui.deployment_events.complete id=%s added=%s",
@@ -1390,6 +1393,7 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
             len(findings) - before,
         )
 
+    findings = augment_readiness_findings(findings)
     LOGGER.info("ui.policy.start id=%s findings=%s", request_id, len(findings))
     findings = apply_policy_to_findings(findings, load_policy())
     intelligence_context = load_intelligence_context(files.get("intelligence_context"))
@@ -1398,9 +1402,7 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
         environment=value_or_none(fields.get("environment")),
         intelligence_context=intelligence_context,
     )
-    displayed_findings = sort_findings(
-        readiness_summary.get("interpreted_findings", [])
-    )
+    displayed_findings = sort_findings(readiness_summary.get("interpreted_findings", []))
     LOGGER.info(
         "ui.readiness.complete id=%s decision=%s score=%s",
         request_id,
@@ -1490,9 +1492,7 @@ def build_request_scope(fields, files):
     if value_or_none(fields.get("kafka_incident_scenario")):
         scenario = KAFKA_INCIDENT_SCENARIOS.get(fields.get("kafka_incident_scenario"))
         inputs.append(
-            f"Kafka incident demo: {scenario['label']}"
-            if scenario
-            else "Kafka incident demo"
+            f"Kafka incident demo: {scenario['label']}" if scenario else "Kafka incident demo"
         )
 
     return {
@@ -1503,9 +1503,8 @@ def build_request_scope(fields, files):
         "kafka_max_topics": int(fields.get("max_topics") or 50),
         "kafka_max_groups": int(fields.get("max_groups") or 20),
         "kafka_churn_samples": int(fields.get("churn_samples") or 1),
-        "kafka_churn_interval_seconds": float(
-            fields.get("churn_interval_seconds") or 0
-        ),
+        "kafka_churn_interval_seconds": float(fields.get("churn_interval_seconds") or 0),
+        "kafka_request_timeout_ms": int(fields.get("kafka_request_timeout_ms") or 15000),
     }
 
 
@@ -1614,6 +1613,7 @@ def run_kafka_collector(fields, files):
         max_groups=int(fields.get("max_groups") or 20),
         churn_samples=int(fields.get("churn_samples") or 1),
         churn_interval_seconds=float(fields.get("churn_interval_seconds") or 0),
+        request_timeout_ms=int(fields.get("kafka_request_timeout_ms") or 15000),
     )
 
 
@@ -1637,15 +1637,11 @@ def resolve_schema_registry_config(fields, files):
     if tls:
         registry["tls"] = tls
 
-    expected_topics = parse_expected_topic_subjects(
-        fields.get("schema_registry_expected_topics")
-    )
+    expected_topics = parse_expected_topic_subjects(fields.get("schema_registry_expected_topics"))
     if expected_topics:
         registry["expected_topics"] = expected_topics
 
-    return save_temp_json_config(
-        "beacon-schema-registry-ui-", {"schema_registry": registry}
-    )
+    return save_temp_json_config("beacon-schema-registry-ui-", {"schema_registry": registry})
 
 
 def build_schema_registry_auth(fields):
@@ -1691,9 +1687,7 @@ def parse_expected_topic_subjects(raw):
         if ":" in line:
             name, subjects = line.split(":", 1)
             topic = {"name": name.strip()}
-            subject_list = [
-                subject.strip() for subject in subjects.split(",") if subject.strip()
-            ]
+            subject_list = [subject.strip() for subject in subjects.split(",") if subject.strip()]
             if subject_list:
                 topic["subjects"] = subject_list
             topics.append(topic)
@@ -1718,11 +1712,59 @@ def main():
     parser = argparse.ArgumentParser(description="Run Beacon local Kafka UI.")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument(
+        "--no-port-fallback",
+        action="store_true",
+        help=(
+            "Fail immediately if the requested port is unavailable instead of "
+            "trying the next free port."
+        ),
+    )
     args = parser.parse_args()
 
-    server = ThreadingHTTPServer((args.host, args.port), BeaconUIHandler)
-    print(f"Beacon Kafka UI running at http://{args.host}:{args.port}")
+    server, bound_port = build_server(
+        host=args.host,
+        port=args.port,
+        allow_port_fallback=not args.no_port_fallback,
+    )
+    print(f"Beacon Kafka UI running at http://{args.host}:{bound_port}")
     server.serve_forever()
+
+
+def build_server(host, port, allow_port_fallback=True, max_attempts=25):
+    last_error = None
+
+    for candidate_port in [port] + [port + offset for offset in range(1, max_attempts)]:
+        try:
+            server = ThreadingHTTPServer((host, candidate_port), BeaconUIHandler)
+            if candidate_port != port:
+                LOGGER.warning(
+                    "ui.port.in_use fallback_host=%s requested_port=%s bound_port=%s",
+                    host,
+                    port,
+                    candidate_port,
+                )
+            return server, server.server_address[1]
+        except OSError as error:
+            last_error = error
+            if getattr(error, "errno", None) != errno.EADDRINUSE:
+                raise
+            if not allow_port_fallback:
+                break
+            if candidate_port == port and port == 0:
+                break
+
+    if last_error is not None:
+        raise OSError(
+            errno.EADDRINUSE,
+            (
+                f"Unable to bind Beacon UI on {host}:{port}. "
+                "The requested port is already in use. Use --port 0 to let the OS "
+                "choose a free port or pick another port with --no-port-fallback."
+            ),
+        ) from last_error
+
+    raise OSError(errno.EADDRINUSE, f"Unable to bind Beacon UI on {host}:{port}.")
 
 
 if __name__ == "__main__":

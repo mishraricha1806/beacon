@@ -1,0 +1,11 @@
+rule_id: cloud.database.rds.multi_az.disabled
+title: RDS Multi-AZ disabled
+description: |
+  Detects RDS instances that do not enable Multi-AZ.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Enable Multi-AZ or document an approved environment-specific exception.
+version: "1.0"
+tags: [cloud, database, ha]
+

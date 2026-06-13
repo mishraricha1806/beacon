@@ -1,0 +1,11 @@
+rule_id: k8s.workload.network_policy.missing
+title: Kubernetes NetworkPolicy missing
+description: |
+  Detects workloads without a matching NetworkPolicy in the same manifest set.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Add least-privilege NetworkPolicy rules for production workloads.
+version: "1.0"
+tags: [kubernetes, security, network-policy]
+

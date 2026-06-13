@@ -1,29 +1,39 @@
-FROM python:3.11-slim
+FROM python:3.12-slim AS builder
 
-# Set metadata
+WORKDIR /src
+
+COPY pyproject.toml requirements.txt README.md VERSION ./
+COPY beacon ./beacon
+COPY scripts ./scripts
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends binutils \
+    && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir -r requirements.txt pyinstaller
+RUN python scripts/build_binaries.py linux
+
+FROM debian:trixie-slim
+
 LABEL maintainer="beacon-team@company.com"
 LABEL description="Beacon - Production-readiness intelligence for distributed systems"
 
-# Set working directory
-WORKDIR /app
+WORKDIR /workspace
 
-# Copy requirements and source
-COPY requirements.txt .
-COPY beacon/ ./beacon/
-COPY VERSION .
+COPY --from=builder /src/dist-binaries/beacon-linux /usr/local/bin/beacon
+COPY beacon.yaml ./beacon.yaml
+COPY examples ./examples
+COPY docs/PROJECT_DEMO.md ./docs/PROJECT_DEMO.md
+COPY docs/STATIC_READINESS_DEMO.md ./docs/STATIC_READINESS_DEMO.md
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+RUN chmod +x /usr/local/bin/beacon
 
-# Create entry point
-RUN echo '#!/bin/bash\npython3 -m beacon.cli "$@"' > /usr/local/bin/beacon && \
-    chmod +x /usr/local/bin/beacon
+EXPOSE 8765
 
-# Set default command
 ENTRYPOINT ["beacon"]
-CMD ["--help"]
+CMD ["readiness", "--output", "terminal"]
 
-# Health check (optional)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=1 \
-  CMD beacon --version || exit 1
-
+  CMD beacon --help >/dev/null || exit 1

@@ -1,0 +1,11 @@
+rule_id: cicd.deployment.timeout.missing
+title: CI/CD deployment timeout missing
+description: |
+  Detects deploy-like jobs without timeout-minutes.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Set timeout-minutes on deployment and release jobs so stalled workflows fail predictably.
+version: "1.0"
+tags: [cicd, deployment, governance]
+

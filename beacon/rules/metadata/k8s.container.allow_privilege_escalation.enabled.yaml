@@ -1,0 +1,11 @@
+rule_id: k8s.container.allow_privilege_escalation.enabled
+title: Kubernetes privilege escalation allowed
+description: |
+  Detects containers that allow privilege escalation or leave it undefined.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Set allowPrivilegeEscalation=false unless the workload has an approved exception.
+version: "1.0"
+tags: [kubernetes, security, privilege-escalation]
+

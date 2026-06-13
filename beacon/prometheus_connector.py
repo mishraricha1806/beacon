@@ -148,9 +148,7 @@ def collect_section(base_url, section_config, section_name, source, findings, ti
 
     if section_name == "kafka_runtime":
         data = {
-            key: value
-            for key, value in section_config.items()
-            if key not in {"queries", "signals"}
+            key: value for key, value in section_config.items() if key not in {"queries", "signals"}
         }
         queries = section_config.get("queries", section_config.get("signals", {}))
         data.update(collect_signals(base_url, queries, source, findings, timeout))
@@ -163,11 +161,7 @@ def collect_named_items(base_url, items, source, findings, timeout):
     collected = []
 
     for item in items or []:
-        data = {
-            key: value
-            for key, value in item.items()
-            if key not in {"queries", "signals"}
-        }
+        data = {key: value for key, value in item.items() if key not in {"queries", "signals"}}
         queries = item.get("queries", item.get("signals", {}))
         data.update(collect_signals(base_url, queries, source, findings, timeout))
         collected.append(data)
@@ -179,22 +173,14 @@ def collect_signals(base_url, queries, source, findings, timeout):
     signals = {}
 
     for field, query_config in (queries or {}).items():
-        query = (
-            query_config.get("query")
-            if isinstance(query_config, dict)
-            else query_config
-        )
-        value_type = (
-            query_config.get("type") if isinstance(query_config, dict) else None
-        )
+        query = query_config.get("query") if isinstance(query_config, dict) else query_config
+        value_type = query_config.get("type") if isinstance(query_config, dict) else None
         label = query_config.get("label") if isinstance(query_config, dict) else None
 
         try:
             LOGGER.info("prometheus.query.start field=%s query=%s", field, query)
             if value_type == "map":
-                value = query_prometheus_map(
-                    base_url, query, label=label, timeout=timeout
-                )
+                value = query_prometheus_map(base_url, query, label=label, timeout=timeout)
             else:
                 value = query_prometheus(base_url, query, timeout=timeout)
             signals[field] = coerce_value(value, value_type)
@@ -298,9 +284,7 @@ def safe_base_url(url):
     return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, "", "", ""))
 
 
-def prometheus_finding(
-    rule_id, severity, title, impact, recommendation, file, evidence
-):
+def prometheus_finding(rule_id, severity, title, impact, recommendation, file, evidence):
     return {
         "rule_id": rule_id,
         "domain": "prometheus",

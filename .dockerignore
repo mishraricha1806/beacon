@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+.pytest_cache
+.mypy_cache
+.ruff_cache
+reports
+*.pyc
+.DS_Store
+.env
+secrets
+dist
+build
+*.egg-info

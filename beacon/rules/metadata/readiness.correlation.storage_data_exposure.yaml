@@ -1,0 +1,11 @@
+rule_id: readiness.correlation.storage_data_exposure
+title: Public unencrypted object storage exposure detected
+description: |
+  Correlates public object storage access with missing encryption to identify high-impact data exposure risk.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.readiness
+recommendation: Block public access, enable encryption, and validate least-privilege access before promotion.
+version: "1.0"
+tags: [readiness, correlation, storage, security]
+

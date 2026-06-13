@@ -182,8 +182,7 @@ CORRELATION_PATTERNS = [
         "id": "correlation.root_cause.kubernetes_workload_instability",
         "title": "Likely Kubernetes workload instability",
         "description": (
-            "Node, pod, or deployment runtime findings suggest workload or "
-            "cluster instability."
+            "Node, pod, or deployment runtime findings suggest workload or " "cluster instability."
         ),
         "recommendation": (
             "Inspect node pressure, pod events, rollout status, readiness probes, "
@@ -222,9 +221,7 @@ def correlate_findings(findings, limit=5):
                 "description": pattern["description"],
                 "recommendation": pattern["recommendation"],
                 "evidence": build_evidence(matched),
-                "matched_rule_ids": sorted(
-                    {finding.get("rule_id") for finding in matched}
-                ),
+                "matched_rule_ids": sorted({finding.get("rule_id") for finding in matched}),
             }
         )
 
@@ -241,8 +238,7 @@ def suppress_generic_hypotheses(hypotheses):
         hypotheses = [
             hypothesis
             for hypothesis in hypotheses
-            if hypothesis["correlation_id"]
-            != "correlation.root_cause.storage_capacity_pressure"
+            if hypothesis["correlation_id"] != "correlation.root_cause.storage_capacity_pressure"
         ]
 
     return hypotheses

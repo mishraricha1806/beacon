@@ -47,8 +47,7 @@ class KafkaAccessProfile:
 
         if consumer_group and self.consumer_groups:
             if not any(
-                fnmatch.fnmatch(consumer_group, pattern)
-                for pattern in self.consumer_groups
+                fnmatch.fnmatch(consumer_group, pattern) for pattern in self.consumer_groups
             ):
                 return False
 
@@ -189,9 +188,7 @@ def parse_profile(profile_config, index):
         )
 
     auth_values = {
-        key: resolve_secret_reference(value)
-        for key, value in auth_config.items()
-        if key != "type"
+        key: resolve_secret_reference(value) for key, value in auth_config.items() if key != "type"
     }
 
     secret_errors = validate_auth_values(auth_type, auth_values, index)
@@ -381,9 +378,7 @@ def assess_profile_posture(profile, now=None):
     return issues
 
 
-def posture_issue(
-    rule_id, severity, profile, title, impact, recommendation, extra=None
-):
+def posture_issue(rule_id, severity, profile, title, impact, recommendation, extra=None):
     evidence = {"profile": profile.evidence()}
     if extra:
         evidence.update(extra)
@@ -411,9 +406,7 @@ def certificate_expiry_issue(profile, cert_field, cert_path, now=None):
     if not not_after:
         return None
 
-    expires_at = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z").replace(
-        tzinfo=timezone.utc
-    )
+    expires_at = datetime.strptime(not_after, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
     now = now or datetime.now(timezone.utc)
     days_remaining = (expires_at - now).days
 
@@ -480,22 +473,14 @@ def admin_config_from_profile(profile):
     elif auth.type == "sasl_plain":
         config["security.protocol"] = values.get("security_protocol", "SASL_SSL")
         config["sasl.mechanisms"] = "PLAIN"
-        config["sasl.username"] = values.get("username") or env_value(
-            values.get("username_env")
-        )
-        config["sasl.password"] = values.get("password") or env_value(
-            values.get("password_env")
-        )
+        config["sasl.username"] = values.get("username") or env_value(values.get("username_env"))
+        config["sasl.password"] = values.get("password") or env_value(values.get("password_env"))
         add_ssl_config(config, values)
     elif auth.type == "sasl_scram":
         config["security.protocol"] = values.get("security_protocol", "SASL_SSL")
         config["sasl.mechanisms"] = values.get("mechanism", "SCRAM-SHA-512")
-        config["sasl.username"] = values.get("username") or env_value(
-            values.get("username_env")
-        )
-        config["sasl.password"] = values.get("password") or env_value(
-            values.get("password_env")
-        )
+        config["sasl.username"] = values.get("username") or env_value(values.get("username_env"))
+        config["sasl.password"] = values.get("password") or env_value(values.get("password_env"))
         add_ssl_config(config, values)
 
     return config

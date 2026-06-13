@@ -163,8 +163,7 @@ def interpret_findings(findings, environment=None, intelligence_context=None):
         findings, explicit=environment, intelligence_context=intelligence_context
     )
     single_broker = any(
-        finding.get("rule_id") == "kafka.cluster.broker_count.low"
-        for finding in findings
+        finding.get("rule_id") == "kafka.cluster.broker_count.low" for finding in findings
     )
 
     interpreted = []
@@ -229,11 +228,7 @@ def adjusted_severity(finding, environment, single_broker, intelligence_context=
     if environment != "prod" and rule_id in ENV_DOWNGRADES:
         return ENV_DOWNGRADES[rule_id]
 
-    if (
-        single_broker
-        and environment != "prod"
-        and rule_id == "kafka.topic.replication_factor.low"
-    ):
+    if single_broker and environment != "prod" and rule_id == "kafka.topic.replication_factor.low":
         return "INFO"
 
     return CONTEXTUAL_SEVERITIES.get(rule_id, severity)
@@ -245,17 +240,16 @@ def adjustment_reason(finding, environment, single_broker, intelligence_context=
     if context_override.get("reason"):
         return context_override["reason"]
     if context_override.get("severity"):
-        return (
-            "Adjusted by organization intelligence context rule override "
-            f"for {environment}."
-        )
+        return "Adjusted by organization intelligence context rule override " f"for {environment}."
 
     kafka_policy = kafka_environment_policy(intelligence_context, environment)
     if (
         rule_id == "kafka.cluster.broker_count.low"
         and kafka_policy.get("allow_single_broker") is True
     ):
-        return f"Downgraded because the {environment} intelligence context allows single-broker Kafka."
+        return (
+            f"Downgraded because the {environment} intelligence context allows single-broker Kafka."
+        )
     if (
         rule_id == "kafka.topic.replication_factor.low"
         and kafka_policy.get("allow_replication_factor_one") is True
@@ -268,9 +262,7 @@ def adjustment_reason(finding, environment, single_broker, intelligence_context=
         )
         is True
     ):
-        return (
-            "Downgraded because the matched topic pattern allows low partition count."
-        )
+        return "Downgraded because the matched topic pattern allows low partition count."
     if (
         rule_id == "kafka.topic.owner.missing"
         and kafka_policy.get("require_owner_metadata") is False
@@ -311,9 +303,7 @@ def build_grouped_risks(findings, environment):
     for key, group_def in grouped.items():
         count = len(severities[key])
         severity = highest_severity(severities[key])
-        if key == "kafka.topic_rf_low" and has_group(
-            grouped, "kafka.single_broker_cluster"
-        ):
+        if key == "kafka.topic_rf_low" and has_group(grouped, "kafka.single_broker_cluster"):
             title = f"{group_def['title']} because the cluster has one broker"
         else:
             title = group_def["title"]
@@ -381,9 +371,7 @@ def sort_grouped_risks(risks):
 
 
 def highest_severity(severities):
-    return min(
-        severities or ["INFO"], key=lambda severity: SEVERITY_ORDER.get(severity, 99)
-    )
+    return min(severities or ["INFO"], key=lambda severity: SEVERITY_ORDER.get(severity, 99))
 
 
 def has_group(grouped, key):
@@ -417,9 +405,7 @@ def build_business_categories(score_findings, grouped_risks):
     grouped_keys = {risk["key"] for risk in grouped_risks}
     for risk in grouped_risks:
         category = risk["business_category"]
-        categories.setdefault(
-            category, {"risk": "LOW RISK", "findings": 0, "risk_points": 0}
-        )
+        categories.setdefault(category, {"risk": "LOW RISK", "findings": 0, "risk_points": 0})
         categories[category]["findings"] += 1
         categories[category]["risk_points"] += RISK_POINTS.get(risk["severity"], 0)
 
@@ -429,13 +415,9 @@ def build_business_categories(score_findings, grouped_risks):
         category = finding.get("business_category") or business_category_for(
             finding.get("category")
         )
-        categories.setdefault(
-            category, {"risk": "LOW RISK", "findings": 0, "risk_points": 0}
-        )
+        categories.setdefault(category, {"risk": "LOW RISK", "findings": 0, "risk_points": 0})
         categories[category]["findings"] += 1
-        categories[category]["risk_points"] += RISK_POINTS.get(
-            finding.get("severity"), 0
-        )
+        categories[category]["risk_points"] += RISK_POINTS.get(finding.get("severity"), 0)
 
     for data in categories.values():
         data["risk"] = risk_from_points(data["risk_points"])

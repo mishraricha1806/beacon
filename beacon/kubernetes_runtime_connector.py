@@ -267,9 +267,7 @@ def parse_deployments(payload):
                 "name": item.get("metadata", {}).get("name"),
                 "namespace": item.get("metadata", {}).get("namespace"),
                 "desired_replicas": item.get("spec", {}).get("replicas", 1),
-                "available_replicas": item.get("status", {}).get(
-                    "availableReplicas", 0
-                ),
+                "available_replicas": item.get("status", {}).get("availableReplicas", 0),
             }
         )
 

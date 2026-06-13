@@ -15,6 +15,9 @@ CLOUD_RESOURCE_TYPES = {
     "aws_security_group",
     "aws_db_instance",
     "aws_instance",
+    "aws_autoscaling_group",
+    "aws_vpc_endpoint",
+    "cloud_quota_profile",
 }
 
 

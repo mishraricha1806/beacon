@@ -750,3 +750,42 @@ def test_beacon_ui_passes_kafka_churn_sampling_options(monkeypatch):
 
     assert calls[0]["churn_samples"] == 4
     assert calls[0]["churn_interval_seconds"] == 0.25
+
+
+def test_ui_build_server_falls_back_to_next_available_port(monkeypatch):
+    from beacon import ui
+
+    bound_ports = []
+
+    class FakeServer:
+        def __init__(self, address, handler):
+            host, port = address
+            if port == 8765:
+                raise OSError(48, "Address already in use")
+            bound_ports.append(port)
+            self.server_address = (host, port)
+
+    monkeypatch.setattr(ui, "ThreadingHTTPServer", FakeServer)
+
+    server, port = ui.build_server("127.0.0.1", 8765)
+
+    assert port == 8766
+    assert server.server_address == ("127.0.0.1", 8766)
+    assert bound_ports == [8766]
+
+
+def test_ui_build_server_can_fail_fast_when_requested(monkeypatch):
+    from beacon import ui
+
+    class FakeServer:
+        def __init__(self, address, handler):
+            raise OSError(48, "Address already in use")
+
+    monkeypatch.setattr(ui, "ThreadingHTTPServer", FakeServer)
+
+    try:
+        ui.build_server("127.0.0.1", 8765, allow_port_fallback=False)
+    except OSError as error:
+        assert error.errno == 48
+    else:
+        raise AssertionError("Expected OSError when port fallback is disabled")

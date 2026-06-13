@@ -107,9 +107,7 @@ KAFKA_REPORT_GROUPS = [
 
 
 def build_kafka_report(findings):
-    kafka_findings = [
-        finding for finding in findings if finding.get("domain") == "kafka"
-    ]
+    kafka_findings = [finding for finding in findings if finding.get("domain") == "kafka"]
     if not kafka_findings:
         return None
 
@@ -128,9 +126,7 @@ def build_kafka_report(findings):
         if grouped:
             sections.append(build_section(group, grouped))
 
-    remaining = [
-        finding for finding in kafka_findings if id(finding) not in assigned_ids
-    ]
+    remaining = [finding for finding in kafka_findings if id(finding) not in assigned_ids]
     if remaining:
         sections.append(
             build_section(

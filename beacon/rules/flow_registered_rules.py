@@ -47,9 +47,7 @@ def downstream_database_bottleneck(resource, context):
         "Investigate database latency, connection pools, slow queries, retries, and consumer processing time before scaling Kafka.",
         {
             "flow": resource.name,
-            "kafka_consumer_lag_increasing": signals.get(
-                "kafka_consumer_lag_increasing"
-            ),
+            "kafka_consumer_lag_increasing": signals.get("kafka_consumer_lag_increasing"),
             "kafka_broker_unhealthy": signals.get("kafka_broker_unhealthy", False),
             "db_latency_ms": signals.get("db_latency_ms"),
         },
@@ -83,9 +81,7 @@ def deployment_triggered_degradation(resource, context):
             "recent_deployment": signals.get("recent_deployment"),
             "api_error_rate_percent": signals.get("api_error_rate_percent"),
             "latency_p95_ms": signals.get("latency_p95_ms"),
-            "kafka_consumer_lag_increasing": signals.get(
-                "kafka_consumer_lag_increasing"
-            ),
+            "kafka_consumer_lag_increasing": signals.get("kafka_consumer_lag_increasing"),
         },
         ["flow", "deployment", "correlation"],
     )
@@ -113,9 +109,7 @@ def cascading_latency(resource, context):
             "flow": resource.name,
             "api_timeout_rate_percent": signals.get("api_timeout_rate_percent"),
             "consumer_retry_rate_percent": signals.get("consumer_retry_rate_percent"),
-            "kafka_consumer_lag_increasing": signals.get(
-                "kafka_consumer_lag_increasing"
-            ),
+            "kafka_consumer_lag_increasing": signals.get("kafka_consumer_lag_increasing"),
         },
         ["flow", "cascade", "incident"],
     )

@@ -1,0 +1,11 @@
+rule_id: k8s.workload.host_namespace.enabled
+title: Kubernetes host namespace sharing enabled
+description: |
+  Detects workloads that enable host network, PID, or IPC namespaces.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Avoid hostNetwork, hostPID, and hostIPC for production workloads unless explicitly approved.
+version: "1.0"
+tags: [kubernetes, security, isolation]
+

@@ -1,0 +1,11 @@
+rule_id: cicd.deployment.concurrency.missing
+title: CI/CD deployment concurrency missing
+description: |
+  Detects deploy-like jobs without concurrency protection.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Define concurrency for deployment jobs so overlapping environment mutations are blocked.
+version: "1.0"
+tags: [cicd, deployment, concurrency]
+

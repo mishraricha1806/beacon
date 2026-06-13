@@ -66,25 +66,17 @@ class KafkaRuntimeSignal:
             partition_reassignment_count=runtime.get("partition_reassignment_count"),
             replication_fetcher_lag=runtime.get("replication_fetcher_lag"),
             request_latency_p95_ms=runtime.get("request_latency_p95_ms"),
-            request_queue_utilization_percent=runtime.get(
-                "request_queue_utilization_percent"
-            ),
-            network_io_utilization_percent=runtime.get(
-                "network_io_utilization_percent"
-            ),
+            request_queue_utilization_percent=runtime.get("request_queue_utilization_percent"),
+            network_io_utilization_percent=runtime.get("network_io_utilization_percent"),
             produce_throttle_time_ms=runtime.get("produce_throttle_time_ms"),
             fetch_throttle_time_ms=runtime.get("fetch_throttle_time_ms"),
             schema_registry_available=runtime.get("schema_registry_available"),
-            schema_incompatible_changes_24h=runtime.get(
-                "schema_incompatible_changes_24h"
-            ),
+            schema_incompatible_changes_24h=runtime.get("schema_incompatible_changes_24h"),
             backlog_messages=runtime.get("backlog_messages"),
             consumer_throughput_messages_per_sec=runtime.get(
                 "consumer_throughput_messages_per_sec"
             ),
-            producer_rate_messages_per_sec=runtime.get(
-                "producer_rate_messages_per_sec"
-            ),
+            producer_rate_messages_per_sec=runtime.get("producer_rate_messages_per_sec"),
             replay_target_hours=runtime.get("replay_target_hours"),
             retention_remaining_hours=runtime.get("retention_remaining_hours"),
             broker_count=runtime.get("broker_count"),
@@ -138,10 +130,7 @@ class KafkaRuntimeSignal:
 
     @property
     def has_weak_storage_guardrails(self):
-        return (
-            self.retention_bytes_configured is False
-            or self.cleanup_policy_configured is False
-        )
+        return self.retention_bytes_configured is False or self.cleanup_policy_configured is False
 
     @property
     def has_workload_change(self):

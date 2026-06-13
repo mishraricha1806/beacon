@@ -339,9 +339,7 @@ DIAGNOSTIC_USE_CASES = [
 def build_diagnostic_summary(findings):
     sorted_items = sort_findings(findings)
     material = [
-        finding
-        for finding in sorted_items
-        if finding.get("severity") in MATERIAL_SEVERITIES
+        finding for finding in sorted_items if finding.get("severity") in MATERIAL_SEVERITIES
     ]
     hypotheses = correlate_findings(sorted_items, limit=5)
 
@@ -374,18 +372,14 @@ def incident_diagnosis(summary):
     first_actions = summary.get("first_actions") or []
     telemetry_gaps = summary.get("telemetry_gaps") or []
 
-    if consumer_diagnoses and should_prioritize_consumer_diagnosis(
-        consumer_diagnoses[0], primary
-    ):
+    if consumer_diagnoses and should_prioritize_consumer_diagnosis(consumer_diagnoses[0], primary):
         diagnosis = incident_diagnosis_from_consumer_group(
             consumer_diagnoses[0], first_actions, telemetry_gaps
         )
         return finalize_incident_diagnosis(diagnosis)
 
     if playbooks and is_generic_kafka_observation(primary):
-        diagnosis = incident_diagnosis_from_playbook(
-            playbooks[0], first_actions, telemetry_gaps
-        )
+        diagnosis = incident_diagnosis_from_playbook(playbooks[0], first_actions, telemetry_gaps)
         return finalize_incident_diagnosis(diagnosis)
 
     if primary:
@@ -408,9 +402,7 @@ def incident_diagnosis(summary):
         return finalize_incident_diagnosis(diagnosis)
 
     if playbooks:
-        diagnosis = incident_diagnosis_from_playbook(
-            playbooks[0], first_actions, telemetry_gaps
-        )
+        diagnosis = incident_diagnosis_from_playbook(playbooks[0], first_actions, telemetry_gaps)
         return finalize_incident_diagnosis(diagnosis)
 
     diagnosis = {
@@ -448,10 +440,7 @@ def should_prioritize_consumer_diagnosis(diagnosis, primary):
 def is_generic_kafka_observation(primary):
     if not primary:
         return False
-    return (
-        primary.get("correlation_id")
-        == "correlation.root_cause.kafka_consumer_observation"
-    )
+    return primary.get("correlation_id") == "correlation.root_cause.kafka_consumer_observation"
 
 
 def incident_diagnosis_from_consumer_group(diagnosis, first_actions, telemetry_gaps):
@@ -541,16 +530,10 @@ def incident_evidence_quality(incident):
         status = "OBSERVATION_ONLY"
         score = 60
         reason = "Beacon did not match a material runtime incident pattern."
-    elif (
-        source == "diagnostic_playbook"
-        and confidence == "HIGH"
-        and matched_rule_count >= 2
-    ):
+    elif source == "diagnostic_playbook" and confidence == "HIGH" and matched_rule_count >= 2:
         status = "ACTIONABLE"
         score = 82
-        reason = (
-            "Beacon matched multiple deterministic rules for this incident playbook."
-        )
+        reason = "Beacon matched multiple deterministic rules for this incident playbook."
     elif (
         source == "diagnostic_playbook"
         and confidence == "MEDIUM"
@@ -570,13 +553,13 @@ def incident_evidence_quality(incident):
     elif confidence == "HIGH":
         status = "NEEDS_MORE_EVIDENCE"
         score = 68
-        reason = (
-            "Beacon found a high-confidence signal, but needs more supporting context."
-        )
+        reason = "Beacon found a high-confidence signal, but needs more supporting context."
     elif confidence == "MEDIUM":
         status = "NEEDS_MORE_EVIDENCE"
         score = 55
-        reason = "Beacon has a plausible incident pattern but not enough evidence for a strong decision."
+        reason = (
+            "Beacon has a plausible incident pattern but not enough evidence for a strong decision."
+        )
     else:
         status = "OBSERVATION_ONLY"
         score = 45
@@ -847,9 +830,7 @@ def telemetry_gaps(findings, hypotheses):
         )
 
     if not gaps:
-        gaps.append(
-            "No major telemetry gaps detected for the current diagnostic scope."
-        )
+        gaps.append("No major telemetry gaps detected for the current diagnostic scope.")
 
     return gaps[:5]
 
@@ -861,9 +842,7 @@ def diagnostic_playbooks(findings, hypotheses):
 
     for use_case in DIAGNOSTIC_USE_CASES:
         matched_rules = sorted(rule_ids.intersection(use_case["rule_ids"]))
-        matched_correlations = sorted(
-            correlation_ids.intersection(use_case["correlation_ids"])
-        )
+        matched_correlations = sorted(correlation_ids.intersection(use_case["correlation_ids"]))
 
         if not matched_rules:
             continue
@@ -878,9 +857,7 @@ def diagnostic_playbooks(findings, hypotheses):
                 "confidence": confidence,
                 "matched_rule_ids": matched_rules,
                 "matched_correlation_ids": matched_correlations,
-                "evidence_needed": missing_playbook_evidence(
-                    use_case, rule_ids, correlation_ids
-                ),
+                "evidence_needed": missing_playbook_evidence(use_case, rule_ids, correlation_ids),
             }
         )
 
@@ -946,9 +923,7 @@ def kafka_consumer_group_scope(findings):
             )
         else:
             status = "CONSUMER_GROUP_FILTERED"
-            summary = (
-                f"Beacon scoped Kafka diagnosis to consumer group '{consumer_group}'."
-            )
+            summary = f"Beacon scoped Kafka diagnosis to consumer group '{consumer_group}'."
 
         return {
             "consumer_group": consumer_group,
@@ -1046,9 +1021,7 @@ def build_consumer_group_diagnosis(group, group_findings, all_findings, hypothes
             "kafka.consumer_group.lag.low",
         },
     )
-    hot_partition_finding = first_matching(
-        group_findings, {"kafka.consumer_group.hot_partition"}
-    )
+    hot_partition_finding = first_matching(group_findings, {"kafka.consumer_group.hot_partition"})
     state_finding = first_matching(
         group_findings,
         {
@@ -1071,9 +1044,7 @@ def build_consumer_group_diagnosis(group, group_findings, all_findings, hypothes
     hot_evidence = (hot_partition_finding or {}).get("evidence") or {}
     state_evidence = (state_finding or {}).get("evidence") or {}
 
-    likely_cause = consumer_group_likely_cause(
-        rule_ids, all_rule_ids, domains, hypotheses
-    )
+    likely_cause = consumer_group_likely_cause(rule_ids, all_rule_ids, domains, hypotheses)
     evidence_missing = consumer_group_evidence_missing(rule_ids, all_rule_ids, domains)
     evidence_used = consumer_group_evidence_used(group_findings, hypotheses)
     evidence_quality = consumer_group_evidence_quality(
@@ -1195,9 +1166,7 @@ def consumer_group_evidence_missing(rule_ids, all_rule_ids, domains):
     missing = []
 
     if "kafka.consumer_group.offsets.missing" in rule_ids:
-        missing.extend(
-            ["expected group activity", "producer rate", "deployment history"]
-        )
+        missing.extend(["expected group activity", "producer rate", "deployment history"])
 
     if any(rule_id.startswith("kafka.consumer_group.lag.") for rule_id in rule_ids):
         if not {"flow", "database", "api"}.intersection(domains):
@@ -1270,21 +1239,13 @@ def consumer_group_evidence_quality(cause, rule_ids, evidence_used, evidence_mis
     }:
         status = "NEEDS_MORE_EVIDENCE"
         score = 45 if cause == "offsets_missing_or_group_inactive" else 55
-        reason = (
-            "Beacon should not make a strong runtime decision from this evidence alone."
-        )
+        reason = "Beacon should not make a strong runtime decision from this evidence alone."
     elif cause == "no_urgent_consumer_lag_action":
         status = "OBSERVATION_ONLY"
         score = 65
-        reason = (
-            "Beacon observed the group but did not find urgent consumer lag evidence."
-        )
+        reason = "Beacon observed the group but did not find urgent consumer lag evidence."
     else:
-        status = (
-            "ACTIONABLE"
-            if missing_count <= 2 and used_count >= 2
-            else "NEEDS_MORE_EVIDENCE"
-        )
+        status = "ACTIONABLE" if missing_count <= 2 and used_count >= 2 else "NEEDS_MORE_EVIDENCE"
         score = 78 if status == "ACTIONABLE" else 58
         reason = (
             "Beacon has enough correlated evidence to prioritize this diagnosis."
@@ -1379,9 +1340,7 @@ def consumer_group_first_actions(cause, findings, evidence_missing):
             actions.append(recommendation)
 
     if evidence_missing:
-        actions.append(
-            "Collect missing evidence: " + ", ".join(evidence_missing[:3]) + "."
-        )
+        actions.append("Collect missing evidence: " + ", ".join(evidence_missing[:3]) + ".")
 
     return actions[:5]
 
@@ -1412,9 +1371,7 @@ def dedupe(items):
 def executive_summary(summary):
     primary = summary.get("primary_hypothesis")
     if summary["diagnostic_status"] == "BLOCKED":
-        return (
-            "Beacon could not complete diagnosis because one or more collectors failed."
-        )
+        return "Beacon could not complete diagnosis because one or more collectors failed."
 
     if primary:
         return (

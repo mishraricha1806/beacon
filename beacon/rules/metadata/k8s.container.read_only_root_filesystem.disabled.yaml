@@ -1,0 +1,11 @@
+rule_id: k8s.container.read_only_root_filesystem.disabled
+title: Kubernetes read-only root filesystem disabled
+description: |
+  Detects containers without readOnlyRootFilesystem=true.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Use readOnlyRootFilesystem=true and mount only explicitly writable paths.
+version: "1.0"
+tags: [kubernetes, security, filesystem]
+

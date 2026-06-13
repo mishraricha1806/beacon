@@ -1,0 +1,11 @@
+rule_id: cloud.quota.headroom.insufficient
+title: Cloud quota headroom insufficient
+description: |
+  Detects declared cloud quota profiles that cannot satisfy requested capacity plus reserved buffer.
+severity_default: CRITICAL
+category: scalability
+author: beacon.rules
+recommendation: Increase approved quota or reduce requested capacity before promotion.
+version: "1.0"
+tags: [cloud, quota, capacity]
+

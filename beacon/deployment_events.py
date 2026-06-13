@@ -89,10 +89,7 @@ def normalize_deployment_events(data):
         events = data
     elif isinstance(data, dict):
         events = (
-            data.get("deployment_events")
-            or data.get("deployments")
-            or data.get("events")
-            or []
+            data.get("deployment_events") or data.get("deployments") or data.get("events") or []
         )
     else:
         events = []
@@ -112,9 +109,7 @@ def normalize_deployment_events(data):
                 "commit": event.get("commit") or event.get("sha"),
                 "namespace": event.get("namespace"),
                 "changed_components": event.get("changed_components", []) or [],
-                "window_before": event.get("window_before")
-                or event.get("before")
-                or {},
+                "window_before": event.get("window_before") or event.get("before") or {},
                 "window_after": event.get("window_after") or event.get("after") or {},
             }
         )
@@ -346,9 +341,7 @@ def normalized_tokens(values):
         if not normalized:
             continue
         tokens.add(normalized)
-        tokens.update(
-            part for part in normalized.replace("_", "-").split("-") if len(part) >= 3
-        )
+        tokens.update(part for part in normalized.replace("_", "-").split("-") if len(part) >= 3)
     return tokens
 
 
@@ -437,9 +430,7 @@ def deployment_window_finding(
     )
 
 
-def deployment_finding(
-    rule_id, severity, title, impact, recommendation, file, evidence
-):
+def deployment_finding(rule_id, severity, title, impact, recommendation, file, evidence):
     return {
         "rule_id": rule_id,
         "domain": "deployment",

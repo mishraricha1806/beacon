@@ -1,0 +1,11 @@
+rule_id: readiness.correlation.uncontrolled_production_deploy
+title: Production deployment workflow lacks governance and supply-chain safeguards
+description: |
+  Correlates missing deployment environment protection with broad CI/CD permissions or unpinned third-party actions.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.readiness
+recommendation: Require protected environments, least-privilege permissions, and SHA-pinned third-party actions for deployment workflows.
+version: "1.0"
+tags: [readiness, correlation, cicd, supply-chain]
+

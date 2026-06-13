@@ -1,0 +1,11 @@
+rule_id: readiness.correlation.capacity_plan_mismatch
+title: Cloud capacity plan cannot satisfy declared scaling policy
+description: |
+  Correlates quota exhaustion with insufficient autoscaling headroom to identify deployment and scale-out blockers.
+severity_default: CRITICAL
+category: scalability
+author: beacon.readiness
+recommendation: Increase quota headroom and autoscaling limits together so capacity policy and platform limits stay aligned.
+version: "1.0"
+tags: [readiness, correlation, cloud, capacity]
+

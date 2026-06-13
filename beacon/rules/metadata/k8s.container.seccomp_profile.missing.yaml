@@ -1,0 +1,11 @@
+rule_id: k8s.container.seccomp_profile.missing
+title: Kubernetes seccomp profile missing
+description: |
+  Detects containers without an explicit seccomp profile.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Set seccompProfile.type to RuntimeDefault or an approved localhost profile.
+version: "1.0"
+tags: [kubernetes, security, seccomp]
+

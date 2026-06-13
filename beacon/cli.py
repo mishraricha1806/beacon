@@ -45,6 +45,7 @@ from beacon.project_config import (
     resolve_config_path,
     starter_config,
 )
+from beacon.readiness.correlations import augment_readiness_findings
 
 
 from beacon.readiness.readiness_reporter import print_readiness_summary
@@ -58,7 +59,10 @@ diagnose_app = typer.Typer(help="Runtime operational diagnostics.")
 
 app.add_typer(diagnose_app, name="diagnose")
 
-readiness_app = typer.Typer(help="Production readiness analysis.", invoke_without_command=True)
+readiness_app = typer.Typer(
+    help="Production readiness analysis.",
+    invoke_without_command=True,
+)
 
 app.add_typer(readiness_app, name="readiness")
 
@@ -146,6 +150,7 @@ def collect_all_domain_findings(
     kafka_max_groups=20,
     kafka_churn_samples=1,
     kafka_churn_interval_seconds=0,
+    kafka_request_timeout_ms=None,
     kubernetes_live=False,
     kubernetes_namespace=None,
     kubernetes_context=None,
@@ -226,6 +231,7 @@ def collect_all_domain_findings(
                     max_groups=kafka_max_groups,
                     churn_samples=kafka_churn_samples,
                     churn_interval_seconds=kafka_churn_interval_seconds,
+                    request_timeout_ms=kafka_request_timeout_ms,
                 ),
             )
         )
@@ -522,6 +528,28 @@ def runtime(
     print_report(findings, html=html, open_report=open_report, output=output)
 
 
+@app.command("ui")
+def run_ui(
+    host: str = typer.Option("127.0.0.1", "--host", help="Host interface to bind."),
+    port: int = typer.Option(8765, "--port", help="Port for the local web UI."),
+    no_port_fallback: bool = typer.Option(
+        False,
+        "--no-port-fallback",
+        help="Fail if the requested port is unavailable.",
+    ),
+):
+    """Run the local Beacon readiness console."""
+    from beacon.ui import build_server
+
+    server, bound_port = build_server(
+        host=host,
+        port=port,
+        allow_port_fallback=not no_port_fallback,
+    )
+    typer.echo(f"Beacon UI running at http://{host}:{bound_port}")
+    server.serve_forever()
+
+
 @diagnose_app.command("snapshot")
 def diagnose_snapshot(
     path: str = typer.Argument(..., help="Path to a runtime snapshot YAML."),
@@ -596,6 +624,11 @@ def diagnose_kafka(
     churn_interval_seconds: float = typer.Option(
         0, help="Seconds between consumer group churn samples."
     ),
+    request_timeout_ms: int = typer.Option(
+        None,
+        "--request-timeout-ms",
+        help="Kafka AdminClient request timeout in milliseconds.",
+    ),
     html: bool = typer.Option(True, help="Generate browser-based HTML report."),
     open_report: bool = typer.Option(True, help="Open HTML report in browser."),
     output: str = typer.Option("terminal", help="Output format: terminal or json."),
@@ -615,6 +648,7 @@ def diagnose_kafka(
         access_config=access_config,
         churn_samples=churn_samples,
         churn_interval_seconds=churn_interval_seconds,
+        request_timeout_ms=request_timeout_ms,
     )
     emit_diagnostics(findings, html=html, open_report=open_report, output=output)
 
@@ -753,6 +787,11 @@ def diagnose_all(
     kafka_max_groups: int = typer.Option(20),
     kafka_churn_samples: int = typer.Option(1),
     kafka_churn_interval_seconds: float = typer.Option(0),
+    kafka_request_timeout_ms: int = typer.Option(
+        None,
+        "--kafka-request-timeout-ms",
+        help="Kafka AdminClient request timeout in milliseconds.",
+    ),
     kubernetes_live: bool = typer.Option(
         False, "--kubernetes-live", help="Collect live Kubernetes runtime signals."
     ),
@@ -788,6 +827,7 @@ def diagnose_all(
         kafka_max_groups=kafka_max_groups,
         kafka_churn_samples=kafka_churn_samples,
         kafka_churn_interval_seconds=kafka_churn_interval_seconds,
+        kafka_request_timeout_ms=kafka_request_timeout_ms,
         kubernetes_live=kubernetes_live,
         kubernetes_namespace=kubernetes_namespace,
         kubernetes_context=kubernetes_context,
@@ -829,6 +869,11 @@ def readiness_kafka(
     max_groups: int = typer.Option(20),
     churn_samples: int = typer.Option(1),
     churn_interval_seconds: float = typer.Option(0),
+    request_timeout_ms: int = typer.Option(
+        None,
+        "--request-timeout-ms",
+        help="Kafka AdminClient request timeout in milliseconds.",
+    ),
     environment: str = typer.Option(
         None, "--environment", help="Readiness profile: dev, test, staging, prod."
     ),
@@ -854,6 +899,7 @@ def readiness_kafka(
         access_config=access_config,
         churn_samples=churn_samples,
         churn_interval_seconds=churn_interval_seconds,
+        request_timeout_ms=request_timeout_ms,
     )
 
     policy = load_policy()

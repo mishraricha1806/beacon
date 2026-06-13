@@ -1,0 +1,11 @@
+rule_id: k8s.workload.pod_disruption_budget.missing
+title: Kubernetes PodDisruptionBudget missing
+description: |
+  Detects replicated workloads without a matching PodDisruptionBudget in the same manifest set.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Define a PodDisruptionBudget aligned to rollout and maintenance expectations.
+version: "1.0"
+tags: [kubernetes, availability, pdb]
+

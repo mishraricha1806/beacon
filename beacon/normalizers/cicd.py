@@ -12,7 +12,9 @@ def normalize_cicd_workflow(data, source):
 
     workflow = data.get("name", "unknown-workflow")
     triggers = normalize_workflow_triggers(data)
+    trigger_config = data.get("on", data.get(True, {}))
     workflow_permissions = data.get("permissions")
+    workflow_concurrency = data.get("concurrency")
     resources = []
 
     for job_name, job in jobs.items():
@@ -22,6 +24,7 @@ def normalize_cicd_workflow(data, source):
         job_permissions = job.get("permissions", workflow_permissions)
         environment = job.get("environment")
         steps = job.get("steps", [])
+        step_uses = [step.get("uses") for step in steps if isinstance(step, dict)]
 
         resources.append(
             Resource(
@@ -32,9 +35,14 @@ def normalize_cicd_workflow(data, source):
                 attributes={
                     "workflow": workflow,
                     "triggers": triggers,
+                    "trigger_config": trigger_config,
                     "permissions": job_permissions,
+                    "permissions_specified": job_permissions is not None,
                     "environment": environment,
                     "deploy_like": is_deploy_like_job(job_name, job, steps),
+                    "timeout_minutes": job.get("timeout-minutes"),
+                    "concurrency": job.get("concurrency", workflow_concurrency),
+                    "step_uses": [value for value in step_uses if value],
                 },
             )
         )

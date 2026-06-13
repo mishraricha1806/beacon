@@ -138,9 +138,7 @@ def deployment_unavailable(resource, context):
     )
 
 
-def register(
-    rule_id, resource_type, category, severity, title, description, evaluator, tags
-):
+def register(rule_id, resource_type, category, severity, title, description, evaluator, tags):
     registry.register(
         Rule(
             rule_id=rule_id,

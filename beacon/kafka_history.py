@@ -206,9 +206,7 @@ def check_counter_accumulation(snapshots, source):
                 "Inspect controller logs, broker churn, quorum health, GC pauses, and network instability.",
                 rule_id="kafka.history.controller_churn.high",
                 evidence={
-                    "controller_change_count_15m": latest.get(
-                        "controller_change_count_15m"
-                    ),
+                    "controller_change_count_15m": latest.get("controller_change_count_15m"),
                     "source": source,
                 },
                 confidence="HIGH",
@@ -293,9 +291,6 @@ def recent_deployment_seen(snapshots):
         if snapshot.get("recent_deployment") or snapshot.get("deployment_recent"):
             return True
         deployments = snapshot.get("deployments", []) or []
-        if any(
-            deployment.get("recent") or deployment.get("changed")
-            for deployment in deployments
-        ):
+        if any(deployment.get("recent") or deployment.get("changed") for deployment in deployments):
             return True
     return False

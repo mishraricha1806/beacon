@@ -39,9 +39,7 @@ def normalize_kafka_config(data, source):
                 domain="kafka",
                 source=source,
                 attributes={
-                    "default_replication_factor": broker.get(
-                        "default_replication_factor"
-                    ),
+                    "default_replication_factor": broker.get("default_replication_factor"),
                     "offsets_topic_replication_factor": broker.get(
                         "offsets_topic_replication_factor"
                     ),
@@ -49,24 +47,14 @@ def normalize_kafka_config(data, source):
                         "transaction_state_log_replication_factor"
                     ),
                     "log_retention_bytes": broker.get("log_retention_bytes"),
-                    "auto_create_topics_enable": broker.get(
-                        "auto_create_topics_enable"
-                    ),
+                    "auto_create_topics_enable": broker.get("auto_create_topics_enable"),
                     "broker_rack": broker.get("broker_rack"),
                     "security_protocol": broker.get("security_protocol"),
-                    "listener_security_protocol_map": broker.get(
-                        "listener_security_protocol_map"
-                    ),
+                    "listener_security_protocol_map": broker.get("listener_security_protocol_map"),
                     "authorizer_class_name": broker.get("authorizer_class_name"),
-                    "allow_everyone_if_no_acl_found": broker.get(
-                        "allow_everyone_if_no_acl_found"
-                    ),
-                    "unclean_leader_election_enable": broker.get(
-                        "unclean_leader_election_enable"
-                    ),
-                    "controlled_shutdown_enable": broker.get(
-                        "controlled_shutdown_enable"
-                    ),
+                    "allow_everyone_if_no_acl_found": broker.get("allow_everyone_if_no_acl_found"),
+                    "unclean_leader_election_enable": broker.get("unclean_leader_election_enable"),
+                    "controlled_shutdown_enable": broker.get("controlled_shutdown_enable"),
                     "producer_quota_bytes_per_second": broker.get(
                         "producer_quota_bytes_per_second"
                     ),

@@ -1,0 +1,11 @@
+rule_id: cloud.compute.autoscaling.capacity.insufficient
+title: Autoscaling capacity headroom insufficient
+description: |
+  Detects autoscaling groups without scale-out headroom.
+severity_default: HIGH
+category: scalability
+author: beacon.rules
+recommendation: Increase max_size above desired_capacity and validate production headroom policy.
+version: "1.0"
+tags: [cloud, compute, autoscaling]
+

@@ -1,0 +1,11 @@
+rule_id: cloud.database.rds.private_subnet.missing
+title: RDS private subnet placement missing
+description: |
+  Detects RDS instances without explicit DB subnet group placement.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Attach RDS instances to approved private DB subnet groups before production rollout.
+version: "1.0"
+tags: [cloud, database, network]
+

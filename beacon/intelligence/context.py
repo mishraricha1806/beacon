@@ -17,9 +17,7 @@ def load_intelligence_context(path: Optional[str] = None) -> Dict[str, Any]:
     """
 
     context_path = (
-        path
-        or os.environ.get("BEACON_INTELLIGENCE_CONTEXT_FILE")
-        or DEFAULT_CONTEXT_PATH
+        path or os.environ.get("BEACON_INTELLIGENCE_CONTEXT_FILE") or DEFAULT_CONTEXT_PATH
     )
 
     if not context_path or not isinstance(context_path, (str, bytes, os.PathLike)):
@@ -46,9 +44,7 @@ def context_environment(context: Optional[Dict[str, Any]]) -> Optional[str]:
 
     organization = context.get("organization") or {}
     environment = (
-        context.get("environment")
-        or organization.get("environment")
-        or context.get("profile")
+        context.get("environment") or organization.get("environment") or context.get("profile")
     )
     return environment if isinstance(environment, str) and environment else None
 
@@ -78,9 +74,7 @@ def rule_context_override(
     override = overrides.get(rule_id) or {}
 
     environment_overrides = (
-        (context.get("environments") or {})
-        .get(environment, {})
-        .get("rule_overrides", {})
+        (context.get("environments") or {}).get(environment, {}).get("rule_overrides", {})
     )
     environment_override = environment_overrides.get(rule_id) or {}
 
@@ -89,9 +83,7 @@ def rule_context_override(
     return merged
 
 
-def kafka_environment_policy(
-    context: Optional[Dict[str, Any]], environment: str
-) -> Dict[str, Any]:
+def kafka_environment_policy(context: Optional[Dict[str, Any]], environment: str) -> Dict[str, Any]:
     if not context:
         return {}
 
@@ -104,9 +96,7 @@ def kafka_environment_policy(
     return policy
 
 
-def topic_context(
-    context: Optional[Dict[str, Any]], topic: Optional[str]
-) -> Dict[str, Any]:
+def topic_context(context: Optional[Dict[str, Any]], topic: Optional[str]) -> Dict[str, Any]:
     if not context or not topic:
         return {}
 

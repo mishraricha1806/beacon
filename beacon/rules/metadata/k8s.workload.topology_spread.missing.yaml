@@ -1,0 +1,11 @@
+rule_id: k8s.workload.topology_spread.missing
+title: Kubernetes topology spread missing
+description: |
+  Detects replicated workloads without topology spread constraints or pod anti-affinity.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Define topologySpreadConstraints or required podAntiAffinity for replicated production workloads.
+version: "1.0"
+tags: [kubernetes, availability, topology-spread]
+

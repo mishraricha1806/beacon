@@ -33,11 +33,7 @@ def analyze_runtime_snapshot_file(path):
 def analyze_runtime_snapshot(data, source="runtime-snapshot"):
     LOGGER.info("runtime_snapshot.normalize source=%s", source)
     resources = normalize_yaml_document(data, source)
-    LOGGER.info(
-        "runtime_snapshot.evaluate source=%s resources=%s", source, len(resources)
-    )
+    LOGGER.info("runtime_snapshot.evaluate source=%s resources=%s", source, len(resources))
     findings = evaluate(resources, context={"file": source})
-    LOGGER.info(
-        "runtime_snapshot.evaluated source=%s findings=%s", source, len(findings)
-    )
+    LOGGER.info("runtime_snapshot.evaluated source=%s findings=%s", source, len(findings))
     return findings

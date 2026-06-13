@@ -6,9 +6,7 @@ def normalize_runtime_sections(data, source):
     resources = []
 
     if "kubernetes_runtime" in data:
-        resources.extend(
-            normalize_kubernetes_runtime(data.get("kubernetes_runtime", {}), source)
-        )
+        resources.extend(normalize_kubernetes_runtime(data.get("kubernetes_runtime", {}), source))
 
     if "flow_runtime" in data:
         resources.extend(normalize_flow_runtime(data.get("flow_runtime", {}), source))
@@ -17,14 +15,10 @@ def normalize_runtime_sections(data, source):
         resources.extend(normalize_api_runtime(data.get("api_runtime", {}), source))
 
     if "database_runtime" in data:
-        resources.extend(
-            normalize_database_runtime(data.get("database_runtime", {}), source)
-        )
+        resources.extend(normalize_database_runtime(data.get("database_runtime", {}), source))
 
     if "storage_runtime" in data:
-        resources.extend(
-            normalize_storage_runtime(data.get("storage_runtime", {}), source)
-        )
+        resources.extend(normalize_storage_runtime(data.get("storage_runtime", {}), source))
 
     return resources
 

@@ -1,0 +1,11 @@
+rule_id: readiness.correlation.kubernetes_single_point_of_failure
+title: Kubernetes workload has compounding single-point-of-failure risk
+description: |
+  Correlates single-replica workload posture with topology, criticality, or isolation weaknesses.
+severity_default: HIGH
+category: resiliency
+author: beacon.readiness
+recommendation: Run multiple replicas, add topology protection, and remove unnecessary host namespace sharing before production rollout.
+version: "1.0"
+tags: [readiness, correlation, kubernetes, availability]
+

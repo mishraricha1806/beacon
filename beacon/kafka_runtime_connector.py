@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 
 from confluent_kafka import TopicPartition, ConsumerGroupTopicPartitions
@@ -23,6 +24,7 @@ from beacon.engine.normalizer import normalize_kafka_config
 
 
 LOGGER = logging.getLogger(__name__)
+DEFAULT_KAFKA_REQUEST_TIMEOUT_MS = 15000
 
 
 def finding(
@@ -63,13 +65,15 @@ def build_admin_config(
     ca_cert=None,
     client_cert=None,
     client_key=None,
+    request_timeout_ms=None,
 ):
     bootstrap_servers = normalize_bootstrap_servers(bootstrap_server)
+    request_timeout_ms = kafka_request_timeout_ms(request_timeout_ms)
     config = {
         "bootstrap.servers": bootstrap_servers,
         "security.protocol": security_protocol,
         "socket.timeout.ms": 3000,
-        "request.timeout.ms": 3000,
+        "request.timeout.ms": request_timeout_ms,
         "metadata.max.age.ms": 30000,
     }
 
@@ -82,6 +86,20 @@ def build_admin_config(
             config["ssl.key.location"] = client_key
 
     return config
+
+
+def kafka_request_timeout_ms(value=None):
+    raw_value = value or os.environ.get("BEACON_KAFKA_REQUEST_TIMEOUT_MS")
+    if raw_value is None:
+        return DEFAULT_KAFKA_REQUEST_TIMEOUT_MS
+
+    try:
+        timeout = int(raw_value)
+    except (TypeError, ValueError):
+        LOGGER.warning("kafka.timeout.invalid value=%s", raw_value)
+        return DEFAULT_KAFKA_REQUEST_TIMEOUT_MS
+
+    return max(1000, min(timeout, 300000))
 
 
 def access_profile_finding(rule_id, severity, title, impact, recommendation, evidence):
@@ -127,6 +145,7 @@ def analyze_kafka_cluster(
     access_config=None,
     churn_samples=1,
     churn_interval_seconds=0,
+    request_timeout_ms=None,
 ):
     started = time.monotonic()
     LOGGER.info(
@@ -148,9 +167,7 @@ def analyze_kafka_cluster(
         access_resolver = load_kafka_access_config(access_config)
 
         if not access_resolver.valid:
-            LOGGER.warning(
-                "kafka.access_config.invalid errors=%s", access_resolver.errors
-            )
+            LOGGER.warning("kafka.access_config.invalid errors=%s", access_resolver.errors)
             findings.append(
                 access_profile_finding(
                     "kafka.runtime.access.invalid",
@@ -197,9 +214,7 @@ def analyze_kafka_cluster(
             )
         )
 
-        bootstrap_server = normalize_bootstrap_servers(
-            cluster_profile.bootstrap_servers
-        )
+        bootstrap_server = normalize_bootstrap_servers(cluster_profile.bootstrap_servers)
 
     server_config = KafkaServerConfig(
         bootstrap_server=bootstrap_server,
@@ -255,13 +270,15 @@ def analyze_kafka_cluster(
                 ca_cert=ca_cert,
                 client_cert=client_cert,
                 client_key=client_key,
+                request_timeout_ms=request_timeout_ms,
             )
 
         LOGGER.info("kafka.admin_client.create")
         admin_client = AdminClient(config)
-        LOGGER.info("kafka.metadata.list_topics.start timeout=3")
+        metadata_timeout = max(3, min(kafka_request_timeout_ms(request_timeout_ms) / 1000, 60))
+        LOGGER.info("kafka.metadata.list_topics.start timeout=%s", metadata_timeout)
         metadata_started = time.monotonic()
-        metadata = admin_client.list_topics(timeout=3)
+        metadata = admin_client.list_topics(timeout=metadata_timeout)
         LOGGER.info(
             "kafka.metadata.list_topics.complete elapsed=%.2fs",
             time.monotonic() - metadata_started,
@@ -270,17 +287,13 @@ def analyze_kafka_cluster(
         broker_count = len(metadata.brokers)
 
         all_user_topics = [
-            topic_name
-            for topic_name in metadata.topics.keys()
-            if not topic_name.startswith("__")
+            topic_name for topic_name in metadata.topics.keys() if not topic_name.startswith("__")
         ]
         user_topics = list(all_user_topics)
         topic_scope = "cluster"
 
         if topic:
-            user_topics = [
-                topic_name for topic_name in user_topics if topic_name == topic
-            ]
+            user_topics = [topic_name for topic_name in user_topics if topic_name == topic]
             topic_scope = "topic"
         elif consumer_group:
             group_topics = discover_topics_for_consumer_group(
@@ -289,9 +302,7 @@ def analyze_kafka_cluster(
             )
             if group_topics:
                 user_topics = [
-                    topic_name
-                    for topic_name in user_topics
-                    if topic_name in group_topics
+                    topic_name for topic_name in user_topics if topic_name in group_topics
                 ]
                 topic_scope = "consumer_group_committed_topics"
             else:
@@ -507,9 +518,7 @@ def analyze_kafka_cluster(
                         },
                     )
                 )
-                consumer_group_admin_client = AdminClient(
-                    admin_config_from_profile(group_profile)
-                )
+                consumer_group_admin_client = AdminClient(admin_config_from_profile(group_profile))
             else:
                 findings.append(
                     access_profile_finding(
@@ -650,9 +659,7 @@ def build_live_topic_models(admin_client, metadata, topic_names):
             "segment_bytes": get_config_int(configs, "segment.bytes"),
             "max_message_bytes": get_config_int(configs, "max.message.bytes"),
             "delete_retention_ms": get_config_int(configs, "delete.retention.ms"),
-            "min_cleanable_dirty_ratio": get_config_float(
-                configs, "min.cleanable.dirty.ratio"
-            ),
+            "min_cleanable_dirty_ratio": get_config_float(configs, "min.cleanable.dirty.ratio"),
         }
 
         topic_models.append(topic_model)
@@ -666,9 +673,7 @@ def build_live_broker_models(admin_client, metadata):
     if not broker_ids:
         return []
 
-    config_resources = [
-        ConfigResource(ResourceType.BROKER, broker_id) for broker_id in broker_ids
-    ]
+    config_resources = [ConfigResource(ResourceType.BROKER, broker_id) for broker_id in broker_ids]
 
     broker_configs = {}
 
@@ -691,9 +696,7 @@ def build_live_broker_models(admin_client, metadata):
         broker_models.append(
             {
                 "id": broker_id,
-                "default_replication_factor": get_config_int(
-                    configs, "default.replication.factor"
-                ),
+                "default_replication_factor": get_config_int(configs, "default.replication.factor"),
                 "offsets_topic_replication_factor": get_config_int(
                     configs, "offsets.topic.replication.factor"
                 ),
@@ -701,17 +704,13 @@ def build_live_broker_models(admin_client, metadata):
                     configs, "transaction.state.log.replication.factor"
                 ),
                 "log_retention_bytes": get_config_int(configs, "log.retention.bytes"),
-                "auto_create_topics_enable": get_config_bool(
-                    configs, "auto.create.topics.enable"
-                ),
+                "auto_create_topics_enable": get_config_bool(configs, "auto.create.topics.enable"),
                 "broker_rack": get_config_value(configs, "broker.rack"),
                 "security_protocol": get_config_value(configs, "security.protocol"),
                 "listener_security_protocol_map": get_config_value(
                     configs, "listener.security.protocol.map"
                 ),
-                "authorizer_class_name": get_config_value(
-                    configs, "authorizer.class.name"
-                ),
+                "authorizer_class_name": get_config_value(configs, "authorizer.class.name"),
                 "allow_everyone_if_no_acl_found": get_config_bool(
                     configs, "allow.everyone.if.no.acl.found"
                 ),
@@ -721,12 +720,8 @@ def build_live_broker_models(admin_client, metadata):
                 "controlled_shutdown_enable": get_config_bool(
                     configs, "controlled.shutdown.enable"
                 ),
-                "producer_quota_bytes_per_second": get_config_int(
-                    configs, "producer_byte_rate"
-                ),
-                "consumer_quota_bytes_per_second": get_config_int(
-                    configs, "consumer_byte_rate"
-                ),
+                "producer_quota_bytes_per_second": get_config_int(configs, "producer_byte_rate"),
+                "consumer_quota_bytes_per_second": get_config_int(configs, "consumer_byte_rate"),
             }
         )
 
@@ -989,9 +984,7 @@ def acl_evidence(acl):
             "principal": str(acl.get("principal", "")),
             "host": str(acl.get("host", "")),
             "operation": str(acl.get("operation", "")),
-            "permission_type": str(
-                acl.get("permission_type", acl.get("permission", ""))
-            ),
+            "permission_type": str(acl.get("permission_type", acl.get("permission", ""))),
             "resource_type": str(acl.get("resource_type", acl.get("restype", ""))),
             "resource_name": str(acl.get("resource_name", acl.get("name", ""))),
             "resource_pattern_type": str(
@@ -1004,9 +997,7 @@ def acl_evidence(acl):
         "host": str(getattr(acl, "host", "")),
         "operation": str(getattr(acl, "operation", "")),
         "permission_type": str(getattr(acl, "permission_type", "")),
-        "resource_type": str(
-            getattr(acl, "restype", getattr(acl, "resource_type", ""))
-        ),
+        "resource_type": str(getattr(acl, "restype", getattr(acl, "resource_type", ""))),
         "resource_name": str(getattr(acl, "name", getattr(acl, "resource_name", ""))),
         "resource_pattern_type": str(
             getattr(
@@ -1091,9 +1082,7 @@ def discover_consumer_groups(admin_client, consumer_group=None, max_groups=20):
 
         valid_groups = getattr(result, "valid", []) or []
 
-        group_ids = [
-            group.group_id for group in valid_groups if getattr(group, "group_id", None)
-        ]
+        group_ids = [group.group_id for group in valid_groups if getattr(group, "group_id", None)]
 
         return group_ids[:max_groups]
 
@@ -1213,9 +1202,7 @@ def build_partition_health_findings(metadata, topic_names, broker_count):
         if not topic_metadata:
             continue
 
-        for partition_id, partition_metadata in (
-            topic_metadata.partitions or {}
-        ).items():
+        for partition_id, partition_metadata in (topic_metadata.partitions or {}).items():
             total_partitions += 1
             leader = getattr(partition_metadata, "leader", None)
             replicas = list(getattr(partition_metadata, "replicas", []) or [])
@@ -1301,9 +1288,7 @@ def build_partition_health_findings(metadata, topic_names, broker_count):
                 category="resiliency",
                 evidence={
                     "under_replicated_partitions": under_replicated_partitions[:10],
-                    "under_replicated_partition_count": len(
-                        under_replicated_partitions
-                    ),
+                    "under_replicated_partition_count": len(under_replicated_partitions),
                 },
                 confidence="HIGH",
             )
@@ -1347,9 +1332,7 @@ def build_partition_health_findings(metadata, topic_names, broker_count):
         average_leaders = total_partitions / broker_count
         max_leader_count = max(leader_counts.values())
         leader_imbalance_percent = (
-            ((max_leader_count - average_leaders) / average_leaders) * 100
-            if average_leaders
-            else 0
+            ((max_leader_count - average_leaders) / average_leaders) * 100 if average_leaders else 0
         )
 
         if leader_imbalance_percent >= 50:
@@ -1430,9 +1413,7 @@ def fetch_latest_offsets(admin_client, committed_partitions):
     for topic_partition, future in futures.items():
         try:
             result = future.result(timeout=3)
-            latest_offsets[(topic_partition.topic, topic_partition.partition)] = (
-                result.offset
-            )
+            latest_offsets[(topic_partition.topic, topic_partition.partition)] = result.offset
         except Exception:
             continue
 
@@ -1520,10 +1501,7 @@ def build_lag_findings(group_id, lag_summary):
         top_hot = sorted(hot_partitions, key=lambda item: item["lag"], reverse=True)[:5]
 
         hot_summary = ", ".join(
-            [
-                f"{item['topic']}[{item['partition']}]=lag:{item['lag']}"
-                for item in top_hot
-            ]
+            [f"{item['topic']}[{item['partition']}]=lag:{item['lag']}" for item in top_hot]
         )
 
         findings.append(

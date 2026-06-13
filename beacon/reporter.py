@@ -26,20 +26,16 @@ def print_report(
     """
     if readiness_summary:
         score = readiness_summary.get("score", calculate_score(findings))
-        display_findings = readiness_summary.get(
-            "interpreted_findings"
-        ) or sort_findings(
-            interpret_findings(
-                findings, environment=readiness_summary.get("environment")
-            )["findings"]
+        display_findings = readiness_summary.get("interpreted_findings") or sort_findings(
+            interpret_findings(findings, environment=readiness_summary.get("environment"))[
+                "findings"
+            ]
         )
     else:
         score = calculate_score(findings)
         display_findings = sort_findings(findings)
 
-    score_status = (
-        readiness_summary.get("score_status") if readiness_summary else "CALCULATED"
-    )
+    score_status = readiness_summary.get("score_status") if readiness_summary else "CALCULATED"
     if diagnostic_summary is None and readiness_summary is None:
         diagnostic_summary = None
 
@@ -91,9 +87,7 @@ def print_report(
     table.add_column("File")
 
     for f in display_findings:
-        table.add_row(
-            f["severity"], f["title"], f["impact"], f["recommendation"], f["file"]
-        )
+        table.add_row(f["severity"], f["title"], f["impact"], f["recommendation"], f["file"])
 
     console.print(table)
 

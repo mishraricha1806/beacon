@@ -1,0 +1,11 @@
+rule_id: readiness.correlation.internet_exposed_database
+title: Internet-exposed database path detected
+description: |
+  Correlates public ingress controls with a publicly accessible database to identify a direct data-plane exposure path.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.readiness
+recommendation: Move the database to private subnets, remove direct public ingress, and require approved private access paths before production rollout.
+version: "1.0"
+tags: [readiness, correlation, cloud, database, security]
+

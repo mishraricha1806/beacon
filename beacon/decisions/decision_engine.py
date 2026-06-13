@@ -155,9 +155,7 @@ class DecisionEngine:
         return sorted_areas
 
     @staticmethod
-    def prioritize_remediation_actions(
-        findings: List[Dict], max_actions: int = 5
-    ) -> List[Dict]:
+    def prioritize_remediation_actions(findings: List[Dict], max_actions: int = 5) -> List[Dict]:
         """Prioritize remediation actions based on impact and severity.
 
         Returns:

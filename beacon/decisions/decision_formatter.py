@@ -56,9 +56,7 @@ class DecisionFormatter:
 
             risk_areas = DecisionEngine.identify_primary_risk_areas(findings)
             for idx, area in enumerate(risk_areas[:3], 1):
-                lines.append(
-                    f"[{area['max_severity']}] {area['area']}: {area['count']} finding(s)"
-                )
+                lines.append(f"[{area['max_severity']}] {area['area']}: {area['count']} finding(s)")
                 # Show first finding for context
                 if area["findings"]:
                     first = area["findings"][0]

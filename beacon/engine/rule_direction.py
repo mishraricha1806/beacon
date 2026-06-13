@@ -116,7 +116,5 @@ class RuleFlowManager:
         """
         valid_severities = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "ERROR"]
         if severity not in valid_severities:
-            raise ValueError(
-                f"Invalid severity: {severity}. Must be one of {valid_severities}"
-            )
+            raise ValueError(f"Invalid severity: {severity}. Must be one of {valid_severities}")
         return True

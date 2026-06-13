@@ -1,0 +1,11 @@
+rule_id: k8s.container.run_as_non_root.missing
+title: Kubernetes runAsNonRoot missing
+description: |
+  Detects containers that do not enforce runAsNonRoot=true.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Set runAsNonRoot=true and use non-root container images for production workloads.
+version: "1.0"
+tags: [kubernetes, security, non-root]
+

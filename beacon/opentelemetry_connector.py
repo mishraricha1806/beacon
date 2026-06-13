@@ -138,9 +138,7 @@ def build_api_runtime(spans):
                 "error_rate_percent": percent(len(errors), total),
                 "timeout_rate_percent": percent(len(timeouts), total),
                 "retry_rate_percent": percent(len(retries), total),
-                "recent_deployment": any(
-                    span_recent_deployment(span) for span in service_spans
-                ),
+                "recent_deployment": any(span_recent_deployment(span) for span in service_spans),
             }
         )
 
@@ -355,9 +353,7 @@ def percent(count, total):
     return (count / total) * 100
 
 
-def opentelemetry_finding(
-    rule_id, severity, title, impact, recommendation, file, evidence
-):
+def opentelemetry_finding(rule_id, severity, title, impact, recommendation, file, evidence):
     return {
         "rule_id": rule_id,
         "domain": "opentelemetry",

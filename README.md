@@ -21,6 +21,20 @@ The first-user static readiness demo is documented in [docs/STATIC_READINESS_DEM
 Module 2's runtime diagnostics design is documented in [docs/MODULE_2_RUNTIME_DIAGNOSTICS.md](docs/MODULE_2_RUNTIME_DIAGNOSTICS.md).
 Module 3's flow intelligence design is documented in [docs/MODULE_3_FLOW_INTELLIGENCE.md](docs/MODULE_3_FLOW_INTELLIGENCE.md).
 The end-to-end project demo is documented in [docs/PROJECT_DEMO.md](docs/PROJECT_DEMO.md).
+Cross-environment rollout strategy is documented in [docs/ENVIRONMENT_READINESS_TECHNICAL_GUIDE.md](docs/ENVIRONMENT_READINESS_TECHNICAL_GUIDE.md).
+Enterprise code review and expansion roadmap is documented in [docs/ENTERPRISE_CODE_REVIEW_AND_FEATURE_ROADMAP.md](docs/ENTERPRISE_CODE_REVIEW_AND_FEATURE_ROADMAP.md).
+Domain expansion strategy and implementation matrix is documented in [docs/DOMAIN_EXPANSION_MATRIX.md](docs/DOMAIN_EXPANSION_MATRIX.md).
+**Focus on Environment Readiness:** See [docs/ENVIRONMENT_READINESS_DOMAIN_FOCUS.md](docs/ENVIRONMENT_READINESS_DOMAIN_FOCUS.md) for a detailed roadmap of configuration-based pre-deployment domains (API Gateway, Database, Cloud Governance, Security/Compliance) that keep Beacon a deterministic readiness gate without operational diagnostics.
+Market comparison and competitor positioning are documented in [docs/COMPETITIVE_POSITIONING_MATRIX.md](docs/COMPETITIVE_POSITIONING_MATRIX.md).
+Leadership one-slide summary is documented in [docs/COMPETITIVE_POSITIONING_ONE_PAGER.md](docs/COMPETITIVE_POSITIONING_ONE_PAGER.md).
+90-day go-to-market execution plan is documented in [docs/GTM_90_DAY_PLAN.md](docs/GTM_90_DAY_PLAN.md).
+Board narrative outline is documented in [docs/BOARD_10_SLIDE_NARRATIVE.md](docs/BOARD_10_SLIDE_NARRATIVE.md).
+Investor Q&A is documented in [docs/INVESTOR_FAQ.md](docs/INVESTOR_FAQ.md).
+Executive speaking narrative is documented in [docs/EXECUTIVE_TALK_TRACK.md](docs/EXECUTIVE_TALK_TRACK.md).
+Pilot operations reporting template is documented in [docs/PILOT_SCORECARD_TEMPLATE.md](docs/PILOT_SCORECARD_TEMPLATE.md).
+Consolidated executive bundle (all in 4) is documented in [docs/LEADERSHIP_PACK_ALL_IN_4.md](docs/LEADERSHIP_PACK_ALL_IN_4.md).
+Step-by-step implementation guide is documented in [docs/ENVIRONMENT_READINESS_IMPLEMENTATION_PLAYBOOK.md](docs/ENVIRONMENT_READINESS_IMPLEMENTATION_PLAYBOOK.md).
+Current readiness coverage and gaps review is documented in [docs/READINESS_USE_CASE_REVIEW.md](docs/READINESS_USE_CASE_REVIEW.md).
 
 The combined release gate is codified in `scripts/release_check_all.py` and `.github/workflows/module1-release.yml`.
 It runs Module 1, Module 2, Module 3, the full test suite, and diff hygiene.

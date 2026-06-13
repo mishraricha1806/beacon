@@ -62,6 +62,7 @@ def build_binary(platform: str, output_name: str):
         "--hidden-import=beacon.diagnose",
         "--hidden-import=beacon.intelligence",
         "--collect-all=beacon",
+        "--collect-data=hcl2",
         "beacon/cli.py",
     ]
 

@@ -24,6 +24,7 @@ from beacon.engine.normalizer import (
     normalize_terraform_json,
     normalize_yaml_document,
 )
+from beacon.readiness.correlations import augment_readiness_findings
 
 
 SUPPORTED_EXTENSIONS = (".tf", ".yaml", ".yml", ".json")
@@ -104,7 +105,7 @@ def scan_path(path: str):
             full_path = os.path.join(root, file_name)
             findings.extend(scan_file(full_path))
 
-    return findings
+    return augment_readiness_findings(findings)
 
 
 def scan_file(full_path: str):
@@ -153,8 +154,7 @@ def scan_file(full_path: str):
                 title=f"Failed to parse {os.path.basename(full_path)}",
                 impact=str(error),
                 recommendation=(
-                    "Check file syntax and ensure it is a valid supported "
-                    "infrastructure file."
+                    "Check file syntax and ensure it is a valid supported " "infrastructure file."
                 ),
                 file=full_path,
                 evidence={
@@ -164,11 +164,11 @@ def scan_file(full_path: str):
             )
         )
 
-    return findings
+    return augment_readiness_findings(findings)
 
 
 def scan_yaml_file(full_path: str):
-    findings = []
+    resources = []
 
     with open(full_path, "r") as f:
         documents = list(yaml.safe_load_all(f))
@@ -179,20 +179,15 @@ def scan_yaml_file(full_path: str):
         if not isinstance(data, dict):
             continue
 
-        resources = normalize_yaml_document(data, full_path)
+        resources.extend(normalize_yaml_document(data, full_path))
 
-        if resources:
-            findings.extend(
-                evaluate(
-                    resources,
-                    context={"file": full_path},
-                )
-            )
-            continue
+    if not resources:
+        return []
 
-        continue
-
-    return findings
+    return evaluate(
+        resources,
+        context={"file": full_path, "resources": resources},
+    )
 
 
 def scan_terraform_file(full_path: str):
@@ -204,7 +199,7 @@ def scan_terraform_file(full_path: str):
     if resources:
         return evaluate(
             resources,
-            context={"file": full_path},
+            context={"file": full_path, "resources": resources},
         )
 
     return []
@@ -221,7 +216,7 @@ def scan_json_file(full_path: str):
 
     return evaluate(
         resources,
-        context={"file": full_path},
+        context={"file": full_path, "resources": resources},
     )
 
 
@@ -269,7 +264,7 @@ def scan_helm_chart(chart_path: str):
 
 
 def scan_yaml_documents(content: str, source: str):
-    findings = []
+    resources = []
 
     documents = list(yaml.safe_load_all(content))
 
@@ -279,14 +274,12 @@ def scan_yaml_documents(content: str, source: str):
         if not isinstance(data, dict):
             continue
 
-        resources = normalize_yaml_document(data, source)
+        resources.extend(normalize_yaml_document(data, source))
 
-        if resources:
-            findings.extend(
-                evaluate(
-                    resources,
-                    context={"file": source},
-                )
-            )
+    if not resources:
+        return []
 
-    return findings
+    return evaluate(
+        resources,
+        context={"file": source, "resources": resources},
+    )

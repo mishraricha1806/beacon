@@ -1,0 +1,11 @@
+rule_id: cloud.region.high_availability.missing
+title: Single-region production deployment
+description: |
+  Detects production cloud resource sets concentrated in one region.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Distribute critical production resources across multiple approved regions or document an explicit exception.
+version: "1.0"
+tags: [cloud, resiliency, multi-region]
+

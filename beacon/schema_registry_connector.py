@@ -119,9 +119,7 @@ def analyze_subject(base_url, registry, subject, source, timeout):
     LOGGER.info("schema_registry.subject.start subject=%s", subject)
 
     try:
-        config = query_schema_registry(
-            base_url, f"/config/{encoded_subject}", registry, timeout
-        )
+        config = query_schema_registry(base_url, f"/config/{encoded_subject}", registry, timeout)
         compatibility = normalize_compatibility(config)
         if compatibility in UNSAFE_COMPATIBILITY:
             findings.append(
@@ -215,9 +213,7 @@ def check_expected_topic_subjects(registry, subject_set, source):
         topic = item.get("name")
         expected_subjects = item.get("subjects") or [f"{topic}-key", f"{topic}-value"]
 
-        missing = [
-            subject for subject in expected_subjects if subject not in subject_set
-        ]
+        missing = [subject for subject in expected_subjects if subject not in subject_set]
 
         if missing:
             findings.append(
@@ -265,9 +261,7 @@ def query_schema_registry(base_url, path, registry, timeout=5):
     context = build_ssl_context(registry)
     try:
         if context:
-            response_handle = urllib.request.urlopen(
-                request, timeout=timeout, context=context
-            )
+            response_handle = urllib.request.urlopen(request, timeout=timeout, context=context)
         else:
             response_handle = urllib.request.urlopen(request, timeout=timeout)
 
@@ -359,9 +353,7 @@ def query_failed(source, endpoint, error):
     )
 
 
-def schema_registry_finding(
-    rule_id, severity, title, impact, recommendation, file, evidence
-):
+def schema_registry_finding(rule_id, severity, title, impact, recommendation, file, evidence):
     return {
         "rule_id": rule_id,
         "domain": "kafka",

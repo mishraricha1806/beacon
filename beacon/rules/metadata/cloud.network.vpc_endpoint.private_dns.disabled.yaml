@@ -1,0 +1,11 @@
+rule_id: cloud.network.vpc_endpoint.private_dns.disabled
+title: VPC endpoint private DNS disabled
+description: |
+  Detects interface VPC endpoints that do not enable private DNS.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Enable private_dns_enabled for private endpoint traffic paths.
+version: "1.0"
+tags: [cloud, network, private-endpoint]
+

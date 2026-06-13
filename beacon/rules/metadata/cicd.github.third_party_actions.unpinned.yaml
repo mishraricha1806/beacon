@@ -1,0 +1,11 @@
+rule_id: cicd.github.third_party_actions.unpinned
+title: GitHub Actions third-party actions are not SHA pinned
+description: |
+  Detects external GitHub Actions references that are not pinned to immutable commit SHAs.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Pin third-party actions to commit SHAs and review updates through controlled change management.
+version: "1.0"
+tags: [cicd, github-actions, supply-chain]
+

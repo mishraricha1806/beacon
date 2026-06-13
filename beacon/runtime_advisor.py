@@ -127,12 +127,8 @@ def evaluate_kafka_runtime(runtime, file):
         )
 
     if broker_disk_usage_by_broker:
-        max_broker = max(
-            broker_disk_usage_by_broker, key=broker_disk_usage_by_broker.get
-        )
-        min_broker = min(
-            broker_disk_usage_by_broker, key=broker_disk_usage_by_broker.get
-        )
+        max_broker = max(broker_disk_usage_by_broker, key=broker_disk_usage_by_broker.get)
+        min_broker = min(broker_disk_usage_by_broker, key=broker_disk_usage_by_broker.get)
         max_usage = broker_disk_usage_by_broker[max_broker]
         min_usage = broker_disk_usage_by_broker[min_broker]
 
@@ -415,11 +411,7 @@ def evaluate_kafka_runtime(runtime, file):
             )
         )
 
-    if (
-        expected_members
-        and active_members is not None
-        and active_members < expected_members
-    ):
+    if expected_members and active_members is not None and active_members < expected_members:
         findings.append(
             finding(
                 "MEDIUM",
@@ -461,10 +453,7 @@ def evaluate_kafka_runtime(runtime, file):
             )
         )
 
-    if (
-        request_queue_utilization_percent is not None
-        and request_queue_utilization_percent >= 80
-    ):
+    if request_queue_utilization_percent is not None and request_queue_utilization_percent >= 80:
         findings.append(
             finding(
                 "HIGH",
@@ -478,10 +467,7 @@ def evaluate_kafka_runtime(runtime, file):
             )
         )
 
-    if (
-        network_io_utilization_percent is not None
-        and network_io_utilization_percent >= 85
-    ):
+    if network_io_utilization_percent is not None and network_io_utilization_percent >= 85:
         findings.append(
             finding(
                 "HIGH",
@@ -537,10 +523,7 @@ def evaluate_kafka_runtime(runtime, file):
             )
         )
 
-    if (
-        schema_incompatible_changes_24h is not None
-        and schema_incompatible_changes_24h > 0
-    ):
+    if schema_incompatible_changes_24h is not None and schema_incompatible_changes_24h > 0:
         findings.append(
             finding(
                 "HIGH",
