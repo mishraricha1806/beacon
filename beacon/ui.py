@@ -1746,7 +1746,7 @@ def build_server(host, port, allow_port_fallback=True, max_attempts=25):
             return server, server.server_address[1]
         except OSError as error:
             last_error = error
-            if getattr(error, "errno", None) != errno.EADDRINUSE:
+            if not is_address_in_use_error(error):
                 raise
             if not allow_port_fallback:
                 break
@@ -1755,7 +1755,7 @@ def build_server(host, port, allow_port_fallback=True, max_attempts=25):
 
     if last_error is not None:
         raise OSError(
-            errno.EADDRINUSE,
+            getattr(last_error, "errno", None) or errno.EADDRINUSE,
             (
                 f"Unable to bind Beacon UI on {host}:{port}. "
                 "The requested port is already in use. Use --port 0 to let the OS "
@@ -1764,6 +1764,13 @@ def build_server(host, port, allow_port_fallback=True, max_attempts=25):
         ) from last_error
 
     raise OSError(errno.EADDRINUSE, f"Unable to bind Beacon UI on {host}:{port}.")
+
+
+def is_address_in_use_error(error):
+    error_number = getattr(error, "errno", None)
+    if error_number in {errno.EADDRINUSE, 48, 98}:
+        return True
+    return "address already in use" in str(error).lower()
 
 
 if __name__ == "__main__":
