@@ -2,7 +2,6 @@ from pathlib import Path
 
 import yaml
 
-
 CONFIG_FILENAMES = ("beacon.yaml", "beacon.yml", ".beacon.yaml")
 
 

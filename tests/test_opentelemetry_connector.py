@@ -2,8 +2,7 @@ def test_opentelemetry_export_maps_to_runtime_findings(tmp_path):
     from beacon.opentelemetry_connector import analyze_opentelemetry_file
 
     path = tmp_path / "otel.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 opentelemetry:
   flow:
     name: checkout
@@ -41,8 +40,7 @@ opentelemetry:
     - name: storage.backup_age_hours
       resource: orders-volume
       value: 36
-"""
-    )
+""")
 
     findings = analyze_opentelemetry_file(str(path))
     rule_ids = {finding["rule_id"] for finding in findings}

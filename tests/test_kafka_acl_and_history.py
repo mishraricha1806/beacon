@@ -6,8 +6,7 @@ def test_kafka_acl_export_detects_broad_allow(tmp_path):
     from beacon.kafka_acl_scanner import analyze_kafka_acl_file
 
     path = tmp_path / "acls.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 kafka_acls:
   - principal: User:*
     host: "*"
@@ -16,8 +15,7 @@ kafka_acls:
     resource_type: TOPIC
     resource_name: "*"
     resource_pattern_type: LITERAL
-"""
-    )
+""")
 
     findings = analyze_kafka_acl_file(str(path))
 
@@ -29,8 +27,7 @@ def test_kafka_acl_export_inspected_when_scoped(tmp_path):
     from beacon.kafka_acl_scanner import analyze_kafka_acl_file
 
     path = tmp_path / "acls.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 acls:
   - principal: User:payments-service
     host: "*"
@@ -39,8 +36,7 @@ acls:
     resource_type: TOPIC
     resource_name: payments
     resource_pattern_type: LITERAL
-"""
-    )
+""")
 
     findings = analyze_kafka_acl_file(str(path))
 
@@ -51,8 +47,7 @@ def test_kafka_history_detects_worsening_trends(tmp_path):
     from beacon.kafka_history import analyze_kafka_history_file
 
     path = tmp_path / "history.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 kafka_history:
   - timestamp: "2026-05-31T09:00:00Z"
     broker_disk_usage_percent: 70
@@ -80,8 +75,7 @@ kafka_history:
     consumer_groups:
       - group_id: payments
         members: [c, d]
-"""
-    )
+""")
 
     ids = rule_ids(analyze_kafka_history_file(str(path)))
 

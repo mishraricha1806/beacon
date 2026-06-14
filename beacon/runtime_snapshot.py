@@ -9,7 +9,7 @@ import beacon.rules.flow_registered_rules  # noqa: F401
 import beacon.rules.storage_runtime_registered_rules  # noqa: F401
 from beacon.engine.evaluator import evaluate
 from beacon.engine.normalizer import normalize_yaml_document
-
+from beacon.input_validation import missing_path_finding, path_missing
 
 LOGGER = logging.getLogger(__name__)
 
@@ -17,6 +17,10 @@ LOGGER = logging.getLogger(__name__)
 def analyze_runtime_snapshot_file(path):
     started = time.monotonic()
     LOGGER.info("runtime_snapshot.start path=%s", path)
+    if path_missing(path):
+        LOGGER.warning("runtime_snapshot.path_missing path=%s", path)
+        return [missing_path_finding(path)]
+
     with open(path, "r") as f:
         data = yaml.safe_load(f) or {}
 

@@ -3,7 +3,6 @@ import sys
 import types
 import beacon.kafka_runtime_connector as krc
 
-
 # Create a minimal fake confluent_kafka and confluent_kafka.admin to allow importing the module
 fake_ck = types.ModuleType("confluent_kafka")
 fake_ck.TopicPartition = type("TopicPartition", (), {})

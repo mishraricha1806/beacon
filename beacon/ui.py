@@ -25,7 +25,6 @@ from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.scanner import scan_path
 from beacon.schema_registry_connector import analyze_schema_registry_config
 
-
 LOGGER = logging.getLogger(__name__)
 
 

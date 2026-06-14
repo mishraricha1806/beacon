@@ -99,16 +99,14 @@ def test_schema_registry_uses_mtls_context(monkeypatch, tmp_path):
     from beacon import schema_registry_connector
 
     path = tmp_path / "schema-registry.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 schema_registry:
   url: https://schema-registry.local:8081
   tls:
     ca_cert: /tmp/ca.pem
     client_cert: /tmp/client.pem
     client_key: /tmp/client.key
-"""
-    )
+""")
 
     calls = []
 

@@ -96,6 +96,34 @@ All example commands below assume your current directory contains:
 examples/
 ```
 
+Check before running examples:
+
+```bash
+ls examples/bad-infra
+```
+
+If that command fails, you are in the wrong folder. Move into the Beacon source
+repo or the public distribution repo that contains the safe example files.
+
+If your examples live somewhere else, mount that folder explicitly:
+
+```bash
+docker run --rm \
+  -v "/absolute/path/to/beacon/examples:/workspace/examples:ro" \
+  ghcr.io/mishraricha1806/beacon:latest readiness static \
+  /workspace/examples/bad-infra \
+  --environment prod \
+  --no-html \
+  --no-open-report
+```
+
+Do not run the example commands from an empty folder such as `debug/` unless you
+also mount the real examples directory. Otherwise Beacon will correctly report:
+
+```text
+Path does not exist: /workspace/project/examples/...
+```
+
 ## Use Case 1: Bad Infra Readiness Gate
 
 Question:

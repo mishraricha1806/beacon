@@ -6,7 +6,6 @@ from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.scanner import scan_path
 
-
 ROOT = Path("examples/supported")
 
 

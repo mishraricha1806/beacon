@@ -1,6 +1,7 @@
 import yaml
 
 from beacon.diagnose.kafka.signals import KafkaRuntimeSignal
+from beacon.input_validation import missing_path_finding, path_missing
 
 
 def finding(
@@ -36,6 +37,9 @@ def finding(
 
 
 def analyze_runtime_file(path: str):
+    if path_missing(path):
+        return [missing_path_finding(path)]
+
     with open(path, "r") as f:
         data = yaml.safe_load(f) or {}
 

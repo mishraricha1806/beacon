@@ -202,8 +202,7 @@ cloud_inventory:
 
 
 def test_cross_domain_readiness_correlations_are_added(tmp_path):
-    (tmp_path / "cloud.tf").write_text(
-        """
+    (tmp_path / "cloud.tf").write_text("""
 resource \"aws_security_group\" \"open\" {
   ingress {
     from_port   = 5432
@@ -229,10 +228,8 @@ resource \"aws_s3_bucket_public_access_block\" \"public_bucket\" {
   ignore_public_acls      = false
   restrict_public_buckets = false
 }
-"""
-    )
-    (tmp_path / "release.yaml").write_text(
-        """
+""")
+    (tmp_path / "release.yaml").write_text("""
 name: Release
 on:
   pull_request_target:
@@ -245,10 +242,8 @@ jobs:
     steps:
       - uses: vendor/deploy-action@v2
       - run: ./deploy production
-"""
-    )
-    (tmp_path / "capacity.yaml").write_text(
-        """
+""")
+    (tmp_path / "capacity.yaml").write_text("""
 cloud_inventory:
   resources:
     - type: cloud_quota_profile
@@ -263,8 +258,7 @@ cloud_inventory:
         desired_capacity: 4
         max_size: 4
         min_size: 2
-"""
-    )
+""")
 
     findings = scan_path(str(tmp_path))
     rule_ids = {finding["rule_id"] for finding in findings}

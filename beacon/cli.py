@@ -50,7 +50,6 @@ from beacon.readiness.correlations import augment_readiness_findings
 
 from beacon.readiness.readiness_reporter import print_readiness_summary
 
-
 LOGGER = logging.getLogger(__name__)
 
 app = typer.Typer(help="Beacon - Operational intelligence for modern infrastructure.")

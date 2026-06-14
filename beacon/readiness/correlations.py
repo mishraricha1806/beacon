@@ -1,6 +1,5 @@
 from beacon.readiness.interpretation import SEVERITY_ORDER
 
-
 CORRELATION_DEFINITIONS = [
     {
         "rule_id": "readiness.correlation.internet_exposed_database",

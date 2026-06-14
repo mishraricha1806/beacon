@@ -9,7 +9,6 @@ import yaml
 
 from beacon.diagnose.kafka.server_config import normalize_bootstrap_servers
 
-
 SUPPORTED_AUTH_TYPES = {
     "plaintext",
     "mtls",

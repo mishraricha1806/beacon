@@ -22,7 +22,6 @@ from beacon.diagnose.kafka.server_config import (
 from beacon.engine.evaluator import evaluate
 from beacon.engine.normalizer import normalize_kafka_config
 
-
 LOGGER = logging.getLogger(__name__)
 DEFAULT_KAFKA_REQUEST_TIMEOUT_MS = 15000
 

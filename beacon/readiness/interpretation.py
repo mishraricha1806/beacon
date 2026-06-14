@@ -8,7 +8,6 @@ from beacon.intelligence.context import (
     topic_context,
 )
 
-
 SEVERITY_ORDER = {
     "ERROR": 0,
     "CRITICAL": 1,

@@ -26,7 +26,6 @@ from beacon.engine.normalizer import (
 )
 from beacon.readiness.correlations import augment_readiness_findings
 
-
 SUPPORTED_EXTENSIONS = (".tf", ".yaml", ".yml", ".json")
 
 SKIP_DIRS = {

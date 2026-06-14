@@ -5,7 +5,6 @@ import glob
 import yaml
 from typing import Dict, Any
 
-
 _REGISTRY: Dict[str, Dict[str, Any]] = {}
 
 

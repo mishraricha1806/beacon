@@ -1,6 +1,5 @@
 from collections import defaultdict
 
-
 CONFIDENCE_BY_SCORE = [
     (80, "HIGH"),
     (45, "MEDIUM"),

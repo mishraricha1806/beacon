@@ -2,7 +2,6 @@ from collections import defaultdict
 
 from beacon.scoring import count_severities
 
-
 SEVERITY_ORDER = {
     "ERROR": 6,
     "CRITICAL": 5,

@@ -5,7 +5,6 @@ from typing import Any, Dict, Optional
 
 import yaml
 
-
 DEFAULT_CONTEXT_PATH = os.path.expanduser("~/.beacon/context.yaml")
 
 

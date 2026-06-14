@@ -16,7 +16,6 @@ from beacon.readiness.interpretation import (
     sort_findings,
 )
 
-
 DEFAULT_CATEGORIES = {
     "resiliency": {"risk": "LOW RISK", "findings": 0},
     "scalability": {"risk": "LOW RISK", "findings": 0},

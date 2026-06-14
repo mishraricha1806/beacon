@@ -2,10 +2,14 @@ import json
 
 import yaml
 
+from beacon.input_validation import missing_path_finding, path_missing
 from beacon.kafka_runtime_connector import acl_evidence, finding, is_broad_allow_acl
 
 
 def analyze_kafka_acl_file(path):
+    if path_missing(path):
+        return [missing_path_finding(path)]
+
     with open(path, "r") as f:
         if path.endswith(".json"):
             data = json.load(f) or {}

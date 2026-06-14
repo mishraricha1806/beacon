@@ -6,7 +6,7 @@ import yaml
 import beacon.rules.flow_registered_rules  # noqa: F401
 from beacon.engine.evaluator import evaluate
 from beacon.engine.normalizer import normalize_flow_runtime
-
+from beacon.input_validation import missing_path_finding, path_missing
 
 LOGGER = logging.getLogger(__name__)
 
@@ -14,6 +14,10 @@ LOGGER = logging.getLogger(__name__)
 def analyze_flow_file(path):
     started = time.monotonic()
     LOGGER.info("flow_runtime.start path=%s", path)
+    if path_missing(path):
+        LOGGER.warning("flow_runtime.path_missing path=%s", path)
+        return [missing_path_finding(path)]
+
     with open(path, "r") as f:
         data = yaml.safe_load(f) or {}
 

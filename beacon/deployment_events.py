@@ -3,6 +3,7 @@ from datetime import datetime
 
 import yaml
 
+from beacon.input_validation import missing_path_finding, path_missing
 
 DEGRADATION_RULE_IDS = {
     "flow.runtime.downstream_db_bottleneck",
@@ -35,6 +36,9 @@ DEGRADATION_RULE_IDS = {
 
 def analyze_deployment_events_file(path, existing_findings=None):
     path_string = str(path)
+    if path_missing(path_string):
+        return [missing_path_finding(path_string)]
+
     with open(path_string, "r") as f:
         if path_string.endswith(".json"):
             data = json.load(f) or {}

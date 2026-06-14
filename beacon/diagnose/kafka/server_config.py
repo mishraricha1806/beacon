@@ -2,7 +2,6 @@ import os
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
-
 SUPPORTED_SECURITY_PROTOCOLS = {"PLAINTEXT", "SSL", "SASL_SSL"}
 
 

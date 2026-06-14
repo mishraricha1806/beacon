@@ -4,7 +4,6 @@ from beacon.correlations.root_cause import correlate_findings
 from beacon.diagnose.flow_ranker import build_flow_bottleneck_rankings
 from beacon.readiness.interpretation import SEVERITY_ORDER, sort_findings
 
-
 MATERIAL_SEVERITIES = {"ERROR", "CRITICAL", "HIGH", "MEDIUM"}
 
 

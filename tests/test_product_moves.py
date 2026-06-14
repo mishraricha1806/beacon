@@ -1608,8 +1608,7 @@ def test_kafka_access_config_resolves_generic_profiles(tmp_path):
     key.write_text("")
 
     path = tmp_path / "kafka-access.yaml"
-    path.write_text(
-        f"""
+    path.write_text(f"""
 kafka_access:
   profiles:
     - name: discovery
@@ -1636,8 +1635,7 @@ kafka_access:
         client_key: {key}
       capabilities:
         - describe_topic
-"""
-    )
+""")
 
     access = load_kafka_access_config(str(path))
     cluster_profile = access.profile_for("list_topics")
@@ -1659,16 +1657,14 @@ def test_kafka_access_config_invalid_blocks_before_connect(monkeypatch, tmp_path
     from beacon import kafka_runtime_connector
 
     path = tmp_path / "bad-access.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 kafka_access:
   profiles:
     - name: invalid
       scope: cluster
       auth:
         type: bearer_token
-"""
-    )
+""")
 
     def fail_if_called(config):
         raise AssertionError("AdminClient should not be constructed")
@@ -1687,8 +1683,7 @@ def test_kafka_access_config_reports_auth_posture_findings(tmp_path):
     from beacon.diagnose.kafka.access_config import load_kafka_access_config
 
     path = tmp_path / "risky-access.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 kafka_access:
   profiles:
     - name: discovery
@@ -1714,8 +1709,7 @@ kafka_access:
         mechanism: SCRAM-SHA-256
         username: user
         password: pass
-"""
-    )
+""")
 
     access = load_kafka_access_config(str(path))
     rule_ids = {issue["rule_id"] for issue in access.posture_issues()}
@@ -2344,16 +2338,14 @@ def test_diagnose_flow_uses_runtime_snapshot(monkeypatch, tmp_path):
     from beacon import cli
 
     path = tmp_path / "flow-runtime.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 flow_runtime:
   name: checkout
   signals:
     kafka_consumer_lag_increasing: true
     kafka_broker_unhealthy: false
     db_latency_ms: 900
-"""
-    )
+""")
     captured = {}
 
     monkeypatch.setattr(cli, "load_policy", lambda: {})
@@ -2431,13 +2423,11 @@ def test_diagnose_snapshot_uses_general_runtime_snapshot(monkeypatch, tmp_path):
     from beacon import cli
 
     path = tmp_path / "api-runtime.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 api_runtime:
   name: checkout-api
   latency_p95_ms: 1500
-"""
-    )
+""")
     captured = {}
 
     monkeypatch.setattr(cli, "load_policy", lambda: {})

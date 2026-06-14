@@ -8,7 +8,6 @@ import beacon.rules.kubernetes_runtime_registered_rules  # noqa: F401
 from beacon.engine.evaluator import evaluate
 from beacon.engine.normalizer import normalize_kubernetes_runtime
 
-
 LOGGER = logging.getLogger(__name__)
 
 

@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 ROOT = Path("examples/supported/kafka")
 
 

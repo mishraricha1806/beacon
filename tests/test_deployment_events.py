@@ -18,8 +18,7 @@ def finding(rule_id, severity="HIGH"):
 
 def test_deployment_events_load_and_correlate_with_runtime_findings(tmp_path):
     path = tmp_path / "deployment-events.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 deployment_events:
   - service: checkout-consumer
     environment: staging
@@ -30,8 +29,7 @@ deployment_events:
     changed_components:
       - consumer
       - database-client
-"""
-    )
+""")
 
     findings = analyze_deployment_events_file(
         path,
@@ -64,8 +62,7 @@ def test_deployment_events_empty_input_is_low_signal(tmp_path):
 
 def test_deployment_events_emit_before_after_window_regressions(tmp_path):
     path = tmp_path / "deployment-events.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 deployment_events:
   - service: checkout-api
     version: v1.42.1
@@ -78,8 +75,7 @@ deployment_events:
       api_latency_p95_ms: 1600
       api_error_rate_percent: 8
       kafka_consumer_lag: 140000
-"""
-    )
+""")
 
     findings = analyze_deployment_events_file(path)
     rule_ids = {item["rule_id"] for item in findings}
@@ -98,8 +94,7 @@ deployment_events:
 
 def test_deployment_events_match_related_service_over_latest_unrelated_event(tmp_path):
     path = tmp_path / "deployment-events.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 deployment_events:
   - service: checkout-api
     namespace: payments
@@ -113,8 +108,7 @@ deployment_events:
     deployed_at: "2026-06-03T10:25:00Z"
     changed_components:
       - batch
-"""
-    )
+""")
 
     findings = analyze_deployment_events_file(
         path,
@@ -139,8 +133,7 @@ def test_deployment_events_do_not_correlate_unrelated_events_without_window_metr
     tmp_path,
 ):
     path = tmp_path / "deployment-events.yaml"
-    path.write_text(
-        """
+    path.write_text("""
 deployment_events:
   - service: unrelated-worker
     namespace: analytics
@@ -148,8 +141,7 @@ deployment_events:
     deployed_at: "2026-06-03T10:25:00Z"
     changed_components:
       - batch
-"""
-    )
+""")
 
     findings = analyze_deployment_events_file(
         path,

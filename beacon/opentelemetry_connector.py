@@ -4,8 +4,8 @@ import time
 
 import yaml
 
+from beacon.input_validation import missing_path_finding, path_missing
 from beacon.runtime_snapshot import analyze_runtime_snapshot
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,6 +35,10 @@ def analyze_opentelemetry_file(path):
 
 def collect_opentelemetry_snapshot(path):
     LOGGER.info("opentelemetry.load path=%s", path)
+    if path_missing(path):
+        LOGGER.warning("opentelemetry.path_missing path=%s", path)
+        return {}, [missing_path_finding(path)]
+
     with open(path, "r") as f:
         data = load_telemetry(f, path)
 

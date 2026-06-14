@@ -2,7 +2,6 @@ import os
 import yaml
 from typing import Dict, Any, Optional
 
-
 DEFAULT_POLICY_PATH = os.path.expanduser("~/.beacon/policy.yaml")
 
 

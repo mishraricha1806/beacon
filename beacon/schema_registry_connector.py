@@ -9,6 +9,7 @@ import urllib.request
 
 import yaml
 
+from beacon.input_validation import missing_path_finding, path_missing
 
 UNSAFE_COMPATIBILITY = {"NONE", "DISABLED"}
 LOGGER = logging.getLogger(__name__)
@@ -21,6 +22,10 @@ def analyze_schema_registry_config(path, timeout=5):
         path,
         timeout,
     )
+
+    if path_missing(path):
+        LOGGER.warning("schema_registry.path_missing path=%s", path)
+        return [missing_path_finding(path)]
 
     with open(path, "r") as f:
         config = yaml.safe_load(f) or {}

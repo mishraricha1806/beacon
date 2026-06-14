@@ -6,9 +6,9 @@ import urllib.request
 
 import yaml
 
+from beacon.input_validation import missing_path_finding, path_missing
 from beacon.runtime_snapshot import analyze_runtime_snapshot
 from beacon.runtime_advisor import evaluate_kafka_runtime
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -43,6 +43,10 @@ def analyze_prometheus_config(path, timeout=5):
 
 def collect_prometheus_snapshot(path, timeout=5):
     LOGGER.info("prometheus.config_load path=%s", path)
+    if path_missing(path):
+        LOGGER.warning("prometheus.path_missing path=%s", path)
+        return {}, [missing_path_finding(path)]
+
     with open(path, "r") as f:
         config = yaml.safe_load(f) or {}
 
