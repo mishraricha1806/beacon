@@ -119,13 +119,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          sign_args=()
+          package_cmd=(python scripts/build_macos_pkg.py --skip-binary-build)
           if [ -n "${MACOS_INSTALLER_SIGN_IDENTITY}" ]; then
-            sign_args+=(--sign-identity "${MACOS_INSTALLER_SIGN_IDENTITY}")
+            package_cmd+=(--sign-identity "${MACOS_INSTALLER_SIGN_IDENTITY}")
           fi
 
           if [ -n "${APPLE_ID}" ] && [ -n "${APPLE_TEAM_ID}" ] && [ -n "${APPLE_APP_SPECIFIC_PASSWORD}" ]; then
-            sign_args+=(
+            package_cmd+=(
               --notarize
               --apple-id "${APPLE_ID}"
               --apple-team-id "${APPLE_TEAM_ID}"
@@ -135,7 +135,7 @@ jobs:
             echo "Apple notarization credentials are incomplete; macOS pkg will not be notarized."
           fi
 
-          python scripts/build_macos_pkg.py --skip-binary-build "${sign_args[@]}"
+          "${package_cmd[@]}"
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
