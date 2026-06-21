@@ -65,6 +65,21 @@ readiness:
 intelligence:
   context: ./platform-context.yaml
 
+policy:
+  rules:
+    kafka.topic.owner.missing:
+      severity: LOW
+  waivers:
+    - rule_id: kafka.topic.partitions.low
+      resource_pattern: "*.retry"
+      reason: Retry topics intentionally preserve strict ordering.
+      expires: 2026-12-31
+      severity: INFO
+
+ci:
+  enabled: false
+  fail_on: critical
+
 report:
   format:
     - terminal
@@ -112,6 +127,79 @@ Run a named workflow:
 ```bash
 beacon run prod-check
 beacon run kafka-incident-demo
+```
+
+## Policy, Waivers, And CI Gates
+
+Beacon policies let teams adapt the readiness gate to real environment context
+without hiding risk.
+
+Built-in readiness profiles:
+
+```text
+dev              relaxed developer/sandbox profile
+test             shared test profile
+nonprod          generic non-production profile when the exact tier is unknown
+staging          production-like pre-prod profile
+prod             strict production profile
+mission-critical stricter production profile for high-criticality systems
+```
+
+When `environment` has both `name` and `profile`, Beacon uses `profile` for
+policy interpretation and keeps `name` in the environment-readiness model:
+
+```yaml
+environment:
+  name: prod-us-east
+  profile: prod
+  criticality: high
+```
+
+Use `policy.rules` to disable or change severity for a rule:
+
+```yaml
+policy:
+  rules:
+    kafka.topic.owner.missing:
+      severity: LOW
+    kafka.topic.retention_bytes.missing:
+      enabled: false
+```
+
+Use `policy.waivers` for accepted exceptions. Waived findings stay visible in
+the report, keep their reason and expiry date, and default to `INFO` severity:
+
+```yaml
+policy:
+  waivers:
+    - rule_id: kafka.topic.partitions.low
+      resource: orders.retry
+      reason: Ordered retry stream; one partition is intentional.
+      expires: 2026-12-31
+```
+
+Use `ci` to make Beacon behave like a release gate:
+
+```yaml
+ci:
+  enabled: true
+  fail_on: high
+```
+
+Exit codes:
+
+```text
+0 = configured gate passed
+1 = readiness risk crossed the configured severity threshold
+2 = analysis was blocked by collector, parsing, or input errors
+```
+
+You can also enable CI mode without changing `beacon.yaml`:
+
+```bash
+beacon readiness --ci --fail-on high
+beacon readiness static ./infra --ci --fail-on critical
+beacon readiness all --static-path ./infra --ci --fail-on high
 ```
 
 ## Safety

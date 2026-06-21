@@ -30,13 +30,23 @@ from beacon.engine import metadata_registry as rules_registry
 from rich.table import Table
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.intelligence.context import load_intelligence_context
-from beacon.policy import load_policy, apply_policy_to_findings
+from beacon.policy import (
+    apply_policy_bundle_to_findings,
+    apply_policy_to_findings,
+    load_policy,
+    load_policy_bundle,
+    merge_policy_bundles,
+    readiness_exit_code,
+)
 from beacon.project_config import (
     as_list,
+    config_ci_options,
     config_context_path,
     config_environment,
     config_environment_model,
     config_live_inputs,
+    config_policy_bundle,
+    config_policy_path,
     config_readiness_includes,
     config_report_options,
     config_tasks,
@@ -69,9 +79,41 @@ rules_app = typer.Typer(help="Rules metadata and management.")
 app.add_typer(rules_app, name="rules")
 
 
-def apply_runtime_policy(findings):
-    policy = load_policy()
-    return apply_policy_to_findings(findings, policy)
+def effective_policy_bundle(policy_path=None, config=None, config_path=None):
+    policy_path = option_value(policy_path)
+    bundles = [load_policy_bundle(policy_path), {"rules": load_policy()}]
+
+    if config is not None:
+        configured_policy_path = config_policy_path(config, config_path)
+        if configured_policy_path and configured_policy_path != policy_path:
+            bundles.append(load_policy_bundle(configured_policy_path))
+        bundles.append(config_policy_bundle(config))
+
+    return merge_policy_bundles(*bundles)
+
+
+def apply_runtime_policy(findings, policy_path=None, config=None, config_path=None):
+    return apply_policy_bundle_to_findings(
+        findings, effective_policy_bundle(policy_path, config, config_path)
+    )
+
+
+def maybe_exit_for_ci(summary, ci=False, fail_on=None, config=None):
+    ci_options = config_ci_options(config or {}) if config else {}
+    fail_on = option_value(fail_on)
+    effective_fail_on = fail_on or ci_options.get("fail_on")
+    ci_enabled = bool(option_value(ci)) or bool(ci_options.get("enabled")) or bool(fail_on)
+
+    if not ci_enabled:
+        return
+
+    raise typer.Exit(code=readiness_exit_code(summary, effective_fail_on or "critical"))
+
+
+def option_value(value):
+    if isinstance(value, typer.models.OptionInfo):
+        return None
+    return value
 
 
 def emit_readiness(
@@ -82,8 +124,16 @@ def emit_readiness(
     environment=None,
     context_path=None,
     environment_model=None,
+    policy_path=None,
+    config=None,
+    config_path=None,
 ):
-    findings = apply_runtime_policy(findings)
+    findings = apply_runtime_policy(
+        findings,
+        policy_path=policy_path,
+        config=config,
+        config_path=config_path,
+    )
     intelligence_context = load_intelligence_context(context_path)
     readiness_summary = calculate_readiness(
         findings,
@@ -99,6 +149,7 @@ def emit_readiness(
         output=output,
         readiness_summary=readiness_summary,
     )
+    return readiness_summary
 
 
 def emit_readiness_report(findings, html, open_report, output, readiness_summary):
@@ -112,10 +163,11 @@ def emit_readiness_report(findings, html, open_report, output, readiness_summary
         output=output,
         readiness_summary=readiness_summary,
     )
+    return readiness_summary
 
 
-def emit_diagnostics(findings, html=True, open_report=True, output="terminal"):
-    findings = apply_runtime_policy(findings)
+def emit_diagnostics(findings, html=True, open_report=True, output="terminal", policy_path=None):
+    findings = apply_runtime_policy(findings, policy_path=policy_path)
     diagnostic_summary = build_diagnostic_summary(findings)
     print_report(
         findings,
@@ -281,7 +333,14 @@ def configure_logging():
     )
 
 
-def run_configured_readiness(config, config_path, environment=None, output=None):
+def run_configured_readiness(
+    config,
+    config_path,
+    environment=None,
+    output=None,
+    ci=False,
+    fail_on=None,
+):
     report_options = config_report_options(config)
     if output:
         report_options["output"] = output
@@ -304,7 +363,7 @@ def run_configured_readiness(config, config_path, environment=None, output=None)
         typer.echo(f"Found {config_path}")
         typer.echo(f"Scanning {len(includes)} configured path(s)...")
 
-    emit_readiness(
+    summary = emit_readiness(
         findings,
         html=report_options["html"],
         open_report=report_options["open_report"],
@@ -312,7 +371,11 @@ def run_configured_readiness(config, config_path, environment=None, output=None)
         environment=effective_environment,
         context_path=context_path,
         environment_model=config_environment_model(config),
+        config=config,
+        config_path=config_path,
     )
+    maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on, config=config)
+    return summary
 
 
 def run_configured_task(config, config_path, task_name, output=None):
@@ -331,6 +394,8 @@ def run_configured_task(config, config_path, task_name, output=None):
             config_path,
             environment=task.get("environment"),
             output=output,
+            ci=bool(task.get("ci", False)),
+            fail_on=task.get("fail_on"),
         )
         return
 
@@ -505,9 +570,7 @@ def scan(
 ):
     """Scan infrastructure configuration for production risks."""
     findings = scan_path(path)
-    # apply runtime policy overrides (if present)
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
+    findings = apply_runtime_policy(findings)
 
     print_report(findings, html=html, open_report=open_report, output=output)
 
@@ -521,8 +584,7 @@ def runtime(
 ):
     """Analyze Kafka runtime snapshot YAML."""
     findings = analyze_runtime_file(path)
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
+    findings = apply_runtime_policy(findings)
 
     print_report(findings, html=html, open_report=open_report, output=output)
 
@@ -841,6 +903,14 @@ def readiness_default(
     ctx: typer.Context,
     config: str = typer.Option(None, "--config", help="Path to beacon.yaml."),
     output: str = typer.Option(None, help="Override output format."),
+    ci: bool = typer.Option(
+        False, "--ci", help="Exit non-zero when readiness crosses the configured threshold."
+    ),
+    fail_on: str = typer.Option(
+        None,
+        "--fail-on",
+        help="CI threshold: none, critical, high, medium, or low.",
+    ),
 ):
     """Run project-local readiness when no subcommand is provided."""
     if ctx.invoked_subcommand is not None:
@@ -851,7 +921,7 @@ def readiness_default(
         typer.echo("No beacon.yaml found. Run `beacon init` or use a subcommand.")
         raise typer.Exit(code=1)
 
-    run_configured_readiness(data, config_path, output=output)
+    run_configured_readiness(data, config_path, output=output, ci=ci, fail_on=fail_on)
 
 
 @readiness_app.command("kafka")
@@ -884,6 +954,15 @@ def readiness_kafka(
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
+    policy_path: str = typer.Option(None, "--policy", help="Policy and waiver YAML."),
+    ci: bool = typer.Option(
+        False, "--ci", help="Exit non-zero when readiness crosses the configured threshold."
+    ),
+    fail_on: str = typer.Option(
+        None,
+        "--fail-on",
+        help="CI threshold: none, critical, high, medium, or low.",
+    ),
 ):
     findings = analyze_kafka_cluster(
         bootstrap_server=bootstrap_server,
@@ -901,21 +980,21 @@ def readiness_kafka(
         request_timeout_ms=request_timeout_ms,
     )
 
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
+    findings = apply_runtime_policy(findings, policy_path=policy_path)
 
     intelligence_context = load_intelligence_context(context_path)
     readiness_summary = calculate_readiness(
         findings, environment=environment, intelligence_context=intelligence_context
     )
 
-    emit_readiness_report(
+    summary = emit_readiness_report(
         findings,
         html=html,
         open_report=open_report,
         output=output,
         readiness_summary=readiness_summary,
     )
+    maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
 
 @readiness_app.command("kafka-acls")
@@ -1039,6 +1118,15 @@ def readiness_all(
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
+    policy_path: str = typer.Option(None, "--policy", help="Policy and waiver YAML."),
+    ci: bool = typer.Option(
+        False, "--ci", help="Exit non-zero when readiness crosses the configured threshold."
+    ),
+    fail_on: str = typer.Option(
+        None,
+        "--fail-on",
+        help="CI threshold: none, critical, high, medium, or low.",
+    ),
 ):
     """Analyze production readiness across all provided Beacon domains."""
 
@@ -1071,14 +1159,16 @@ def readiness_all(
         kubernetes_kubeconfig=kubernetes_kubeconfig,
     )
 
-    emit_readiness(
+    summary = emit_readiness(
         findings,
         html=html,
         open_report=open_report,
         output=output,
         environment=environment,
         context_path=context_path,
+        policy_path=policy_path,
     )
+    maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
 
 @readiness_app.command("static")
@@ -1095,25 +1185,29 @@ def readiness_static(
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
+    policy_path: str = typer.Option(None, "--policy", help="Policy and waiver YAML."),
+    ci: bool = typer.Option(
+        False, "--ci", help="Exit non-zero when readiness crosses the configured threshold."
+    ),
+    fail_on: str = typer.Option(
+        None,
+        "--fail-on",
+        help="CI threshold: none, critical, high, medium, or low.",
+    ),
 ):
     """Analyze infrastructure production readiness."""
 
     findings = scan_path(path)
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    intelligence_context = load_intelligence_context(context_path)
-    readiness_summary = calculate_readiness(
-        findings, environment=environment, intelligence_context=intelligence_context
-    )
-
-    emit_readiness_report(
+    summary = emit_readiness(
         findings,
         html=html,
         open_report=open_report,
         output=output,
-        readiness_summary=readiness_summary,
+        environment=environment,
+        context_path=context_path,
+        policy_path=policy_path,
     )
+    maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
 
 @readiness_app.command("kubernetes")
@@ -1141,20 +1235,13 @@ def readiness_kubernetes(
         kubeconfig=kubeconfig,
     )
 
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    intelligence_context = load_intelligence_context(context_path)
-    readiness_summary = calculate_readiness(
-        findings, environment=environment, intelligence_context=intelligence_context
-    )
-
-    emit_readiness_report(
+    emit_readiness(
         findings,
         html=html,
         open_report=open_report,
         output=output,
-        readiness_summary=readiness_summary,
+        environment=environment,
+        context_path=context_path,
     )
 
 
@@ -1177,20 +1264,13 @@ def readiness_flow(
 
     findings = analyze_flow_file(path)
 
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    intelligence_context = load_intelligence_context(context_path)
-    readiness_summary = calculate_readiness(
-        findings, environment=environment, intelligence_context=intelligence_context
-    )
-
-    emit_readiness_report(
+    emit_readiness(
         findings,
         html=html,
         open_report=open_report,
         output=output,
-        readiness_summary=readiness_summary,
+        environment=environment,
+        context_path=context_path,
     )
 
 
@@ -1213,20 +1293,13 @@ def readiness_snapshot(
 
     findings = analyze_runtime_snapshot_file(path)
 
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    intelligence_context = load_intelligence_context(context_path)
-    readiness_summary = calculate_readiness(
-        findings, environment=environment, intelligence_context=intelligence_context
-    )
-
-    emit_readiness_report(
+    emit_readiness(
         findings,
         html=html,
         open_report=open_report,
         output=output,
-        readiness_summary=readiness_summary,
+        environment=environment,
+        context_path=context_path,
     )
 
 
@@ -1250,20 +1323,13 @@ def readiness_prometheus(
 
     findings = analyze_prometheus_config(path, timeout=timeout)
 
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    intelligence_context = load_intelligence_context(context_path)
-    readiness_summary = calculate_readiness(
-        findings, environment=environment, intelligence_context=intelligence_context
-    )
-
-    emit_readiness_report(
+    emit_readiness(
         findings,
         html=html,
         open_report=open_report,
         output=output,
-        readiness_summary=readiness_summary,
+        environment=environment,
+        context_path=context_path,
     )
 
 
@@ -1286,20 +1352,13 @@ def readiness_opentelemetry(
 
     findings = analyze_opentelemetry_file(path)
 
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    intelligence_context = load_intelligence_context(context_path)
-    readiness_summary = calculate_readiness(
-        findings, environment=environment, intelligence_context=intelligence_context
-    )
-
-    emit_readiness_report(
+    emit_readiness(
         findings,
         html=html,
         open_report=open_report,
         output=output,
-        readiness_summary=readiness_summary,
+        environment=environment,
+        context_path=context_path,
     )
 
 
@@ -1323,20 +1382,13 @@ def readiness_schema_registry(
 
     findings = analyze_schema_registry_config(path, timeout=timeout)
 
-    policy = load_policy()
-    findings = apply_policy_to_findings(findings, policy)
-
-    intelligence_context = load_intelligence_context(context_path)
-    readiness_summary = calculate_readiness(
-        findings, environment=environment, intelligence_context=intelligence_context
-    )
-
-    emit_readiness_report(
+    emit_readiness(
         findings,
         html=html,
         open_report=open_report,
         output=output,
-        readiness_summary=readiness_summary,
+        environment=environment,
+        context_path=context_path,
     )
 
 

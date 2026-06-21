@@ -1,8 +1,15 @@
 import os
 import tempfile
+from datetime import date
+
 import yaml
 
-from beacon.policy import load_policy, apply_policy_to_findings
+from beacon.policy import (
+    apply_policy_bundle_to_findings,
+    apply_policy_to_findings,
+    load_policy,
+    readiness_exit_code,
+)
 
 
 def test_load_policy_nonexistent():
@@ -51,3 +58,69 @@ def test_apply_policy_disables_and_overrides():
 
     finally:
         td.cleanup()
+
+
+def test_policy_waiver_marks_finding_visible_and_downgrades():
+    findings = [
+        {
+            "rule_id": "kafka.topic.partitions.low",
+            "severity": "HIGH",
+            "title": "Kafka topic 'orders.retry' has low partition count",
+            "evidence": {"topic": "orders.retry"},
+        }
+    ]
+
+    out = apply_policy_bundle_to_findings(
+        findings,
+        {
+            "waivers": [
+                {
+                    "rule_id": "kafka.topic.partitions.low",
+                    "resource_pattern": "*.retry",
+                    "reason": "Retry topics preserve ordering.",
+                    "expires": "2026-12-31",
+                }
+            ]
+        },
+        today=date(2026, 6, 20),
+    )
+
+    assert out[0]["waived"] is True
+    assert out[0]["severity"] == "INFO"
+    assert out[0]["policy_original_severity"] == "HIGH"
+    assert out[0]["waiver_reason"] == "Retry topics preserve ordering."
+
+
+def test_expired_policy_waiver_does_not_apply():
+    findings = [
+        {
+            "rule_id": "kafka.topic.partitions.low",
+            "severity": "HIGH",
+            "title": "Kafka topic 'orders.retry' has low partition count",
+            "evidence": {"topic": "orders.retry"},
+        }
+    ]
+
+    out = apply_policy_bundle_to_findings(
+        findings,
+        {
+            "waivers": [
+                {
+                    "rule_id": "kafka.topic.partitions.low",
+                    "resource": "orders.retry",
+                    "expires": "2026-01-01",
+                }
+            ]
+        },
+        today=date(2026, 6, 20),
+    )
+
+    assert out[0]["severity"] == "HIGH"
+    assert "waived" not in out[0]
+
+
+def test_readiness_exit_code_respects_thresholds_and_blocked_state():
+    assert readiness_exit_code({"critical": 0, "high": 1, "error": 0}, "critical") == 0
+    assert readiness_exit_code({"critical": 0, "high": 1, "error": 0}, "high") == 1
+    assert readiness_exit_code({"critical": 0, "high": 1, "error": 0}, "none") == 0
+    assert readiness_exit_code({"critical": 0, "high": 0, "error": 1}, "none") == 2

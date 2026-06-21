@@ -7,6 +7,11 @@ from beacon.intelligence.context import (
     rule_context_override,
     topic_context,
 )
+from beacon.readiness.profiles import (
+    normalize_environment_profile,
+    profile_adjustment_reason,
+    profile_rule_severity,
+)
 
 SEVERITY_ORDER = {
     "ERROR": 0,
@@ -132,11 +137,11 @@ ROLLUP_RULES = {
 
 def infer_environment(findings, explicit=None, intelligence_context=None):
     if isinstance(explicit, str) and explicit:
-        return explicit
+        return normalize_environment_profile(explicit)
 
     contextual_environment = context_environment(intelligence_context)
     if contextual_environment:
-        return contextual_environment
+        return normalize_environment_profile(contextual_environment)
 
     haystack = " ".join(
         str(value)
@@ -224,10 +229,18 @@ def adjusted_severity(finding, environment, single_broker, intelligence_context=
     ):
         return "INFO"
 
-    if environment != "prod" and rule_id in ENV_DOWNGRADES:
+    profile_severity = profile_rule_severity(environment, rule_id)
+    if profile_severity:
+        return profile_severity
+
+    if environment in {"dev", "test", "nonprod"} and rule_id in ENV_DOWNGRADES:
         return ENV_DOWNGRADES[rule_id]
 
-    if single_broker and environment != "prod" and rule_id == "kafka.topic.replication_factor.low":
+    if (
+        single_broker
+        and environment in {"dev", "test", "nonprod"}
+        and rule_id == "kafka.topic.replication_factor.low"
+    ):
         return "INFO"
 
     return CONTEXTUAL_SEVERITIES.get(rule_id, severity)
@@ -268,9 +281,15 @@ def adjustment_reason(finding, environment, single_broker, intelligence_context=
     ):
         return f"Downgraded because the {environment} intelligence context does not require owner metadata."
 
-    if environment != "prod" and rule_id in ENV_DOWNGRADES:
+    if profile_rule_severity(environment, rule_id):
+        return profile_adjustment_reason(environment)
+    if environment in {"dev", "test", "nonprod"} and rule_id in ENV_DOWNGRADES:
         return f"Downgraded because environment is {environment}."
-    if single_broker and rule_id == "kafka.topic.replication_factor.low":
+    if (
+        single_broker
+        and environment in {"dev", "test", "nonprod"}
+        and rule_id == "kafka.topic.replication_factor.low"
+    ):
         return "Downgraded as derivative of single-broker cluster topology."
     if rule_id == "kafka.topic.partitions.low":
         return "Partition count needs throughput, ordering, and lag context before being treated as high risk."

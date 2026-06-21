@@ -271,6 +271,64 @@ def test_readiness_environment_profile_controls_kafka_ha_severity():
     assert prod_summary["production_decision"] == "NOT READY"
 
 
+def test_staging_profile_keeps_kafka_ha_release_significant():
+    finding = {
+        "rule_id": "kafka.topic.replication_factor.low",
+        "domain": "kafka",
+        "category": "resiliency",
+        "severity": "CRITICAL",
+        "title": "Kafka topic 'claims.response' has replication factor 1",
+        "impact": "Broker failure can interrupt workflows.",
+        "recommendation": "Use replication_factor=3.",
+        "file": "runtime-kafka",
+        "evidence": {"topic": "claims.response"},
+        "tags": [],
+    }
+
+    summary = calculate_readiness([finding], environment="staging")
+
+    assert summary["environment"] == "staging"
+    assert summary["high"] == 1
+    assert summary["info"] == 0
+    assert summary["production_decision"] == "READY WITH MAJOR RISKS"
+
+
+def test_mission_critical_profile_tightens_governance_and_schema_risk():
+    findings = [
+        {
+            "rule_id": "kafka.topic.owner.missing",
+            "domain": "kafka",
+            "category": "operational_safety",
+            "severity": "LOW",
+            "title": "Kafka topic 'claims.response' has no owner metadata",
+            "impact": "Missing owner slows incident routing.",
+            "recommendation": "Add owner metadata.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "claims.response"},
+            "tags": [],
+        },
+        {
+            "rule_id": "schema_registry.compatibility.global_unsafe",
+            "domain": "schema_registry",
+            "category": "operational_safety",
+            "severity": "HIGH",
+            "title": "Schema Registry global compatibility is unsafe",
+            "impact": "Unsafe compatibility can break consumers.",
+            "recommendation": "Use BACKWARD or FULL.",
+            "file": "schema-registry",
+            "evidence": {},
+            "tags": [],
+        },
+    ]
+
+    summary = calculate_readiness(findings, environment="mission-critical")
+
+    assert summary["environment"] == "mission-critical"
+    assert summary["critical"] == 1
+    assert summary["medium"] == 1
+    assert summary["production_decision"] == "NOT READY"
+
+
 def test_architect_assessment_separates_material_and_deemphasized_risks():
     findings = [
         {

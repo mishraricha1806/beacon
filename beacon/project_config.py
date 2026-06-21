@@ -54,7 +54,7 @@ def as_list(value):
 def config_environment(config):
     environment = config.get("environment")
     if isinstance(environment, dict):
-        return environment.get("name") or environment.get("profile")
+        return environment.get("profile") or environment.get("name")
     return environment
 
 
@@ -87,6 +87,48 @@ def config_context_path(config, config_path):
     intelligence = config.get("intelligence") or {}
     context = intelligence.get("context") or config.get("context")
     return resolve_config_path(config_path, context)
+
+
+def config_policy_path(config, config_path):
+    policy = config.get("policy") or {}
+    policies = config.get("policies") or {}
+
+    policy_file = None
+    if isinstance(policy, dict):
+        policy_file = policy.get("file")
+    if not policy_file and isinstance(policies, dict):
+        policy_file = policies.get("file")
+    if not policy_file:
+        policy_file = config.get("policy_path")
+    if not policy_file and isinstance(config.get("policy"), str):
+        policy_file = config.get("policy")
+    return resolve_config_path(config_path, policy_file)
+
+
+def config_policy_bundle(config):
+    policy = config.get("policy") or {}
+    policies = config.get("policies") or {}
+    ci = config.get("ci") or {}
+
+    if isinstance(policy, str):
+        policy = {}
+    if not isinstance(policy, dict):
+        policy = {}
+    if not isinstance(policies, dict):
+        policies = {}
+    if not isinstance(ci, dict):
+        ci = {}
+
+    return {
+        "rules": policy.get("rules") or policies.get("rules") or {},
+        "waivers": policy.get("waivers") or policies.get("waivers") or [],
+        "ci": policy.get("ci") or ci,
+    }
+
+
+def config_ci_options(config):
+    bundle = config_policy_bundle(config)
+    return bundle.get("ci") or {}
 
 
 def config_report_options(config):
@@ -183,6 +225,21 @@ readiness:
 
 intelligence:
   context: ./examples/supported/intelligence/context.yaml
+
+policy:
+  rules:
+    kafka.topic.owner.missing:
+      severity: LOW
+  waivers:
+    - rule_id: kafka.topic.partitions.low
+      resource_pattern: "*.retry"
+      reason: Retry topics preserve ordering and intentionally use one partition.
+      expires: 2026-12-31
+      severity: INFO
+
+ci:
+  enabled: false
+  fail_on: critical
 
 report:
   format:

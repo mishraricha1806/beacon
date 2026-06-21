@@ -1,9 +1,12 @@
 from pathlib import Path
 
 from beacon.project_config import (
+    config_ci_options,
     config_environment,
     config_environment_model,
     config_live_inputs,
+    config_policy_bundle,
+    config_policy_path,
     config_readiness_includes,
     config_report_options,
     config_tasks,
@@ -54,6 +57,15 @@ report:
 tasks:
   prod-check:
     command: readiness
+policy:
+  file: ./policy.yaml
+  waivers:
+    - rule_id: kafka.topic.partitions.low
+      resource_pattern: "*.retry"
+      reason: Ordered retry topics.
+ci:
+  enabled: true
+  fail_on: high
 """,
         encoding="utf-8",
     )
@@ -61,7 +73,7 @@ tasks:
     data, config_path = load_project_config(config)
 
     assert config_path == config.resolve()
-    assert config_environment(data) == "prod-us-east"
+    assert config_environment(data) == "prod"
     environment_model = config_environment_model(data)
     assert environment_model["criticality"] == "high"
     assert environment_model["service_count"] == 1
@@ -72,6 +84,10 @@ tasks:
     assert live_inputs["kafka_history_path"] == str(tmp_path / "kafka" / "history.yaml")
     assert config_report_options(data)["output"] == "json"
     assert sorted(config_tasks(data)) == ["prod-check"]
+    assert config_policy_path(data, config_path) == str(tmp_path / "policy.yaml")
+    policy_bundle = config_policy_bundle(data)
+    assert policy_bundle["waivers"][0]["rule_id"] == "kafka.topic.partitions.low"
+    assert config_ci_options(data)["fail_on"] == "high"
 
 
 def test_resolve_config_path_preserves_absolute_paths(tmp_path):
@@ -89,6 +105,8 @@ def test_starter_config_contains_safe_beacon_tasks():
     assert "command: diagnose kafka-runtime" in config
     assert "beacon-demo" in config
     assert "business_flows" in config
+    assert "waivers:" in config
+    assert "fail_on: critical" in config
 
 
 def test_readiness_summary_includes_environment_model():
