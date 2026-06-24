@@ -138,6 +138,7 @@ def config_report_options(config):
         "html": "html" in formats,
         "open_report": bool(report.get("open", False)),
         "output": "json" if formats == {"json"} else "terminal",
+        "evidence_output": report.get("evidence_output"),
     }
 
 

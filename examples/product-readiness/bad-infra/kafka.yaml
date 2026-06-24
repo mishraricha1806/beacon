@@ -1,0 +1,49 @@
+kafka:
+  topics:
+    - name: checkout.events
+      replication_factor: 1
+      partitions: 1
+      retention_ms: -1
+      retention_bytes:
+      cleanup_policy:
+      min_insync_replicas:
+      max_message_bytes: 20971520
+      schema_compatibility: NONE
+      owner:
+
+  brokers:
+    - id: 1
+      default_replication_factor: 1
+      offsets_topic_replication_factor: 1
+      transaction_state_log_replication_factor: 1
+      auto_create_topics_enable: true
+      broker_rack:
+      security_protocol: PLAINTEXT
+      listener_security_protocol_map: CLIENT:PLAINTEXT
+      authorizer_class_name:
+      allow_everyone_if_no_acl_found: true
+      unclean_leader_election_enable: true
+      controlled_shutdown_enable: false
+
+  producers:
+    - name: checkout-api
+      topic: checkout.events
+      acks: 1
+      enable_idempotence: false
+      retries: 3
+      max_in_flight_requests_per_connection: 10
+      compression_type: none
+
+  consumers:
+    - name: checkout-worker
+      topic: checkout.events
+      group_id: checkout-worker
+      partitions: 1
+      consumer_concurrency: 4
+      enable_auto_commit: true
+      auto_offset_reset: latest
+      max_poll_interval_ms: 30000
+      session_timeout_ms: 10000
+      heartbeat_interval_ms: 5000
+      retry_max_attempts: 5
+      dlq_topic:

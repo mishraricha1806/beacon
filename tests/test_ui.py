@@ -61,6 +61,9 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert 'value="runtime"' in ui.HTML
     assert 'value="flow"' in ui.HTML
     assert "Download JSON" in ui.HTML
+    assert "Download Evidence JSON" in ui.HTML
+    assert "downloadReleaseEvidence" in ui.HTML
+    assert "beacon-release-evidence.json" in ui.HTML
     assert "Top Reasons" in ui.HTML
     assert "Root Cause Hypotheses" in ui.HTML
     assert 'id="environment"' in ui.HTML

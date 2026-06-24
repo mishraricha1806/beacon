@@ -54,6 +54,7 @@ live:
 report:
   format:
     - json
+  evidence_output: ./reports/evidence.json
 tasks:
   prod-check:
     command: readiness
@@ -83,6 +84,7 @@ ci:
     assert live_inputs["snapshot_path"] == str(tmp_path / "runtime" / "all.yaml")
     assert live_inputs["kafka_history_path"] == str(tmp_path / "kafka" / "history.yaml")
     assert config_report_options(data)["output"] == "json"
+    assert config_report_options(data)["evidence_output"] == "./reports/evidence.json"
     assert sorted(config_tasks(data)) == ["prod-check"]
     assert config_policy_path(data, config_path) == str(tmp_path / "policy.yaml")
     policy_bundle = config_policy_bundle(data)

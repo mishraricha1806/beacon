@@ -84,6 +84,7 @@ report:
   format:
     - terminal
     - html
+  evidence_output: ./reports/beacon-evidence.json
   open: false
 
 live:
@@ -200,6 +201,61 @@ You can also enable CI mode without changing `beacon.yaml`:
 beacon readiness --ci --fail-on high
 beacon readiness static ./infra --ci --fail-on critical
 beacon readiness all --static-path ./infra --ci --fail-on high
+```
+
+Copy-paste examples for GitHub Actions, GitLab CI, Jenkins, and Docker are in
+[CICD_INTEGRATION.md](CICD_INTEGRATION.md).
+
+## Release Evidence Pack
+
+Every readiness summary includes a release evidence pack. It is designed for PRs,
+change tickets, release approvals, and CI logs.
+
+Get it from JSON output:
+
+```bash
+beacon readiness --output json
+beacon readiness static ./infra --output json
+beacon readiness all --static-path ./infra --output json
+```
+
+Or write the evidence pack directly to a separate file:
+
+```bash
+beacon readiness --evidence-output ./reports/beacon-evidence.json
+beacon readiness static ./infra --evidence-output ./reports/beacon-evidence.json
+```
+
+Compare two evidence packs to see whether a release improved or regressed:
+
+```bash
+beacon compare ./reports/beacon-evidence-before.json ./reports/beacon-evidence-after.json
+beacon compare ./reports/beacon-evidence-before.json ./reports/beacon-evidence-after.json --output json
+```
+
+Beacon reports score delta, decision changes, new production blockers, and
+resolved production blockers.
+
+The evidence pack contains:
+
+```text
+decision
+score
+environment
+domains covered
+evidence files scanned
+blocking risks
+major risks
+waived risks
+suppressed duplicate findings
+next best actions
+coverage gaps
+```
+
+In JSON, read:
+
+```text
+readiness_summary.release_evidence
 ```
 
 ## Safety

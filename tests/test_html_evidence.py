@@ -56,6 +56,23 @@ def test_generate_html_includes_release_gate_card():
             "fix_first": ["Fix critical resiliency risks before rollout."],
             "business_risk": "The release can fail during broker loss.",
         },
+        "release_evidence": {
+            "production_blockers": {
+                "question": "What blocks production?",
+                "status": "Production is blocked",
+                "decision": "NOT READY",
+                "score": 52,
+                "blockers": [
+                    {
+                        "severity": "CRITICAL",
+                        "title": "Kafka topics have replication factor 1",
+                        "affected_count": 1,
+                    }
+                ],
+                "fix_first": ["Fix Kafka replication before rollout."],
+                "business_impact": "The release can fail during broker loss.",
+            }
+        },
         "business_categories": {},
         "architect_assessment": None,
         "distributed_system_readiness": None,
@@ -76,6 +93,9 @@ def test_generate_html_includes_release_gate_card():
     assert "Why Not?" in html
     assert "Fix First" in html
     assert "Business Risk" in html
+    assert "What blocks production?" in html
+    assert "Kafka topics have replication factor 1" in html
+    assert "Fix Kafka replication before rollout." in html
 
 
 def test_generate_html_includes_flow_bottleneck_ranking():

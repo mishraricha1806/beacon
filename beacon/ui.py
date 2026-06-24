@@ -665,6 +665,7 @@ HTML = """<!doctype html>
       const nextActions = summary.next_best_actions || [];
       const rootCauses = summary.root_cause_hypotheses || [];
       const groupedRisks = summary.grouped_risks || [];
+      const productionBlockers = summary.release_evidence && summary.release_evidence.production_blockers;
       const intelligenceContext = summary.intelligence_context || {};
       const architectAssessment = summary.architect_assessment || null;
       const distributedReadiness = summary.distributed_system_readiness || null;
@@ -674,6 +675,7 @@ HTML = """<!doctype html>
       const summaryHtml = `
         <div class="result-actions">
           <button type="button" onclick="downloadReport()">Download JSON</button>
+          <button type="button" onclick="downloadReleaseEvidence()">Download Evidence JSON</button>
         </div>
         ${renderReleaseGate(summary.release_gate || null)}
         <div class="summary">
@@ -683,6 +685,7 @@ HTML = """<!doctype html>
           <div class="metric"><span>Environment</span><strong>${summary.environment || '-'}</strong></div>
         </div>
         ${renderRequestScope(requestScope)}
+        ${renderProductionBlockers(productionBlockers)}
         ${renderDiagnosticTimeline(diagnosticTimeline)}
         ${renderKafkaConsumerGroupScope(diagnosticSummary && diagnosticSummary.scope && diagnosticSummary.scope.kafka_consumer_group_scope)}
         ${renderIncidentDiagnosis(diagnosticSummary && diagnosticSummary.incident_diagnosis)}
@@ -767,6 +770,28 @@ HTML = """<!doctype html>
         ' · <strong>Score:</strong> ' + escapeHtml(gate.score ?? '-') + '/100</div>' +
         '<div class="hint"><strong>Business risk:</strong> ' + escapeHtml(gate.business_risk || '') + '</div>' +
         '<ul>' + why + fixes + '</ul></div>';
+    }
+
+    function renderProductionBlockers(blockers) {
+      if (!blockers) {
+        return '';
+      }
+      const blockerItems = (blockers.blockers || []).slice(0, 5).map((item) => {
+        const affected = item.affected_count ? ' (' + item.affected_count + ' affected)' : '';
+        return '<li><strong>' + escapeHtml(item.severity || '') + ':</strong> ' +
+          escapeHtml(item.title || '') + escapeHtml(affected) + '</li>';
+      }).join('');
+      const blockerList = blockerItems || '<li>none</li>';
+      const fixItems = renderPlainNestedList('Fix first', blockers.fix_first || []);
+      const impact = blockers.business_impact ?
+        '<div class="hint"><strong>Business impact:</strong> ' + escapeHtml(blockers.business_impact) + '</div>' :
+        '';
+      return '<div class="release-gate-card"><h3>' + escapeHtml(blockers.question || 'What blocks production?') + '</h3>' +
+        '<div class="hint"><strong>Status:</strong> ' + escapeHtml(blockers.status || '') +
+        ' · <strong>Decision:</strong> ' + escapeHtml(blockers.decision || '') +
+        ' · <strong>Score:</strong> ' + escapeHtml(blockers.score ?? '-') + '/100</div>' +
+        '<ul><li><strong>Blockers</strong><ul>' + blockerList + '</ul></li>' + fixItems + '</ul>' +
+        impact + '</div>';
     }
 
     function renderDiagnosticTimeline(items) {
@@ -1042,6 +1067,21 @@ HTML = """<!doctype html>
       const link = document.createElement('a');
       link.href = url;
       link.download = 'beacon-readiness-report.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function downloadReleaseEvidence() {
+      if (!latestReport || !latestReport.readiness_summary || !latestReport.readiness_summary.release_evidence) {
+        return;
+      }
+      const blob = new Blob([JSON.stringify(latestReport.readiness_summary.release_evidence, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'beacon-release-evidence.json';
       document.body.appendChild(link);
       link.click();
       link.remove();

@@ -1,0 +1,7 @@
+policy:
+  waivers:
+    - rule_id: kafka.topic.partitions.low
+      resource: checkout.retry
+      reason: Dev retry topic preserves ordering and is intentionally single-partitioned.
+      expires: 2026-12-31
+      severity: INFO

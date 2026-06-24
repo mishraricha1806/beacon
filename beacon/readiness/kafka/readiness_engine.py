@@ -9,6 +9,7 @@ from beacon.readiness.distributed import (
     build_distributed_system_readiness,
     build_environment_readiness_model,
 )
+from beacon.readiness.evidence import build_release_evidence_pack
 from beacon.readiness.interpretation import (
     build_business_categories,
     interpret_findings,
@@ -85,6 +86,7 @@ def calculate_readiness(
         "architect_assessment": None,
         "distributed_system_readiness": None,
         "environment_readiness": None,
+        "release_evidence": None,
         "root_cause_hypotheses": [],
         "kafka_report": None,
     }
@@ -127,6 +129,7 @@ def calculate_readiness(
         environment_model, summary["distributed_system_readiness"]
     )
     summary["kafka_report"] = build_kafka_report(sort_findings(interpreted_findings))
+    summary["release_evidence"] = build_release_evidence_pack(summary, interpreted_findings)
     return summary
 
 

@@ -1,0 +1,12 @@
+kafka:
+  topics:
+    - name: checkout.retry
+      owner: checkout-platform
+      replication_factor: 1
+      min_insync_replicas: 1
+      partitions: 1
+      retention_ms: 86400000
+      retention_bytes: 1073741824
+      cleanup_policy: delete
+      max_message_bytes: 1048576
+      schema_compatibility: BACKWARD

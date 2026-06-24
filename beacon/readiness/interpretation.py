@@ -177,7 +177,11 @@ def interpret_findings(findings, environment=None, intelligence_context=None):
         adjusted["severity"] = adjusted_severity(
             finding, environment, single_broker, intelligence_context
         )
-        if adjusted["severity"] != finding.get("severity"):
+        if adjusted.get("waived") is True:
+            adjusted["severity_adjustment_reason"] = adjustment_reason(
+                finding, environment, single_broker, intelligence_context
+            )
+        elif adjusted["severity"] != finding.get("severity"):
             adjusted["severity_adjustment_reason"] = adjustment_reason(
                 finding, environment, single_broker, intelligence_context
             )
@@ -198,6 +202,9 @@ def interpret_findings(findings, environment=None, intelligence_context=None):
 def adjusted_severity(finding, environment, single_broker, intelligence_context=None):
     rule_id = finding.get("rule_id")
     severity = finding.get("severity")
+
+    if finding.get("waived") is True:
+        return severity
 
     context_override = rule_context_override(intelligence_context, rule_id, environment)
     if context_override.get("severity"):
@@ -248,6 +255,9 @@ def adjusted_severity(finding, environment, single_broker, intelligence_context=
 
 def adjustment_reason(finding, environment, single_broker, intelligence_context=None):
     rule_id = finding.get("rule_id")
+    if finding.get("waived") is True:
+        return finding.get("waiver_reason") or "Adjusted by accepted policy waiver."
+
     context_override = rule_context_override(intelligence_context, rule_id, environment)
     if context_override.get("reason"):
         return context_override["reason"]

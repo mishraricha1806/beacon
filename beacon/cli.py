@@ -5,6 +5,7 @@
 # - describe topic configs
 # - describe cluster metadata
 import logging
+import json
 import os
 import time
 from pathlib import Path
@@ -26,6 +27,7 @@ from beacon.schema_registry_connector import analyze_schema_registry_config
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.deployment_events import analyze_deployment_events_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
+from beacon.readiness.comparison import compare_release_evidence
 from beacon.engine import metadata_registry as rules_registry
 from rich.table import Table
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
@@ -110,6 +112,27 @@ def maybe_exit_for_ci(summary, ci=False, fail_on=None, config=None):
     raise typer.Exit(code=readiness_exit_code(summary, effective_fail_on or "critical"))
 
 
+def write_release_evidence(summary, evidence_output=None, config_path=None):
+    evidence_output = option_value(evidence_output)
+    if not evidence_output:
+        return
+
+    path = Path(evidence_output).expanduser()
+    if not path.is_absolute() and config_path is not None:
+        path = Path(config_path).parent / path
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(summary.get("release_evidence") or {}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def load_release_evidence(path):
+    evidence_path = Path(path).expanduser()
+    return json.loads(evidence_path.read_text(encoding="utf-8"))
+
+
 def option_value(value):
     if isinstance(value, typer.models.OptionInfo):
         return None
@@ -127,6 +150,7 @@ def emit_readiness(
     policy_path=None,
     config=None,
     config_path=None,
+    evidence_output=None,
 ):
     findings = apply_runtime_policy(
         findings,
@@ -148,6 +172,11 @@ def emit_readiness(
         open_report=open_report,
         output=output,
         readiness_summary=readiness_summary,
+    )
+    write_release_evidence(
+        readiness_summary,
+        evidence_output=evidence_output,
+        config_path=config_path,
     )
     return readiness_summary
 
@@ -340,6 +369,7 @@ def run_configured_readiness(
     output=None,
     ci=False,
     fail_on=None,
+    evidence_output=None,
 ):
     report_options = config_report_options(config)
     if output:
@@ -373,6 +403,7 @@ def run_configured_readiness(
         environment_model=config_environment_model(config),
         config=config,
         config_path=config_path,
+        evidence_output=evidence_output or report_options.get("evidence_output"),
     )
     maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on, config=config)
     return summary
@@ -396,6 +427,7 @@ def run_configured_task(config, config_path, task_name, output=None):
             output=output,
             ci=bool(task.get("ci", False)),
             fail_on=task.get("fail_on"),
+            evidence_output=task.get("evidence_output"),
         )
         return
 
@@ -529,6 +561,67 @@ def run_task(
         raise typer.Exit(code=1)
 
     run_configured_task(data, config_path, task_name, output=output)
+
+
+@app.command("compare")
+def compare_evidence(
+    before: str = typer.Argument(..., help="Previous Beacon release evidence JSON."),
+    after: str = typer.Argument(..., help="New Beacon release evidence JSON."),
+    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+):
+    """Compare two Beacon release evidence files."""
+
+    comparison = compare_release_evidence(
+        load_release_evidence(before),
+        load_release_evidence(after),
+    )
+
+    if output == "json":
+        typer.echo(json.dumps(comparison, indent=2))
+        return
+
+    from rich.console import Console
+
+    console = Console()
+    console.print("[bold]Beacon Release Comparison[/bold]")
+    console.print(comparison["summary"])
+    console.print(
+        f"Before: {comparison['before']['decision']} " f"({comparison['before']['score']}/100)"
+    )
+    console.print(
+        f"After:  {comparison['after']['decision']} " f"({comparison['after']['score']}/100)"
+    )
+
+    if comparison["new_blocking_risks"]:
+        print_risk_table(console, "New Production Blockers", comparison["new_blocking_risks"])
+    if comparison["resolved_blocking_risks"]:
+        print_risk_table(
+            console,
+            "Resolved Production Blockers",
+            comparison["resolved_blocking_risks"],
+        )
+    if comparison["new_major_risks"]:
+        print_risk_table(console, "New Major Risks", comparison["new_major_risks"])
+    if comparison["resolved_major_risks"]:
+        print_risk_table(console, "Resolved Major Risks", comparison["resolved_major_risks"])
+
+
+def print_risk_table(console, title, risks):
+    table = Table(title=title)
+    table.add_column("Severity")
+    table.add_column("Risk")
+    table.add_column("Affected")
+    table.add_column("Recommendation")
+
+    for risk in risks:
+        table.add_row(
+            str(risk.get("severity") or ""),
+            str(risk.get("title") or ""),
+            str(risk.get("affected_count") or 0),
+            str(risk.get("recommendation") or ""),
+        )
+
+    console.print(table)
 
 
 @rules_app.command("list")
@@ -911,6 +1004,11 @@ def readiness_default(
         "--fail-on",
         help="CI threshold: none, critical, high, medium, or low.",
     ),
+    evidence_output: str = typer.Option(
+        None,
+        "--evidence-output",
+        help="Write readiness_summary.release_evidence to this JSON file.",
+    ),
 ):
     """Run project-local readiness when no subcommand is provided."""
     if ctx.invoked_subcommand is not None:
@@ -921,7 +1019,14 @@ def readiness_default(
         typer.echo("No beacon.yaml found. Run `beacon init` or use a subcommand.")
         raise typer.Exit(code=1)
 
-    run_configured_readiness(data, config_path, output=output, ci=ci, fail_on=fail_on)
+    run_configured_readiness(
+        data,
+        config_path,
+        output=output,
+        ci=ci,
+        fail_on=fail_on,
+        evidence_output=evidence_output,
+    )
 
 
 @readiness_app.command("kafka")
@@ -963,6 +1068,11 @@ def readiness_kafka(
         "--fail-on",
         help="CI threshold: none, critical, high, medium, or low.",
     ),
+    evidence_output: str = typer.Option(
+        None,
+        "--evidence-output",
+        help="Write readiness_summary.release_evidence to this JSON file.",
+    ),
 ):
     findings = analyze_kafka_cluster(
         bootstrap_server=bootstrap_server,
@@ -994,6 +1104,7 @@ def readiness_kafka(
         output=output,
         readiness_summary=readiness_summary,
     )
+    write_release_evidence(summary, evidence_output=evidence_output)
     maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
 
@@ -1127,6 +1238,11 @@ def readiness_all(
         "--fail-on",
         help="CI threshold: none, critical, high, medium, or low.",
     ),
+    evidence_output: str = typer.Option(
+        None,
+        "--evidence-output",
+        help="Write readiness_summary.release_evidence to this JSON file.",
+    ),
 ):
     """Analyze production readiness across all provided Beacon domains."""
 
@@ -1167,6 +1283,7 @@ def readiness_all(
         environment=environment,
         context_path=context_path,
         policy_path=policy_path,
+        evidence_output=evidence_output,
     )
     maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
@@ -1194,6 +1311,11 @@ def readiness_static(
         "--fail-on",
         help="CI threshold: none, critical, high, medium, or low.",
     ),
+    evidence_output: str = typer.Option(
+        None,
+        "--evidence-output",
+        help="Write readiness_summary.release_evidence to this JSON file.",
+    ),
 ):
     """Analyze infrastructure production readiness."""
 
@@ -1206,6 +1328,7 @@ def readiness_static(
         environment=environment,
         context_path=context_path,
         policy_path=policy_path,
+        evidence_output=evidence_output,
     )
     maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 

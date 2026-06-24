@@ -1,3 +1,6 @@
+import json
+
+from beacon.readiness.comparison import compare_release_evidence
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.runtime_advisor import evaluate_kafka_runtime
 
@@ -329,6 +332,96 @@ def test_mission_critical_profile_tightens_governance_and_schema_risk():
     assert summary["production_decision"] == "NOT READY"
 
 
+def test_readiness_summary_includes_release_evidence_pack():
+    findings = [
+        {
+            "rule_id": "kafka.topic.replication_factor.low",
+            "domain": "kafka",
+            "category": "resiliency",
+            "severity": "CRITICAL",
+            "title": "Kafka topic 'claims.response' has replication factor 1",
+            "impact": "Broker failure can interrupt workflows.",
+            "recommendation": "Use replication_factor=3.",
+            "file": "kafka.yaml",
+            "evidence": {"topic": "claims.response"},
+            "tags": [],
+        },
+        {
+            "rule_id": "k8s.workload.probes.missing",
+            "domain": "kubernetes",
+            "category": "operational_safety",
+            "severity": "HIGH",
+            "title": "Kubernetes workload missing probes",
+            "impact": "Bad pods may receive traffic.",
+            "recommendation": "Add readiness and liveness probes.",
+            "file": "deployment.yaml",
+            "evidence": {"name": "claims-api"},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.topic.partitions.low",
+            "domain": "kafka",
+            "category": "scalability",
+            "severity": "INFO",
+            "title": "Kafka topic 'claims.retry' has low partition count",
+            "impact": "Low partitions can limit parallelism.",
+            "recommendation": "Validate ordering and throughput.",
+            "file": "kafka.yaml",
+            "evidence": {"topic": "claims.retry"},
+            "tags": [],
+            "waived": True,
+            "policy_original_severity": "HIGH",
+            "waiver_reason": "Retry topic preserves ordering.",
+            "waiver_expires": "2026-12-31",
+        },
+    ]
+
+    summary = calculate_readiness(findings, environment="prod")
+    evidence = summary["release_evidence"]
+
+    assert evidence["decision"] == "NOT READY"
+    assert evidence["environment"] == "prod"
+    assert evidence["domains_covered"] == ["kafka", "kubernetes"]
+    assert evidence["evidence_files"] == ["deployment.yaml", "kafka.yaml"]
+    assert evidence["counts"]["waived_findings"] == 1
+    assert evidence["blocking_risks"][0]["title"] == "Kafka topics have replication factor 1"
+    assert evidence["major_risks"]
+    assert evidence["waived_risks"][0]["reason"] == "Retry topic preserves ordering."
+    blockers = evidence["production_blockers"]
+    assert blockers["question"] == "What blocks production?"
+    assert blockers["status"] == "Production is blocked"
+    assert blockers["blockers"][0]["title"] == "Kafka topics have replication factor 1"
+    assert blockers["fix_first"]
+
+
+def test_readiness_interpretation_preserves_policy_waiver_severity():
+    findings = [
+        {
+            "rule_id": "kafka.topic.partitions.low",
+            "domain": "kafka",
+            "category": "scalability",
+            "severity": "INFO",
+            "title": "Kafka topic 'checkout.retry' has low partition count",
+            "impact": "Low partitions can limit parallelism.",
+            "recommendation": "Validate ordering and throughput.",
+            "file": "kafka.yaml",
+            "evidence": {"topic": "checkout.retry"},
+            "tags": [],
+            "waived": True,
+            "policy_original_severity": "HIGH",
+            "waiver_reason": "Dev retry topic preserves ordering.",
+            "waiver_expires": "2026-12-31",
+        }
+    ]
+
+    summary = calculate_readiness(findings, environment="dev")
+    interpreted = summary["interpreted_findings"][0]
+
+    assert interpreted["severity"] == "INFO"
+    assert interpreted["severity_adjustment_reason"] == "Dev retry topic preserves ordering."
+    assert summary["release_evidence"]["counts"]["waived_findings"] == 1
+
+
 def test_architect_assessment_separates_material_and_deemphasized_risks():
     findings = [
         {
@@ -523,6 +616,137 @@ def test_readiness_static_applies_policy(monkeypatch):
 
     assert captured["findings"] == []
     assert captured["readiness_summary"]["score"] == 100
+
+
+def test_readiness_static_writes_release_evidence_file(monkeypatch, tmp_path):
+    from beacon import cli
+
+    raw_findings = [
+        {
+            "rule_id": "kafka.topic.replication_factor.low",
+            "domain": "kafka",
+            "category": "resiliency",
+            "severity": "CRITICAL",
+            "title": "Kafka topic 'payments' has replication factor 1",
+            "impact": "Broker failure can interrupt workflows.",
+            "recommendation": "Use replication_factor=3.",
+            "file": "kafka.yaml",
+            "evidence": {"topic": "payments"},
+            "tags": [],
+        }
+    ]
+    evidence_path = tmp_path / "beacon-evidence.json"
+
+    monkeypatch.setattr(cli, "scan_path", lambda path: raw_findings)
+    monkeypatch.setattr(cli, "print_report", lambda findings, **kwargs: None)
+
+    cli.readiness_static(
+        "infra",
+        html=False,
+        open_report=False,
+        output="json",
+        evidence_output=str(evidence_path),
+    )
+
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+
+    assert payload["decision"] == "NOT READY"
+    assert payload["production_blockers"]["question"] == "What blocks production?"
+    assert payload["blocking_risks"][0]["title"] == "Kafka topics have replication factor 1"
+
+
+def test_release_evidence_comparison_detects_improved_release():
+    before = {
+        "decision": "NOT READY",
+        "score": 48,
+        "environment": "prod",
+        "survivability": "CRITICAL RISK",
+        "counts": {"critical": 1, "high": 1},
+        "blocking_risks": [
+            {
+                "severity": "CRITICAL",
+                "title": "Kafka topics have replication factor 1",
+                "category": "Availability",
+                "affected_count": 2,
+                "recommendation": "Use replication_factor=3.",
+            }
+        ],
+        "major_risks": [
+            {
+                "severity": "HIGH",
+                "title": "Kafka topics allow large messages",
+                "category": "Capacity",
+                "affected_count": 3,
+                "recommendation": "Keep messages small.",
+            }
+        ],
+    }
+    after = {
+        "decision": "READY",
+        "score": 92,
+        "environment": "prod",
+        "survivability": "LOW RISK",
+        "counts": {"critical": 0, "high": 0},
+        "blocking_risks": [],
+        "major_risks": [],
+    }
+
+    comparison = compare_release_evidence(before, after)
+
+    assert comparison["verdict"] == "IMPROVED"
+    assert comparison["score_delta"] == 44
+    assert comparison["decision_changed"] is True
+    assert comparison["resolved_blocking_risks"][0]["title"] == (
+        "Kafka topics have replication factor 1"
+    )
+    assert comparison["resolved_major_risks"][0]["title"] == ("Kafka topics allow large messages")
+    assert comparison["counts_delta"]["critical"] == -1
+
+
+def test_release_evidence_compare_cli_outputs_json(tmp_path, capsys):
+    from beacon import cli
+
+    before_path = tmp_path / "before.json"
+    after_path = tmp_path / "after.json"
+    before_path.write_text(
+        json.dumps(
+            {
+                "decision": "READY",
+                "score": 95,
+                "counts": {"critical": 0},
+                "blocking_risks": [],
+                "major_risks": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    after_path.write_text(
+        json.dumps(
+            {
+                "decision": "NOT READY",
+                "score": 70,
+                "counts": {"critical": 1},
+                "blocking_risks": [
+                    {
+                        "severity": "CRITICAL",
+                        "title": "Kubernetes workload missing probes",
+                        "category": "Operational Safety",
+                        "affected_count": 1,
+                        "recommendation": "Add readiness and liveness probes.",
+                    }
+                ],
+                "major_risks": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cli.compare_evidence(str(before_path), str(after_path), output="json")
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["verdict"] == "REGRESSED"
+    assert payload["score_delta"] == -25
+    assert payload["new_blocking_risks"][0]["title"] == "Kubernetes workload missing probes"
 
 
 def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatch):

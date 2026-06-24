@@ -70,6 +70,43 @@ def print_readiness_summary(summary):
     console.print(f"[bold]Production Decision:[/bold] {summary['production_decision']}")
     console.print(f"[bold]Primary Risk Area:[/bold] {summary['primary_risk_area']}\n")
 
+    if summary.get("release_evidence"):
+        evidence = summary["release_evidence"]
+        blockers = evidence.get("production_blockers") or {}
+        counts = evidence.get("counts") or {}
+        console.print(f"[bold]{blockers.get('question', 'What blocks production?')}[/bold]")
+        console.print(f"- Status: {blockers.get('status', 'Unknown')}")
+        console.print(f"- Decision: {blockers.get('decision', summary.get('production_decision'))}")
+        console.print(f"- Score: {blockers.get('score', summary.get('score'))}/100")
+        if blockers.get("blockers"):
+            console.print("- Blockers:")
+            for risk in blockers["blockers"][:5]:
+                affected = risk.get("affected_count", 0)
+                suffix = f" ({affected} affected)" if affected else ""
+                console.print(f"  - {risk['severity']}: {risk['title']}{suffix}")
+        else:
+            console.print("- Blockers: none")
+        if blockers.get("fix_first"):
+            console.print("- Fix first:")
+            for action in blockers["fix_first"][:3]:
+                console.print(f"  - {action}")
+        if blockers.get("business_impact"):
+            console.print(f"- Business impact: {blockers['business_impact']}")
+        console.print()
+
+        console.print("[bold]Release Evidence Pack:[/bold]")
+        console.print(
+            "- Domains covered: " + ", ".join(evidence.get("domains_covered") or ["none"])
+        )
+        console.print(f"- Evidence files scanned: {len(evidence.get('evidence_files') or [])}")
+        console.print(
+            "- Blocking risks: "
+            f"{len(evidence.get('blocking_risks') or [])}; "
+            f"major risks: {len(evidence.get('major_risks') or [])}; "
+            f"waived findings: {counts.get('waived_findings', 0)}"
+        )
+        console.print()
+
     if summary.get("environment_readiness"):
         environment = summary["environment_readiness"]
         console.print("[bold]Environment Readiness:[/bold]")

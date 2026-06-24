@@ -276,6 +276,47 @@ HTML_TEMPLATE = """
     </div>
     {% endif %}
 
+    {% if readiness_summary.release_evidence and readiness_summary.release_evidence.production_blockers %}
+    <div class="card section">
+        <h2>{{ readiness_summary.release_evidence.production_blockers.question }}</h2>
+        <p class="text-block">
+            <strong>Status:</strong> {{ readiness_summary.release_evidence.production_blockers.status }}
+            · <strong>Decision:</strong> {{ readiness_summary.release_evidence.production_blockers.decision }}
+            · <strong>Score:</strong> {{ readiness_summary.release_evidence.production_blockers.score }}/100
+        </p>
+        {% if readiness_summary.release_evidence.production_blockers.blockers %}
+        <h3>Blockers</h3>
+        <ul>
+            {% for blocker in readiness_summary.release_evidence.production_blockers.blockers %}
+            <li>
+                <strong class="{{ blocker.severity }}">{{ blocker.severity }}</strong>:
+                {{ blocker.title }}
+                {% if blocker.affected_count %}({{ blocker.affected_count }} affected){% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-block"><strong>Blockers:</strong> none</p>
+        {% endif %}
+
+        {% if readiness_summary.release_evidence.production_blockers.fix_first %}
+        <h3>Fix First</h3>
+        <ul>
+            {% for action in readiness_summary.release_evidence.production_blockers.fix_first %}
+            <li>{{ action }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if readiness_summary.release_evidence.production_blockers.business_impact %}
+        <p class="text-block">
+            <strong>Business Impact:</strong>
+            {{ readiness_summary.release_evidence.production_blockers.business_impact }}
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="grid">
         <div class="card">
             <div class="metric">{{ readiness_summary.score }}/100</div>

@@ -621,8 +621,27 @@ docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness \
   --config /workspace/project/beacon.yaml \
+  --evidence-output /workspace/project/beacon-evidence.json \
   --output terminal
 ```
+
+Compare release evidence from two runs:
+
+```bash
+beacon compare beacon-evidence-before.json beacon-evidence-after.json
+```
+
+CI/CD copy-paste examples are available in
+[docs/CICD_INTEGRATION.md](docs/CICD_INTEGRATION.md).
+
+For a short product-readiness story, run:
+
+```bash
+scripts/demo_product_readiness.sh
+```
+
+It demonstrates `good infra -> READY`, `bad infra -> NOT READY`,
+`dev exception -> contextual low risk`, and `same config in prod -> NOT READY`.
 
 ## Output Formats
 
