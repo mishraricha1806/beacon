@@ -1,0 +1,10 @@
+rule_id: k8s.rbac.role.wildcard_permissions
+title: Kubernetes RBAC wildcard permissions
+description: |
+  Detects Roles or ClusterRoles with wildcard verbs, resources, or API groups.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Replace wildcard RBAC permissions with the minimum permissions required by the workload or operator.
+version: "1.0"
+tags: [kubernetes, security, rbac, least-privilege]

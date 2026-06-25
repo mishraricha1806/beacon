@@ -1,0 +1,10 @@
+rule_id: k8s.namespace.pod_security.enforce_missing
+title: Kubernetes namespace Pod Security enforcement missing
+description: |
+  Detects namespaces without baseline or restricted Pod Security admission enforcement.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Set pod-security.kubernetes.io/enforce to baseline or restricted, and use audit/warn labels during rollout.
+version: "1.0"
+tags: [kubernetes, security, pod-security, admission]

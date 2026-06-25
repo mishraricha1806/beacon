@@ -1,0 +1,10 @@
+rule_id: k8s.hpa.scale_headroom.missing
+title: Kubernetes HPA scale headroom missing
+description: |
+  Detects HorizontalPodAutoscalers whose maxReplicas cannot scale beyond the current workload replica target.
+severity_default: HIGH
+category: scalability
+author: beacon.rules
+recommendation: Set maxReplicas above steady-state replicas and validate node capacity for the peak target.
+version: "1.0"
+tags: [kubernetes, autoscaling, capacity]

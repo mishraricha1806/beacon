@@ -10,6 +10,100 @@ def normalize_kubernetes_config(data, source):
     name = metadata.get("name", "unknown-workload")
     namespace = metadata.get("namespace", "default")
 
+    if kind == "Namespace":
+        labels = metadata.get("labels", {}) or {}
+        return [
+            Resource(
+                type="k8s_namespace",
+                name=name,
+                domain="kubernetes",
+                source=source,
+                attributes={
+                    "labels": labels,
+                    "pod_security_enforce": labels.get("pod-security.kubernetes.io/enforce"),
+                    "pod_security_audit": labels.get("pod-security.kubernetes.io/audit"),
+                    "pod_security_warn": labels.get("pod-security.kubernetes.io/warn"),
+                },
+            )
+        ]
+
+    if kind in {"Role", "ClusterRole"}:
+        return [
+            Resource(
+                type="k8s_rbac_role",
+                name=name,
+                domain="kubernetes",
+                source=source,
+                attributes={
+                    "kind": kind,
+                    "namespace": namespace if kind == "Role" else None,
+                    "rules": data.get("rules", []),
+                },
+            )
+        ]
+
+    if kind in {"RoleBinding", "ClusterRoleBinding"}:
+        role_ref = data.get("roleRef", {}) or {}
+        return [
+            Resource(
+                type="k8s_rbac_binding",
+                name=name,
+                domain="kubernetes",
+                source=source,
+                attributes={
+                    "kind": kind,
+                    "namespace": namespace if kind == "RoleBinding" else None,
+                    "role_ref_kind": role_ref.get("kind"),
+                    "role_ref_name": role_ref.get("name"),
+                    "subjects": data.get("subjects", []),
+                },
+            )
+        ]
+
+    if kind in {"ValidatingWebhookConfiguration", "MutatingWebhookConfiguration"}:
+        return [
+            Resource(
+                type="k8s_admission_webhook",
+                name=name,
+                domain="kubernetes",
+                source=source,
+                attributes={
+                    "kind": kind,
+                    "webhooks": data.get("webhooks", []),
+                },
+            )
+        ]
+
+    if kind == "Secret":
+        return [
+            Resource(
+                type="k8s_secret",
+                name=name,
+                domain="kubernetes",
+                source=source,
+                attributes={
+                    "namespace": namespace,
+                    "secret_type": data.get("type"),
+                    "data_keys": sorted((data.get("data") or {}).keys()),
+                    "string_data_keys": sorted((data.get("stringData") or {}).keys()),
+                },
+            )
+        ]
+
+    if kind in {"ExternalSecret", "SecretStore", "ClusterSecretStore"}:
+        return [
+            Resource(
+                type="k8s_external_secret",
+                name=name,
+                domain="kubernetes",
+                source=source,
+                attributes={
+                    "kind": kind,
+                    "namespace": namespace if kind != "ClusterSecretStore" else None,
+                },
+            )
+        ]
+
     if kind == "PodDisruptionBudget":
         spec = data.get("spec", {})
         return [
@@ -41,6 +135,26 @@ def normalize_kubernetes_config(data, source):
                     "policy_types": spec.get("policyTypes", []),
                     "ingress": spec.get("ingress", []),
                     "egress": spec.get("egress", []),
+                },
+            )
+        ]
+
+    if kind == "HorizontalPodAutoscaler":
+        spec = data.get("spec", {})
+        scale_target = spec.get("scaleTargetRef", {}) or {}
+        return [
+            Resource(
+                type="k8s_horizontal_pod_autoscaler",
+                name=name,
+                domain="kubernetes",
+                source=source,
+                attributes={
+                    "namespace": namespace,
+                    "target_kind": scale_target.get("kind"),
+                    "target_name": scale_target.get("name"),
+                    "min_replicas": spec.get("minReplicas"),
+                    "max_replicas": spec.get("maxReplicas"),
+                    "metrics": spec.get("metrics", []),
                 },
             )
         ]

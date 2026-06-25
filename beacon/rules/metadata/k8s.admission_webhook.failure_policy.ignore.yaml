@@ -1,0 +1,10 @@
+rule_id: k8s.admission_webhook.failure_policy.ignore
+title: Kubernetes admission webhook fails open
+description: |
+  Detects globally scoped admission webhooks using failurePolicy=Ignore.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Use failurePolicy=Fail for security-enforcing admission controls, narrow selectors, and monitor webhook availability.
+version: "1.0"
+tags: [kubernetes, security, admission, webhook]

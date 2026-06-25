@@ -1,0 +1,10 @@
+rule_id: object_storage.recovery_controls.missing
+title: Object storage recovery controls missing
+description: |
+  Detects object storage buckets without versioning or lifecycle controls.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Enable versioning and define lifecycle rules for retention, archival, and cleanup before production use.
+version: "1.0"
+tags: [storage, recovery, lifecycle, versioning]

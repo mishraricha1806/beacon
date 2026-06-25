@@ -40,6 +40,15 @@ Beacon can evaluate:
 - Prometheus collector configs and OpenTelemetry exports
 - Cross-system flow degradation and deployment-triggered regression signals
 
+High-impact readiness use cases now covered include:
+
+- **Can Kubernetes survive node maintenance?** Beacon flags workloads whose PodDisruptionBudget is missing or configured so loosely that all replicas can be disrupted.
+- **Can the service scale during a traffic spike?** Beacon flags HorizontalPodAutoscalers with `maxReplicas` at or below the current replica target.
+- **Can the cluster enforce workload security at admission time?** Beacon flags namespaces without Pod Security admission, permissive admission webhooks, risky cluster-admin bindings, wildcard RBAC, and inline Kubernetes Secrets.
+- **Can the database recover from accidental deletion or corruption?** Beacon flags RDS instances missing backup retention or deletion protection.
+- **Can object storage recover from overwrite/delete mistakes?** Beacon flags buckets with neither versioning nor lifecycle controls.
+- **Can Terraform plan/state changes safely go to production?** Beacon scans HCL, plan JSON, and state JSON for infrastructure survivability risks before rollout.
+
 ## Fastest Way To Try Beacon
 
 The recommended distribution path is Docker. You do not need Python, source

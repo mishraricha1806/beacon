@@ -1,0 +1,10 @@
+rule_id: cloud.database.rds.deletion_protection.disabled
+title: RDS deletion protection disabled
+description: |
+  Detects RDS instances without deletion protection.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Enable deletion_protection for production databases and require an explicit break-glass workflow for deletion.
+version: "1.0"
+tags: [cloud, database, rds, recovery]

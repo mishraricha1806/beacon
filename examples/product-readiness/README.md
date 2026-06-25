@@ -15,6 +15,7 @@ Understand whether the system is ready, what can break, and what to fix first.
 | `bad-infra` | Production blocker: RF=1, missing ISR, unbounded retention, large messages, unsafe producer, and weak consumer recovery. |
 | `dev-exception` | A dev retry topic intentionally uses one partition; Beacon treats this as contextual when run with `--environment dev`. |
 | `prod-same-risk` | The same shape becomes production-significant when run with `--environment prod`. |
+| `distributed-infra-risk` | Kubernetes, database, and object-storage readiness blockers: unsafe PDB, no HPA headroom, weak admission/RBAC/secret posture, missing DB recovery controls, and weak bucket recovery posture. |
 
 ## Commands
 
@@ -23,6 +24,7 @@ python3 -m beacon.cli readiness static examples/product-readiness/good-infra --e
 python3 -m beacon.cli readiness static examples/product-readiness/bad-infra --environment prod --no-html --no-open-report
 python3 -m beacon.cli readiness static examples/product-readiness/dev-exception --environment dev --no-html --no-open-report
 python3 -m beacon.cli readiness static examples/product-readiness/prod-same-risk --environment prod --no-html --no-open-report
+python3 -m beacon.cli readiness static examples/product-readiness/distributed-infra-risk --environment prod --no-html --no-open-report
 ```
 
 Or run all:

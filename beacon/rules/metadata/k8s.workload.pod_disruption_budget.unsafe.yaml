@@ -1,0 +1,10 @@
+rule_id: k8s.workload.pod_disruption_budget.unsafe
+title: Kubernetes PodDisruptionBudget unsafe
+description: |
+  Detects PodDisruptionBudgets that allow all replicas for a workload to be disrupted.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Set minAvailable to at least 1 or maxUnavailable below total replicas for production workloads.
+version: "1.0"
+tags: [kubernetes, availability, pdb, maintenance]

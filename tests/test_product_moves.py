@@ -2274,6 +2274,7 @@ resource "aws_security_group" "open" {
 resource "aws_db_instance" "db" {
   publicly_accessible = true
   backup_retention_period = 0
+  deletion_protection = false
 }
 
 resource "aws_instance" "api" {
@@ -2290,7 +2291,180 @@ resource "aws_instance" "api" {
     assert "cloud.network.security_group.open_ingress" in rule_ids
     assert "cloud.database.rds.publicly_accessible" in rule_ids
     assert "cloud.database.rds.backup_retention_missing" in rule_ids
+    assert "cloud.database.rds.deletion_protection.disabled" in rule_ids
     assert "cloud.compute.ec2.detailed_monitoring.disabled" in rule_ids
+
+
+def test_kubernetes_pdb_and_hpa_readiness_risks_are_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    manifest = """
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: checkout-api
+  namespace: prod
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: checkout-api
+  template:
+    metadata:
+      labels:
+        app: checkout-api
+    spec:
+      containers:
+        - name: api
+          image: checkout-api:1.2.3
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 8080
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: checkout-api
+  namespace: prod
+spec:
+  maxUnavailable: 3
+  selector:
+    matchLabels:
+      app: checkout-api
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: checkout-api
+  namespace: prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: checkout-api
+  minReplicas: 3
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+"""
+    path = tmp_path / "k8s.yaml"
+    path.write_text(manifest)
+
+    findings = scan_file(str(path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "k8s.workload.pod_disruption_budget.unsafe" in rule_ids
+    assert "k8s.hpa.scale_headroom.missing" in rule_ids
+
+
+def test_kubernetes_cluster_attack_surface_risks_are_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    manifest = """
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payments
+  labels:
+    team: payments
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: operator-admin
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: broad-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: Group
+    name: system:authenticated
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: policy-webhook
+webhooks:
+  - name: policy.example.com
+    failurePolicy: Ignore
+    sideEffects: None
+    admissionReviewVersions: ["v1"]
+    clientConfig:
+      service:
+        name: policy
+        namespace: policy-system
+        path: /validate
+    rules:
+      - apiGroups: ["*"]
+        apiVersions: ["*"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["pods"]
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: database-password
+  namespace: payments
+type: Opaque
+stringData:
+  password: plain-text-password
+"""
+    path = tmp_path / "k8s-security.yaml"
+    path.write_text(manifest)
+
+    findings = scan_file(str(path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "k8s.namespace.pod_security.enforce_missing" in rule_ids
+    assert "k8s.rbac.role.wildcard_permissions" in rule_ids
+    assert "k8s.rbac.cluster_admin.broad_binding" in rule_ids
+    assert "k8s.admission_webhook.failure_policy.ignore" in rule_ids
+    assert "k8s.secret.inline_material" in rule_ids
+
+
+def test_object_storage_recovery_controls_risk_is_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    terraform = """
+resource "aws_s3_bucket" "archive" {
+  bucket = "prod-archive"
+}
+"""
+    tf_path = tmp_path / "storage.tf"
+    tf_path.write_text(terraform)
+
+    findings = scan_file(str(tf_path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "object_storage.recovery_controls.missing" in rule_ids
+    assert "object_storage.versioning.missing" in rule_ids
+    assert "object_storage.lifecycle_policy.missing" in rule_ids
 
 
 def test_live_kubernetes_connector_uses_read_only_kubectl(monkeypatch):

@@ -129,6 +129,30 @@ def rds_backup_retention_missing(resource, context):
     )
 
 
+def rds_deletion_protection_disabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "aws_db_instance" or config.get("deletion_protection") is True:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.rds.deletion_protection.disabled",
+        "recovery_readiness",
+        "HIGH",
+        f"RDS instance '{resource.name}' does not enable deletion protection",
+        "Without deletion protection, accidental Terraform or console deletion can remove a production database more easily.",
+        "Enable deletion_protection for production databases and require an explicit break-glass workflow for deletion.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "deletion_protection": config.get("deletion_protection"),
+        },
+        ["cloud", "database", "rds", "recovery"],
+    )
+
+
 def ec2_detailed_monitoring_disabled(resource, context):
     resource_type = resource.attributes.get("provider_resource_type")
     config = resource.attributes.get("config", {})
@@ -403,6 +427,15 @@ register(
     "Detects RDS instances without backup retention.",
     rds_backup_retention_missing,
     ["cloud", "database", "backup"],
+)
+register(
+    "cloud.database.rds.deletion_protection.disabled",
+    "recovery_readiness",
+    "HIGH",
+    "RDS deletion protection disabled",
+    "Detects RDS instances without deletion protection.",
+    rds_deletion_protection_disabled,
+    ["cloud", "database", "rds", "recovery"],
 )
 
 register(

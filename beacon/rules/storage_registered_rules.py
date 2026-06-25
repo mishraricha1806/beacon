@@ -155,6 +155,37 @@ def lifecycle_policy_missing(resource, context):
     )
 
 
+def recovery_controls_missing(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "aws_s3_bucket":
+        return None
+
+    has_versioning = "versioning" in config
+    has_lifecycle = "lifecycle_rule" in config or "lifecycle_configuration" in config
+
+    if has_versioning or has_lifecycle:
+        return None
+
+    return build_storage_finding(
+        resource=resource,
+        rule_id="object_storage.recovery_controls.missing",
+        category="recovery_readiness",
+        severity="HIGH",
+        title=f"Object storage bucket '{resource.name}' lacks recovery controls",
+        impact="A bucket with neither versioning nor lifecycle policy is exposed to accidental deletion, overwrite, and unbounded data growth risk.",
+        recommendation="Enable versioning and define lifecycle rules for retention, archival, and cleanup before production use.",
+        evidence={
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "versioning_present": has_versioning,
+            "lifecycle_policy_present": has_lifecycle,
+        },
+        tags=["storage", "recovery", "lifecycle", "versioning"],
+    )
+
+
 def labels_or_tags_missing(resource, context):
     resource_type = resource.attributes.get("provider_resource_type")
     config = resource.attributes.get("config", {})
@@ -269,6 +300,16 @@ register(
     "Detects object storage resources without lifecycle policy.",
     lifecycle_policy_missing,
     ["storage", "lifecycle", "cost"],
+)
+
+register(
+    "object_storage.recovery_controls.missing",
+    "recovery_readiness",
+    "HIGH",
+    "Object storage recovery controls missing",
+    "Detects production object storage buckets without versioning or lifecycle controls.",
+    recovery_controls_missing,
+    ["storage", "recovery", "lifecycle", "versioning"],
 )
 
 register(

@@ -1,0 +1,10 @@
+rule_id: k8s.rbac.cluster_admin.broad_binding
+title: Kubernetes broad cluster-admin binding
+description: |
+  Detects broad or risky ClusterRoleBindings to cluster-admin.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.rules
+recommendation: Bind cluster-admin only to tightly controlled break-glass identities and use scoped roles for normal operations.
+version: "1.0"
+tags: [kubernetes, security, rbac, least-privilege]
