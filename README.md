@@ -45,7 +45,9 @@ High-impact readiness use cases now covered include:
 - **Can Kubernetes survive node maintenance?** Beacon flags workloads whose PodDisruptionBudget is missing or configured so loosely that all replicas can be disrupted.
 - **Can the service scale during a traffic spike?** Beacon flags HorizontalPodAutoscalers with `maxReplicas` at or below the current replica target.
 - **Can the cluster enforce workload security at admission time?** Beacon flags namespaces without Pod Security admission, permissive admission webhooks, risky cluster-admin bindings, wildcard RBAC, and inline Kubernetes Secrets.
+- **Can Kafka clients and brokers enforce safe transport/auth posture?** Beacon flags plaintext Kafka clients, SASL without TLS, SASL/PLAIN usage, disabled TLS hostname verification, missing authorizers, and broad ACL fallback behavior.
 - **Can the database recover from accidental deletion or corruption?** Beacon flags RDS instances missing backup retention or deletion protection.
+- **Can cloud identity and database controls survive compromise scenarios?** Beacon flags broad AWS managed admin policy attachments and unencrypted RDS storage.
 - **Can object storage recover from overwrite/delete mistakes?** Beacon flags buckets with neither versioning nor lifecycle controls.
 - **Can Terraform plan/state changes safely go to production?** Beacon scans HCL, plan JSON, and state JSON for infrastructure survivability risks before rollout.
 

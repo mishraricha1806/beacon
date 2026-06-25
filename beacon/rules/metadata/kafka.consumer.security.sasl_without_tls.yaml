@@ -1,0 +1,9 @@
+rule_id: kafka.consumer.security.sasl_without_tls
+title: Kafka consumer SASL without TLS
+description: Detects Kafka consumers using SASL_PLAINTEXT.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Use SASL_SSL for authenticated production Kafka consumers.
+version: "1.0"
+tags: [kafka, consumer, security, sasl, tls]

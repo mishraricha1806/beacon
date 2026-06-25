@@ -973,6 +973,114 @@ def producer_compression_missing(resource, context):
     )
 
 
+def kafka_client_label(resource):
+    return "producer" if resource.type == "kafka_producer_config" else "consumer"
+
+
+def kafka_client_transport_plaintext(resource, context):
+    protocol = str(resource.attributes.get("security_protocol") or "").upper()
+
+    if protocol != "PLAINTEXT":
+        return None
+
+    client_type = kafka_client_label(resource)
+    return build_kafka_finding(
+        resource,
+        f"kafka.{client_type}.security.plaintext_transport",
+        "operational_safety",
+        "HIGH",
+        f"Kafka {client_type} '{resource.name}' uses PLAINTEXT transport",
+        "Plaintext Kafka client traffic can expose credentials, event payloads, and metadata on production networks.",
+        "Use SSL or SASL_SSL for production clients and document any approved internal-only plaintext exceptions.",
+        {
+            client_type: resource.name,
+            "topic": resource.attributes.get("topic"),
+            "security_protocol": resource.attributes.get("security_protocol"),
+        },
+        ["kafka", client_type, "security", "tls"],
+    )
+
+
+def kafka_client_sasl_without_tls(resource, context):
+    protocol = str(resource.attributes.get("security_protocol") or "").upper()
+    mechanism = resource.attributes.get("sasl_mechanism")
+
+    if not mechanism or protocol != "SASL_PLAINTEXT":
+        return None
+
+    client_type = kafka_client_label(resource)
+    return build_kafka_finding(
+        resource,
+        f"kafka.{client_type}.security.sasl_without_tls",
+        "operational_safety",
+        "HIGH",
+        f"Kafka {client_type} '{resource.name}' uses SASL without TLS",
+        "SASL over plaintext transport can expose authentication exchanges and event traffic to network observers.",
+        "Use SASL_SSL for authenticated production Kafka clients.",
+        {
+            client_type: resource.name,
+            "topic": resource.attributes.get("topic"),
+            "security_protocol": resource.attributes.get("security_protocol"),
+            "sasl_mechanism": mechanism,
+        },
+        ["kafka", client_type, "security", "sasl", "tls"],
+    )
+
+
+def kafka_client_sasl_plain_mechanism(resource, context):
+    mechanism = str(resource.attributes.get("sasl_mechanism") or "").upper()
+
+    if mechanism != "PLAIN":
+        return None
+
+    client_type = kafka_client_label(resource)
+    return build_kafka_finding(
+        resource,
+        f"kafka.{client_type}.security.sasl_plain",
+        "operational_safety",
+        "MEDIUM",
+        f"Kafka {client_type} '{resource.name}' uses SASL/PLAIN",
+        "SASL/PLAIN increases credential exposure risk if TLS, secret rotation, or credential handling is weak.",
+        "Prefer SCRAM, OAuth, mTLS, or an approved platform mechanism; require SASL_SSL if PLAIN is unavoidable.",
+        {
+            client_type: resource.name,
+            "topic": resource.attributes.get("topic"),
+            "sasl_mechanism": mechanism,
+            "security_protocol": resource.attributes.get("security_protocol"),
+        },
+        ["kafka", client_type, "security", "sasl"],
+    )
+
+
+def kafka_client_hostname_verification_disabled(resource, context):
+    algorithm = resource.attributes.get("ssl_endpoint_identification_algorithm")
+    protocol = str(resource.attributes.get("security_protocol") or "").upper()
+
+    if "SSL" not in protocol:
+        return None
+
+    if algorithm not in {"", None, False}:
+        return None
+
+    client_type = kafka_client_label(resource)
+    return build_kafka_finding(
+        resource,
+        f"kafka.{client_type}.security.hostname_verification.disabled",
+        "operational_safety",
+        "MEDIUM",
+        f"Kafka {client_type} '{resource.name}' disables TLS hostname verification",
+        "Disabled endpoint identification weakens TLS protection and can allow certificate or routing mistakes to go unnoticed.",
+        "Set ssl.endpoint.identification.algorithm=https for production Kafka clients unless an approved private PKI exception exists.",
+        {
+            client_type: resource.name,
+            "topic": resource.attributes.get("topic"),
+            "security_protocol": resource.attributes.get("security_protocol"),
+            "ssl_endpoint_identification_algorithm": algorithm,
+        },
+        ["kafka", client_type, "security", "tls"],
+    )
+
+
 def consumer_auto_commit_enabled(resource, context):
     enabled = resource.attributes.get("enable_auto_commit")
 
@@ -1523,6 +1631,51 @@ register(
     ["kafka", "producer", "capacity"],
     ["kafka_producer_config"],
 )
+
+for client_type, resource_type in (
+    ("producer", "kafka_producer_config"),
+    ("consumer", "kafka_consumer_config"),
+):
+    register(
+        f"kafka.{client_type}.security.plaintext_transport",
+        "operational_safety",
+        "HIGH",
+        f"Kafka {client_type} plaintext transport",
+        f"Detects Kafka {client_type}s using PLAINTEXT transport.",
+        kafka_client_transport_plaintext,
+        ["kafka", client_type, "security", "tls"],
+        [resource_type],
+    )
+    register(
+        f"kafka.{client_type}.security.sasl_without_tls",
+        "operational_safety",
+        "HIGH",
+        f"Kafka {client_type} SASL without TLS",
+        f"Detects Kafka {client_type}s using SASL_PLAINTEXT.",
+        kafka_client_sasl_without_tls,
+        ["kafka", client_type, "security", "sasl", "tls"],
+        [resource_type],
+    )
+    register(
+        f"kafka.{client_type}.security.sasl_plain",
+        "operational_safety",
+        "MEDIUM",
+        f"Kafka {client_type} SASL/PLAIN mechanism",
+        f"Detects Kafka {client_type}s configured with SASL/PLAIN.",
+        kafka_client_sasl_plain_mechanism,
+        ["kafka", client_type, "security", "sasl"],
+        [resource_type],
+    )
+    register(
+        f"kafka.{client_type}.security.hostname_verification.disabled",
+        "operational_safety",
+        "MEDIUM",
+        f"Kafka {client_type} TLS hostname verification disabled",
+        f"Detects Kafka {client_type}s with TLS endpoint identification disabled.",
+        kafka_client_hostname_verification_disabled,
+        ["kafka", client_type, "security", "tls"],
+        [resource_type],
+    )
 
 register(
     "kafka.consumer.auto_commit.enabled",

@@ -83,6 +83,11 @@ def normalize_kafka_config(data, source):
                     "compression_type": producer.get("compression_type"),
                     "delivery_timeout_ms": producer.get("delivery_timeout_ms"),
                     "request_timeout_ms": producer.get("request_timeout_ms"),
+                    "security_protocol": producer.get("security_protocol"),
+                    "sasl_mechanism": producer.get("sasl_mechanism"),
+                    "ssl_endpoint_identification_algorithm": producer.get(
+                        "ssl_endpoint_identification_algorithm"
+                    ),
                 },
             )
         )
@@ -106,6 +111,11 @@ def normalize_kafka_config(data, source):
                     "heartbeat_interval_ms": consumer.get("heartbeat_interval_ms"),
                     "retry_max_attempts": consumer.get("retry_max_attempts"),
                     "dlq_topic": consumer.get("dlq_topic"),
+                    "security_protocol": consumer.get("security_protocol"),
+                    "sasl_mechanism": consumer.get("sasl_mechanism"),
+                    "ssl_endpoint_identification_algorithm": consumer.get(
+                        "ssl_endpoint_identification_algorithm"
+                    ),
                 },
             )
         )

@@ -2275,11 +2275,17 @@ resource "aws_db_instance" "db" {
   publicly_accessible = true
   backup_retention_period = 0
   deletion_protection = false
+  storage_encrypted = false
 }
 
 resource "aws_instance" "api" {
   ami = "ami-123"
   instance_type = "t3.micro"
+}
+
+resource "aws_iam_role_policy_attachment" "node_admin" {
+  role       = "eks-node-role"
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
 }
 """
     tf_path = tmp_path / "main.tf"
@@ -2292,7 +2298,44 @@ resource "aws_instance" "api" {
     assert "cloud.database.rds.publicly_accessible" in rule_ids
     assert "cloud.database.rds.backup_retention_missing" in rule_ids
     assert "cloud.database.rds.deletion_protection.disabled" in rule_ids
+    assert "cloud.database.rds.storage_encryption.disabled" in rule_ids
     assert "cloud.compute.ec2.detailed_monitoring.disabled" in rule_ids
+    assert "iam.managed_admin_policy.attached" in rule_ids
+
+
+def test_kafka_client_security_posture_risks_are_scanned(tmp_path):
+    from beacon.scanner import scan_file
+
+    kafka = """
+kafka:
+  producers:
+    - name: checkout-api
+      topic: checkout.events
+      acks: all
+      enable_idempotence: true
+      compression_type: zstd
+      security_protocol: SASL_PLAINTEXT
+      sasl_mechanism: PLAIN
+  consumers:
+    - name: checkout-worker
+      topic: checkout.events
+      group_id: checkout-worker
+      security_protocol: SSL
+      ssl_endpoint_identification_algorithm: ""
+      enable_auto_commit: false
+      auto_offset_reset: earliest
+      retry_max_attempts: 2
+      dlq_topic: checkout.dlq
+"""
+    path = tmp_path / "kafka-security.yaml"
+    path.write_text(kafka)
+
+    findings = scan_file(str(path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+
+    assert "kafka.producer.security.sasl_without_tls" in rule_ids
+    assert "kafka.producer.security.sasl_plain" in rule_ids
+    assert "kafka.consumer.security.hostname_verification.disabled" in rule_ids
 
 
 def test_kubernetes_pdb_and_hpa_readiness_risks_are_scanned(tmp_path):

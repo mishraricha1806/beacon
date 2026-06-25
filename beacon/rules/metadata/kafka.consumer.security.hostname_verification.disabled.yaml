@@ -1,0 +1,9 @@
+rule_id: kafka.consumer.security.hostname_verification.disabled
+title: Kafka consumer TLS hostname verification disabled
+description: Detects Kafka consumers with TLS endpoint identification disabled.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Set ssl.endpoint.identification.algorithm=https for production Kafka consumers unless an approved private PKI exception exists.
+version: "1.0"
+tags: [kafka, consumer, security, tls]

@@ -1,0 +1,9 @@
+rule_id: kafka.producer.security.sasl_plain
+title: Kafka producer SASL/PLAIN mechanism
+description: Detects Kafka producers configured with SASL/PLAIN.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Prefer SCRAM, OAuth, mTLS, or an approved platform mechanism; require SASL_SSL if PLAIN is unavoidable.
+version: "1.0"
+tags: [kafka, producer, security, sasl]

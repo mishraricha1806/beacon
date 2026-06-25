@@ -1,0 +1,9 @@
+rule_id: kafka.producer.security.plaintext_transport
+title: Kafka producer plaintext transport
+description: Detects Kafka producers using PLAINTEXT transport.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Use SSL or SASL_SSL for production producers and document approved internal-only plaintext exceptions.
+version: "1.0"
+tags: [kafka, producer, security, tls]

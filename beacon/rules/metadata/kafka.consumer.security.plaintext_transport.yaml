@@ -1,0 +1,9 @@
+rule_id: kafka.consumer.security.plaintext_transport
+title: Kafka consumer plaintext transport
+description: Detects Kafka consumers using PLAINTEXT transport.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Use SSL or SASL_SSL for production consumers and document approved internal-only plaintext exceptions.
+version: "1.0"
+tags: [kafka, consumer, security, tls]

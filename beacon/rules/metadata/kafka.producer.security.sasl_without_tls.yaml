@@ -1,0 +1,9 @@
+rule_id: kafka.producer.security.sasl_without_tls
+title: Kafka producer SASL without TLS
+description: Detects Kafka producers using SASL_PLAINTEXT.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Use SASL_SSL for authenticated production Kafka producers.
+version: "1.0"
+tags: [kafka, producer, security, sasl, tls]

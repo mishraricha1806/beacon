@@ -1,0 +1,27 @@
+kafka:
+  brokers:
+    - id: 1
+      security_protocol: PLAINTEXT
+      listener_security_protocol_map: CLIENT:PLAINTEXT,INTERNAL:PLAINTEXT
+      authorizer_class_name:
+      allow_everyone_if_no_acl_found: true
+
+  producers:
+    - name: checkout-api
+      topic: checkout.events
+      acks: all
+      enable_idempotence: true
+      compression_type: zstd
+      security_protocol: SASL_PLAINTEXT
+      sasl_mechanism: PLAIN
+
+  consumers:
+    - name: checkout-worker
+      topic: checkout.events
+      group_id: checkout-worker
+      security_protocol: SSL
+      ssl_endpoint_identification_algorithm: ""
+      enable_auto_commit: false
+      auto_offset_reset: earliest
+      retry_max_attempts: 2
+      dlq_topic: checkout.dlq

@@ -1,0 +1,9 @@
+rule_id: cloud.database.rds.storage_encryption.disabled
+title: RDS storage encryption disabled
+description: Detects RDS instances without storage encryption.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Enable storage_encrypted and use an approved KMS key for production databases.
+version: "1.0"
+tags: [cloud, database, rds, encryption]

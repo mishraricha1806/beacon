@@ -1,0 +1,9 @@
+rule_id: iam.managed_admin_policy.attached
+title: Administrative managed IAM policy attached
+description: Detects broad AWS managed policies attached to roles, users, or groups.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Replace broad managed policies with scoped least-privilege policies and review node/workload role attachments regularly.
+version: "1.0"
+tags: [iam, security, managed-policy, least-privilege]

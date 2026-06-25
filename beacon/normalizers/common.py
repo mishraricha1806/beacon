@@ -7,6 +7,9 @@ OBJECT_STORAGE_RESOURCE_TYPES = {
 
 IAM_RESOURCE_TYPES = {
     "aws_iam_policy",
+    "aws_iam_role_policy_attachment",
+    "aws_iam_user_policy_attachment",
+    "aws_iam_group_policy_attachment",
     "google_project_iam_binding",
     "azurerm_role_assignment",
 }

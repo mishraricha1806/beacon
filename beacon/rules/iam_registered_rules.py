@@ -180,6 +180,46 @@ def admin_or_owner_excessive(resource, context):
     )
 
 
+def managed_admin_policy_attached(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type not in {
+        "aws_iam_role_policy_attachment",
+        "aws_iam_user_policy_attachment",
+        "aws_iam_group_policy_attachment",
+    }:
+        return None
+
+    policy_arn = str(config.get("policy_arn") or "").strip('"')
+    admin_managed_policies = {
+        "arn:aws:iam::aws:policy/AdministratorAccess",
+        "arn:aws:iam::aws:policy/PowerUserAccess",
+        "arn:aws:iam::aws:policy/IAMFullAccess",
+    }
+
+    if policy_arn not in admin_managed_policies:
+        return None
+
+    return build_iam_finding(
+        resource=resource,
+        rule_id="iam.managed_admin_policy.attached",
+        severity="HIGH",
+        title=f"Administrative managed IAM policy attached in '{resource.name}'",
+        impact="Broad AWS managed policies increase blast radius for compromised identities and frequently accumulate on node, workload, or automation roles.",
+        recommendation="Replace broad managed policies with scoped least-privilege policies and review node/workload role attachments regularly.",
+        evidence={
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "policy_arn": policy_arn,
+            "role": config.get("role"),
+            "user": config.get("user"),
+            "group": config.get("group"),
+        },
+        tags=["iam", "security", "managed-policy", "least-privilege"],
+    )
+
+
 def register(rule_id, severity, title, description, evaluator, tags):
     registry.register(
         Rule(
@@ -212,4 +252,13 @@ register(
     "Detects excessive admin or owner permissions.",
     admin_or_owner_excessive,
     ["iam", "security", "admin-access"],
+)
+
+register(
+    "iam.managed_admin_policy.attached",
+    "HIGH",
+    "Administrative managed IAM policy attached",
+    "Detects broad AWS managed policies attached to roles, users, or groups.",
+    managed_admin_policy_attached,
+    ["iam", "security", "managed-policy", "least-privilege"],
 )

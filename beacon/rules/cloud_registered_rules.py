@@ -153,6 +153,31 @@ def rds_deletion_protection_disabled(resource, context):
     )
 
 
+def rds_storage_encryption_disabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "aws_db_instance" or config.get("storage_encrypted") is True:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.rds.storage_encryption.disabled",
+        "operational_safety",
+        "HIGH",
+        f"RDS instance '{resource.name}' does not enable storage encryption",
+        "Unencrypted database storage can violate production security requirements and increase exposure during snapshot, backup, or disk compromise scenarios.",
+        "Enable storage_encrypted and use an approved KMS key for production databases.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "storage_encrypted": config.get("storage_encrypted"),
+            "kms_key_id": config.get("kms_key_id"),
+        },
+        ["cloud", "database", "rds", "encryption"],
+    )
+
+
 def ec2_detailed_monitoring_disabled(resource, context):
     resource_type = resource.attributes.get("provider_resource_type")
     config = resource.attributes.get("config", {})
@@ -436,6 +461,15 @@ register(
     "Detects RDS instances without deletion protection.",
     rds_deletion_protection_disabled,
     ["cloud", "database", "rds", "recovery"],
+)
+register(
+    "cloud.database.rds.storage_encryption.disabled",
+    "operational_safety",
+    "HIGH",
+    "RDS storage encryption disabled",
+    "Detects RDS instances without storage encryption.",
+    rds_storage_encryption_disabled,
+    ["cloud", "database", "rds", "encryption"],
 )
 
 register(
