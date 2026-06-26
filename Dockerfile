@@ -4,6 +4,7 @@ WORKDIR /src
 
 COPY pyproject.toml requirements.txt README.md VERSION ./
 COPY beacon ./beacon
+COPY packs ./packs
 COPY scripts ./scripts
 
 RUN apt-get update \

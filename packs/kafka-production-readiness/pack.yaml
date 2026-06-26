@@ -1,0 +1,202 @@
+id: kafka-production-readiness
+name: Kafka Production Readiness
+version: 0.1.0
+status: preview
+owner: beacon
+summary: >
+  Inspectable Kafka readiness checks for release gates, production survivability,
+  runtime diagnostics, and operational recovery planning.
+domains:
+  - kafka
+  - schema_registry
+use_cases:
+  - Can this Kafka topology survive broker failure?
+  - Can consumers keep up during traffic spikes?
+  - Is Kafka client security posture acceptable for production?
+  - Is storage growth caused by retention, payload size, lag, or broker pressure?
+  - Are schemas and ACLs safe enough for release?
+non_goals:
+  - Mutating Kafka topics, ACLs, offsets, or broker configuration
+  - Replacing OPA, Sentinel, admission controllers, or policy-as-code
+  - Consuming or producing Kafka messages
+rules:
+  - rule_id: kafka.cluster.broker_count.low
+    intent: Cluster-level availability signal.
+  - rule_id: kafka.cluster.under_replicated_partitions
+    intent: Live metadata availability signal.
+  - rule_id: kafka.cluster.offline_partitions
+    intent: Live metadata outage signal.
+  - rule_id: kafka.cluster.under_min_isr_partitions
+    intent: Live durability risk signal.
+  - rule_id: kafka.cluster.leader_imbalance.high
+    intent: Broker load balance signal.
+  - rule_id: kafka.cluster.topic_count.high
+    intent: Controller metadata pressure signal.
+  - rule_id: kafka.cluster.replica_placement.single_failure_domain
+    intent: Multi-AZ/rack survivability signal.
+  - rule_id: kafka.topic.replication_factor.low
+    intent: Topic durability baseline.
+  - rule_id: kafka.topic.min_insync_replicas.missing
+    intent: Topic write durability baseline.
+  - rule_id: kafka.topic.min_insync_replicas.unsafe
+    intent: Topic write durability baseline.
+  - rule_id: kafka.topic.retention_ms.unbounded
+    intent: Storage growth risk.
+  - rule_id: kafka.topic.retention_ms.low
+    intent: Replay-window risk.
+  - rule_id: kafka.topic.retention_bytes.missing
+    intent: Storage sustainability risk.
+  - rule_id: kafka.topic.retention_bytes.large
+    intent: Storage sustainability risk.
+  - rule_id: kafka.topic.cleanup_policy.missing
+    intent: Storage cleanup risk.
+  - rule_id: kafka.topic.max_message_bytes.large
+    intent: Payload-size operational risk.
+  - rule_id: kafka.topic.partitions.low
+    intent: Partition parallelism signal.
+  - rule_id: kafka.topic.partitions.high
+    intent: Operational overhead signal.
+  - rule_id: kafka.topic.owner.missing
+    intent: Incident routing and ownership signal.
+  - rule_id: kafka.topic.schema_compatibility.unsafe
+    intent: Consumer compatibility risk.
+  - rule_id: kafka.topic.compaction.tombstone_retention.low
+    intent: Compaction recovery risk.
+  - rule_id: kafka.topic.compaction.dirty_ratio.high
+    intent: Compaction pressure risk.
+  - rule_id: kafka.topic.compaction.key_cardinality.high
+    intent: Compaction efficiency risk.
+  - rule_id: kafka.topic.compacted_without_retention_bytes
+    intent: Compacted-topic storage risk.
+  - rule_id: kafka.topic.message_size_relative_segment
+    intent: Segment/message sizing risk.
+  - rule_id: kafka.topic.replica_placement.single_failure_domain
+    intent: Topic-level AZ/rack placement risk.
+  - rule_id: kafka.broker.default_replication_factor.low
+    intent: Broker default topic durability risk.
+  - rule_id: kafka.broker.offsets_replication_factor.low
+    intent: Consumer offset durability risk.
+  - rule_id: kafka.broker.transaction_log_replication_factor.low
+    intent: Transactional workload durability risk.
+  - rule_id: kafka.broker.unclean_leader_election.enabled
+    intent: Data-loss risk.
+  - rule_id: kafka.broker.auto_create_topics.enabled
+    intent: Topic governance and accidental-topic risk.
+  - rule_id: kafka.broker.controlled_shutdown.disabled
+    intent: Maintenance/restart survivability risk.
+  - rule_id: kafka.broker.rack_awareness.missing
+    intent: Multi-AZ/rack survivability risk.
+  - rule_id: kafka.broker.client_quotas.missing
+    intent: Noisy-neighbor protection risk.
+  - rule_id: kafka.broker.security.plaintext_listener
+    intent: Transport security risk.
+  - rule_id: kafka.broker.security.authorizer_missing
+    intent: Authorization posture risk.
+  - rule_id: kafka.broker.security.allow_everyone_if_no_acl
+    intent: Authorization fallback risk.
+  - rule_id: kafka.producer.acks.unsafe
+    intent: Producer durability risk.
+  - rule_id: kafka.producer.idempotence.disabled
+    intent: Duplicate/loss behavior risk.
+  - rule_id: kafka.producer.max_in_flight.unsafe
+    intent: Ordering risk under retry.
+  - rule_id: kafka.producer.compression.missing
+    intent: Throughput and storage efficiency risk.
+  - rule_id: kafka.producer.security.plaintext_transport
+    intent: Producer transport security risk.
+  - rule_id: kafka.producer.security.sasl_without_tls
+    intent: Producer credential exposure risk.
+  - rule_id: kafka.producer.security.sasl_plain
+    intent: Weak authentication mechanism risk.
+  - rule_id: kafka.producer.security.hostname_verification.disabled
+    intent: TLS identity verification risk.
+  - rule_id: kafka.consumer.auto_offset_reset.latest
+    intent: Recovery/replay behavior risk.
+  - rule_id: kafka.consumer.auto_commit.enabled
+    intent: Offset control risk.
+  - rule_id: kafka.consumer.poll_interval.too_low
+    intent: Rebalance instability risk.
+  - rule_id: kafka.consumer.heartbeat_session.mismatch
+    intent: Rebalance instability risk.
+  - rule_id: kafka.consumer.concurrency.exceeds_partitions
+    intent: Ineffective scaling signal.
+  - rule_id: kafka.consumer.dlq.missing
+    intent: Poison-message recovery risk.
+  - rule_id: kafka.consumer.security.plaintext_transport
+    intent: Consumer transport security risk.
+  - rule_id: kafka.consumer.security.sasl_without_tls
+    intent: Consumer credential exposure risk.
+  - rule_id: kafka.consumer.security.sasl_plain
+    intent: Weak authentication mechanism risk.
+  - rule_id: kafka.consumer.security.hostname_verification.disabled
+    intent: TLS identity verification risk.
+  - rule_id: kafka.consumer_group.lag.high
+    intent: Runtime consumer delay signal.
+  - rule_id: kafka.consumer_group.lag.moderate
+    intent: Runtime consumer delay signal.
+  - rule_id: kafka.consumer_group.lag.low
+    intent: Runtime consumer delay observation.
+  - rule_id: kafka.consumer_group.offsets.missing
+    intent: Consumer group observability gap.
+  - rule_id: kafka.consumer_group.hot_partition
+    intent: Partition skew signal.
+  - rule_id: kafka.consumer_group.rebalancing
+    intent: Consumer group stability signal.
+  - rule_id: kafka.consumer_group.empty
+    intent: Consumer group liveness signal.
+  - rule_id: kafka.consumer_group.member_churn.high
+    intent: Runtime rebalance churn signal.
+  - rule_id: kafka.consumer_group.decision.consumer_side
+    intent: Deterministic next-action decision.
+  - rule_id: kafka.consumer_group.decision.partition_parallelism
+    intent: Deterministic next-action decision.
+  - rule_id: kafka.consumer_group.decision.partition_skew
+    intent: Deterministic next-action decision.
+  - rule_id: kafka.consumer_group.decision.no_urgent_action
+    intent: Deterministic next-action decision.
+  - rule_id: schema_registry.compatibility.global_unsafe
+    intent: Global schema compatibility risk.
+  - rule_id: schema_registry.subject.compatibility.unsafe
+    intent: Subject-level schema compatibility risk.
+  - rule_id: schema_registry.topic.subject.missing
+    intent: Topic schema governance gap.
+  - rule_id: kafka.acl.export.broad_allow
+    intent: Offline ACL posture risk.
+  - rule_id: kafka.acl.export.empty
+    intent: Offline ACL evidence gap.
+  - rule_id: kafka.runtime.disk_usage.high
+    intent: Runtime storage pressure signal.
+  - rule_id: kafka.runtime.disk_usage.critical
+    intent: Runtime storage pressure signal.
+  - rule_id: kafka.runtime.disk_growth.high
+    intent: Runtime storage growth signal.
+  - rule_id: kafka.runtime.broker_disk_skew.high
+    intent: Broker disk skew signal.
+  - rule_id: kafka.runtime.broker_disk_skew.critical
+    intent: Broker disk skew signal.
+  - rule_id: kafka.runtime.network_saturation.high
+    intent: Runtime network pressure signal.
+  - rule_id: kafka.runtime.request_latency.high
+    intent: Broker request latency signal.
+  - rule_id: kafka.runtime.request_queue_saturation.high
+    intent: Broker request queue pressure signal.
+  - rule_id: kafka.runtime.producer_error_rate.high
+    intent: Producer-side runtime degradation signal.
+  - rule_id: kafka.runtime.producer_throttle.high
+    intent: Producer quota/throttling signal.
+  - rule_id: kafka.runtime.fetch_throttle.high
+    intent: Consumer fetch throttling signal.
+  - rule_id: kafka.runtime.rebalance_storm
+    intent: Consumer group instability signal.
+  - rule_id: kafka.runtime.consumer_group.unstable
+    intent: Consumer group instability signal.
+  - rule_id: kafka.runtime.replication_fetcher_lag.high
+    intent: Replication lag signal.
+  - rule_id: kafka.runtime.partition_reassignment.active
+    intent: Reassignment operational risk signal.
+  - rule_id: kafka.runtime.replay.time_exceeds_target
+    intent: Replay-time readiness signal.
+  - rule_id: kafka.runtime.replay.retention_window_insufficient
+    intent: Replay-window readiness signal.
+  - rule_id: kafka.runtime.replay.no_drain_capacity
+    intent: Backlog drain-capacity signal.

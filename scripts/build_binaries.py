@@ -66,6 +66,9 @@ def build_binary(platform: str, output_name: str):
         "beacon/cli.py",
     ]
 
+    if Path("packs").exists():
+        pyinstaller_args.insert(-1, f"--add-data=packs{os.pathsep}packs")
+
     if sys.platform == "darwin":
         pyinstaller_args.extend(
             [

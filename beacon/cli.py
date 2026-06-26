@@ -29,6 +29,7 @@ from beacon.deployment_events import analyze_deployment_events_file
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.readiness.comparison import compare_release_evidence
 from beacon.engine import metadata_registry as rules_registry
+from beacon.packs import get_pack, list_packs, pack_rules_with_metadata, validate_pack
 from rich.table import Table
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.intelligence.context import load_intelligence_context
@@ -79,6 +80,9 @@ app.add_typer(readiness_app, name="readiness")
 
 rules_app = typer.Typer(help="Rules metadata and management.")
 app.add_typer(rules_app, name="rules")
+
+packs_app = typer.Typer(help="Inspectable readiness packs.")
+app.add_typer(packs_app, name="packs")
 
 
 def effective_policy_bundle(policy_path=None, config=None, config_path=None):
@@ -647,6 +651,116 @@ def list_rules(output: str = typer.Option("terminal", help="Output: terminal or 
             meta.get("title", ""),
             meta.get("category", ""),
             meta.get("severity_default", ""),
+        )
+
+    from rich.console import Console
+
+    Console().print(table)
+
+
+@packs_app.command("list")
+def list_readiness_packs(output: str = typer.Option("terminal", help="Output: terminal or json")):
+    """List inspectable Beacon readiness packs."""
+    packs = list_packs()
+
+    if output == "json":
+        typer.echo(json.dumps(packs, indent=2))
+        return
+
+    table = Table(title="Beacon Readiness Packs")
+    table.add_column("Pack ID", style="bold")
+    table.add_column("Name")
+    table.add_column("Status")
+    table.add_column("Rules")
+    table.add_column("Summary")
+
+    for pack_id, pack in sorted(packs.items()):
+        validation = validate_pack(pack)
+        table.add_row(
+            pack_id,
+            str(pack.get("name") or ""),
+            str(pack.get("status") or ""),
+            str(validation["rule_count"]),
+            str(pack.get("summary") or "").strip(),
+        )
+
+    from rich.console import Console
+
+    Console().print(table)
+
+
+@packs_app.command("show")
+def show_readiness_pack(
+    pack_id: str = typer.Argument(..., help="Readiness pack id."),
+    output: str = typer.Option("terminal", help="Output: terminal or json"),
+):
+    """Show readiness pack purpose, use cases, and validation status."""
+    pack = get_pack(pack_id)
+    if not pack:
+        raise typer.BadParameter(f"Unknown readiness pack '{pack_id}'.")
+
+    validation = validate_pack(pack)
+
+    if output == "json":
+        typer.echo(json.dumps({"pack": pack, "validation": validation}, indent=2))
+        return
+
+    from rich.console import Console
+
+    console = Console()
+    console.print(f"[bold]{pack.get('name') or pack_id}[/bold]")
+    console.print(str(pack.get("summary") or "").strip())
+    console.print(f"Status: {pack.get('status') or 'unknown'}")
+    console.print(f"Rules: {validation['rule_count']}")
+
+    if validation["missing_metadata"]:
+        console.print("[bold red]Missing rule metadata:[/bold red]")
+        for rule_id in validation["missing_metadata"]:
+            console.print(f"- {rule_id}")
+    else:
+        console.print("[green]All pack rules have Beacon metadata.[/green]")
+
+    use_cases = pack.get("use_cases") or []
+    if use_cases:
+        console.print("\n[bold]Use Cases[/bold]")
+        for use_case in use_cases:
+            console.print(f"- {use_case}")
+
+    non_goals = pack.get("non_goals") or []
+    if non_goals:
+        console.print("\n[bold]Non-Goals[/bold]")
+        for non_goal in non_goals:
+            console.print(f"- {non_goal}")
+
+
+@packs_app.command("rules")
+def show_readiness_pack_rules(
+    pack_id: str = typer.Argument(..., help="Readiness pack id."),
+    output: str = typer.Option("terminal", help="Output: terminal or json"),
+):
+    """Show rule metadata included in a readiness pack."""
+    pack = get_pack(pack_id)
+    if not pack:
+        raise typer.BadParameter(f"Unknown readiness pack '{pack_id}'.")
+
+    rows = pack_rules_with_metadata(pack)
+
+    if output == "json":
+        typer.echo(json.dumps(rows, indent=2))
+        return
+
+    table = Table(title=f"{pack_id} Rules")
+    table.add_column("Rule ID", style="bold")
+    table.add_column("Severity")
+    table.add_column("Category")
+    table.add_column("Title")
+
+    for row in rows:
+        table.add_row(
+            row["rule_id"],
+            row["severity_default"],
+            row["category"],
+            row["title"],
         )
 
     from rich.console import Console

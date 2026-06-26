@@ -51,6 +51,32 @@ High-impact readiness use cases now covered include:
 - **Can object storage recover from overwrite/delete mistakes?** Beacon flags buckets with neither versioning nor lifecycle controls.
 - **Can Terraform plan/state changes safely go to production?** Beacon scans HCL, plan JSON, and state JSON for infrastructure survivability risks before rollout.
 
+## Inspectable Readiness Packs
+
+Beacon is not meant to replace OPA, Sentinel, admission controllers, or
+policy-as-code guardrails. Those tools are the right layer for hard allow/deny
+enforcement.
+
+Beacon adds a release-readiness layer on top:
+
+```text
+OPA/Sentinel enforce individual policies.
+Beacon explains release readiness across many operational signals.
+```
+
+To keep that transparent, Beacon includes inspectable readiness packs. A pack is
+a visible grouping of rule IDs, intent, use cases, and non-goals. Beacon remains
+the runner, normalizer, scorer, reporter, and UI.
+
+```bash
+python3 -m beacon.cli packs list
+python3 -m beacon.cli packs show kafka-production-readiness
+python3 -m beacon.cli packs rules kafka-production-readiness
+```
+
+See [`docs/BEACON_VS_OPA_SENTINEL.md`](docs/BEACON_VS_OPA_SENTINEL.md) and
+[`packs/`](packs/) for the first Kafka production-readiness pack.
+
 ## Fastest Way To Try Beacon
 
 The recommended distribution path is Docker. You do not need Python, source
