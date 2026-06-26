@@ -1,0 +1,43 @@
+id: cloud-gcp-readiness
+name: GCP Cloud Readiness
+version: 0.1.0
+status: preview
+owner: beacon
+summary: >
+  Inspectable GCP readiness checks for Cloud Storage recovery, uniform bucket
+  access, ownership labels, and broad project IAM grants that increase
+  production blast radius.
+domains:
+  - cloud
+  - cloud_identity
+  - object_storage
+  - terraform
+provider_coverage:
+  current:
+    - Google Cloud Storage bucket versioning posture
+    - Google Cloud Storage uniform bucket-level access posture
+    - Google Cloud Storage ownership/label metadata
+    - GCP project IAM Owner, Editor, and admin role blast-radius checks
+  planned:
+    - Cloud SQL public exposure, backup, deletion protection, encryption, and HA posture
+    - GKE and regional workload resiliency posture
+    - VPC firewall public ingress and private connectivity posture
+    - project quota and regional resiliency posture
+use_cases:
+  - Can this GCP storage estate safely go to production?
+  - Can buckets recover from accidental overwrite or delete?
+  - Are object-level ACLs still enabled through disabled uniform access?
+  - Are Owner, Editor, or broad admin roles attached at project scope?
+non_goals:
+  - Claiming complete GCP coverage in the first preview
+  - Replacing Organization Policy, Security Command Center, OPA, or Terraform
+  - Applying GCP changes or mutating cloud resources
+rules:
+  - rule_id: object_storage.versioning.missing
+    intent: GCS bucket overwrite/delete recovery risk.
+  - rule_id: object_storage.labels_or_tags.missing
+    intent: GCS bucket ownership and governance metadata gap.
+  - rule_id: gcp.storage.uniform_bucket_access.disabled
+    intent: GCS bucket object-level ACL governance risk.
+  - rule_id: iam.admin_or_owner.excessive
+    intent: GCP Owner, Editor, or broad admin role blast-radius risk.

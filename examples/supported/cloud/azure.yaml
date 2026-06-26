@@ -1,0 +1,13 @@
+cloud_inventory:
+  resources:
+    - type: azurerm_storage_account
+      name: claimsarchive
+      config:
+        allow_blob_public_access: true
+        infrastructure_encryption_enabled: false
+    - type: azurerm_role_assignment
+      name: platform-contributor
+      config:
+        role_definition_name: Contributor
+        principal_id: platform-team
+        scope: /subscriptions/example-subscription

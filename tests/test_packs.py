@@ -40,6 +40,45 @@ def test_terraform_aws_readiness_pack_is_discoverable_and_metadata_backed():
     assert validation["missing_metadata"] == []
 
 
+def test_cloud_production_readiness_pack_is_discoverable_and_metadata_backed():
+    pack = get_pack("cloud-production-readiness")
+
+    assert pack is not None
+    assert pack["name"] == "Cloud Production Readiness"
+    assert "full AWS, Azure, and GCP parity" in " ".join(pack["non_goals"])
+
+    validation = validate_pack(pack)
+
+    assert validation["rule_count"] >= 20
+    assert validation["missing_metadata"] == []
+
+
+def test_cloud_azure_readiness_pack_is_discoverable_and_metadata_backed():
+    pack = get_pack("cloud-azure-readiness")
+
+    assert pack is not None
+    assert pack["name"] == "Azure Cloud Readiness"
+    assert "complete Azure coverage" in " ".join(pack["non_goals"])
+
+    validation = validate_pack(pack)
+
+    assert validation["rule_count"] >= 4
+    assert validation["missing_metadata"] == []
+
+
+def test_cloud_gcp_readiness_pack_is_discoverable_and_metadata_backed():
+    pack = get_pack("cloud-gcp-readiness")
+
+    assert pack is not None
+    assert pack["name"] == "GCP Cloud Readiness"
+    assert "complete GCP coverage" in " ".join(pack["non_goals"])
+
+    validation = validate_pack(pack)
+
+    assert validation["rule_count"] >= 4
+    assert validation["missing_metadata"] == []
+
+
 def test_iac_coverage_readiness_pack_is_discoverable_and_metadata_backed():
     pack = get_pack("iac-coverage-readiness")
 
@@ -88,6 +127,42 @@ def test_terraform_aws_pack_rules_resolve_human_readable_metadata():
     assert all(row["metadata_found"] for row in rows)
 
 
+def test_cloud_production_pack_rules_resolve_human_readable_metadata():
+    pack = get_pack("cloud-production-readiness")
+    rows = pack_rules_with_metadata(pack)
+    rule_ids = {row["rule_id"] for row in rows}
+
+    assert "cloud.network.security_group.open_ingress" in rule_ids
+    assert "iam.permissions.wildcard" in rule_ids
+    assert "object_storage.versioning.missing" in rule_ids
+    assert "cloud.quota.headroom.insufficient" in rule_ids
+    assert all(row["metadata_found"] for row in rows)
+
+
+def test_cloud_azure_pack_rules_resolve_human_readable_metadata():
+    pack = get_pack("cloud-azure-readiness")
+    rows = pack_rules_with_metadata(pack)
+    rule_ids = {row["rule_id"] for row in rows}
+
+    assert "object_storage.public_access.enabled" in rule_ids
+    assert "object_storage.encryption.missing" in rule_ids
+    assert "object_storage.labels_or_tags.missing" in rule_ids
+    assert "iam.admin_or_owner.excessive" in rule_ids
+    assert all(row["metadata_found"] for row in rows)
+
+
+def test_cloud_gcp_pack_rules_resolve_human_readable_metadata():
+    pack = get_pack("cloud-gcp-readiness")
+    rows = pack_rules_with_metadata(pack)
+    rule_ids = {row["rule_id"] for row in rows}
+
+    assert "object_storage.versioning.missing" in rule_ids
+    assert "object_storage.labels_or_tags.missing" in rule_ids
+    assert "gcp.storage.uniform_bucket_access.disabled" in rule_ids
+    assert "iam.admin_or_owner.excessive" in rule_ids
+    assert all(row["metadata_found"] for row in rows)
+
+
 def test_iac_coverage_pack_rules_resolve_human_readable_metadata():
     pack = get_pack("iac-coverage-readiness")
     rows = pack_rules_with_metadata(pack)
@@ -106,6 +181,12 @@ def test_pack_catalog_lists_readiness_packs():
     assert packs["kafka-production-readiness"]["status"] == "preview"
     assert "kubernetes-production-readiness" in packs
     assert packs["kubernetes-production-readiness"]["status"] == "preview"
+    assert "cloud-production-readiness" in packs
+    assert packs["cloud-production-readiness"]["status"] == "preview"
+    assert "cloud-azure-readiness" in packs
+    assert packs["cloud-azure-readiness"]["status"] == "preview"
+    assert "cloud-gcp-readiness" in packs
+    assert packs["cloud-gcp-readiness"]["status"] == "preview"
     assert "terraform-aws-readiness" in packs
     assert packs["terraform-aws-readiness"]["status"] == "preview"
     assert "iac-coverage-readiness" in packs

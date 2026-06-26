@@ -1,0 +1,15 @@
+cloud_inventory:
+  resources:
+    - type: google_storage_bucket
+      name: claim-exports
+      config:
+        name: claim-exports
+        location: US
+        uniform_bucket_level_access: false
+    - type: google_project_iam_binding
+      name: platform-owner
+      config:
+        project: claims-platform
+        role: roles/owner
+        members:
+          - group:platform@example.com

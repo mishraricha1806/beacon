@@ -1,0 +1,76 @@
+id: cloud-production-readiness
+name: Cloud Production Readiness
+version: 0.1.0
+status: preview
+owner: beacon
+summary: >
+  Inspectable cloud readiness checks for network exposure, database recovery,
+  identity blast radius, object-storage posture, capacity headroom, and
+  production survivability across cloud-managed infrastructure.
+domains:
+  - cloud
+  - cloud_identity
+  - object_storage
+  - terraform
+use_cases:
+  - Can this cloud-managed infrastructure safely go to production?
+  - Are databases protected from public exposure, deletion, and weak recovery?
+  - Are identity permissions too broad for production blast radius?
+  - Can object storage recover from accidental delete or overwrite?
+  - Is cloud capacity or quota headroom insufficient for release?
+non_goals:
+  - Claiming full AWS, Azure, and GCP parity in the first preview
+  - Replacing Terraform, Sentinel, OPA, cloud-native policy, or inventory tools
+  - Applying infrastructure changes or mutating cloud resources
+  - Auto-importing unmanaged resources into Terraform state
+provider_coverage:
+  current:
+    - AWS-backed Terraform and cloud inventory signals
+    - provider-neutral object storage, identity, network, and quota readiness concepts
+  planned:
+    - Azure compute, storage, identity, network, and database readiness
+    - GCP compute, storage, IAM, network, and database readiness
+    - provider-specific evidence mapping for equivalent cross-cloud controls
+rules:
+  - rule_id: cloud.network.security_group.open_ingress
+    intent: Public network exposure risk.
+  - rule_id: cloud.database.rds.publicly_accessible
+    intent: Managed database public exposure risk.
+  - rule_id: cloud.database.rds.backup_retention_missing
+    intent: Managed database recovery readiness risk.
+  - rule_id: cloud.database.rds.deletion_protection.disabled
+    intent: Accidental managed database deletion risk.
+  - rule_id: cloud.database.rds.storage_encryption.disabled
+    intent: Managed database storage encryption risk.
+  - rule_id: cloud.compute.ec2.detailed_monitoring.disabled
+    intent: Runtime visibility and capacity detection gap.
+  - rule_id: cloud.compute.autoscaling.capacity.insufficient
+    intent: Scale-out headroom risk.
+  - rule_id: cloud.quota.headroom.insufficient
+    intent: Cloud quota and capacity planning risk.
+  - rule_id: cloud.database.rds.multi_az.disabled
+    intent: Managed database availability and failover risk.
+  - rule_id: cloud.database.rds.private_subnet.missing
+    intent: Managed database network isolation risk.
+  - rule_id: cloud.network.vpc_endpoint.private_dns.disabled
+    intent: Private service connectivity posture risk.
+  - rule_id: cloud.region.high_availability.missing
+    intent: Regional high-availability posture risk.
+  - rule_id: iam.permissions.wildcard
+    intent: Least-privilege identity risk.
+  - rule_id: iam.admin_or_owner.excessive
+    intent: Excessive admin or owner blast-radius risk.
+  - rule_id: iam.managed_admin_policy.attached
+    intent: Broad provider-managed admin policy attachment risk.
+  - rule_id: object_storage.public_access.enabled
+    intent: Public object-storage exposure risk.
+  - rule_id: object_storage.encryption.missing
+    intent: Object-storage encryption posture risk.
+  - rule_id: object_storage.versioning.missing
+    intent: Object overwrite/delete recovery risk.
+  - rule_id: object_storage.lifecycle_policy.missing
+    intent: Storage cost and lifecycle hygiene risk.
+  - rule_id: object_storage.recovery_controls.missing
+    intent: Object-storage recovery control gap.
+  - rule_id: object_storage.labels_or_tags.missing
+    intent: Ownership, cost, and governance metadata gap.

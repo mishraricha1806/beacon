@@ -1,0 +1,43 @@
+id: cloud-azure-readiness
+name: Azure Cloud Readiness
+version: 0.1.0
+status: preview
+owner: beacon
+summary: >
+  Inspectable Azure readiness checks for storage public access, encryption,
+  ownership metadata, and broad RBAC assignments that increase production blast
+  radius.
+domains:
+  - cloud
+  - cloud_identity
+  - object_storage
+  - terraform
+provider_coverage:
+  current:
+    - Azure Storage Account public blob access posture
+    - Azure Storage Account infrastructure encryption posture
+    - Azure Storage Account ownership/tag metadata
+    - Azure RBAC Owner, Contributor, and User Access Administrator assignments
+  planned:
+    - Azure SQL/PostgreSQL/MySQL public exposure, backup, deletion, encryption, and HA posture
+    - Azure VM scale set and autoscaling headroom
+    - Azure Key Vault, private endpoint, and network exposure posture
+    - Azure subscription quota and regional resiliency posture
+use_cases:
+  - Can this Azure storage estate safely go to production?
+  - Are public blob access and weak encryption settings present?
+  - Are Owner, Contributor, or User Access Administrator grants too broad?
+  - Is ownership metadata missing from production storage accounts?
+non_goals:
+  - Claiming complete Azure coverage in the first preview
+  - Replacing Azure Policy, Defender for Cloud, Sentinel, OPA, or Terraform
+  - Applying Azure changes or mutating cloud resources
+rules:
+  - rule_id: object_storage.public_access.enabled
+    intent: Azure Storage Account public blob access risk.
+  - rule_id: object_storage.encryption.missing
+    intent: Azure Storage Account infrastructure encryption posture risk.
+  - rule_id: object_storage.labels_or_tags.missing
+    intent: Azure Storage Account ownership and governance metadata gap.
+  - rule_id: iam.admin_or_owner.excessive
+    intent: Azure Owner, Contributor, or User Access Administrator blast-radius risk.

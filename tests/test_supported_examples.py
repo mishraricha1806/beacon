@@ -44,6 +44,10 @@ def test_supported_examples_cover_governance_and_topology():
 
     assert "cloud.network.security_group.open_ingress" in ids
     assert "cloud.database.rds.backup_retention_missing" in ids
+    assert "gcp.storage.uniform_bucket_access.disabled" in ids
+    assert "object_storage.public_access.enabled" in ids
+    assert "object_storage.encryption.missing" in ids
+    assert "iam.admin_or_owner.excessive" in ids
 
     findings = scan_path(str(ROOT / "topology"))
     ids = rule_ids(findings)

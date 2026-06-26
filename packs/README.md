@@ -13,6 +13,9 @@ judgement without treating Beacon as a black box.
 | --- | --- |
 | `kafka-production-readiness` | Kafka topic, broker, client, Schema Registry, ACL, runtime, and replay readiness checks. |
 | `kubernetes-production-readiness` | Kubernetes workload, admission, RBAC, security, capacity, and runtime readiness checks. |
+| `cloud-production-readiness` | Cross-cloud production-readiness posture for network, identity, database, object-storage, quota, and capacity risks. |
+| `cloud-azure-readiness` | Azure Storage Account and RBAC readiness checks with planned Azure database, network, compute, and quota expansion. |
+| `cloud-gcp-readiness` | GCP Cloud Storage and project IAM readiness checks with planned Cloud SQL, GKE, VPC, and quota expansion. |
 | `terraform-aws-readiness` | Terraform-managed AWS database, network, IAM, object-storage, and capacity readiness checks. |
 | `iac-coverage-readiness` | Unmanaged cloud resources outside Terraform state, ownership, activity, and disposition readiness checks. |
 
@@ -24,6 +27,12 @@ python3 -m beacon.cli packs show kafka-production-readiness
 python3 -m beacon.cli packs rules kafka-production-readiness
 python3 -m beacon.cli packs show kubernetes-production-readiness
 python3 -m beacon.cli packs rules kubernetes-production-readiness
+python3 -m beacon.cli packs show cloud-production-readiness
+python3 -m beacon.cli packs rules cloud-production-readiness
+python3 -m beacon.cli packs show cloud-azure-readiness
+python3 -m beacon.cli packs rules cloud-azure-readiness
+python3 -m beacon.cli packs show cloud-gcp-readiness
+python3 -m beacon.cli packs rules cloud-gcp-readiness
 python3 -m beacon.cli packs show terraform-aws-readiness
 python3 -m beacon.cli packs rules terraform-aws-readiness
 python3 -m beacon.cli packs show iac-coverage-readiness

@@ -131,6 +131,15 @@ docker run --rm ghcr.io/mishraricha1806/beacon:latest packs show \
   kubernetes-production-readiness
 
 docker run --rm ghcr.io/mishraricha1806/beacon:latest packs show \
+  cloud-production-readiness
+
+docker run --rm ghcr.io/mishraricha1806/beacon:latest packs show \
+  cloud-azure-readiness
+
+docker run --rm ghcr.io/mishraricha1806/beacon:latest packs show \
+  cloud-gcp-readiness
+
+docker run --rm ghcr.io/mishraricha1806/beacon:latest packs show \
   terraform-aws-readiness
 
 docker run --rm ghcr.io/mishraricha1806/beacon:latest packs show \
