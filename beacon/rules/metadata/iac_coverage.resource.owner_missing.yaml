@@ -1,0 +1,10 @@
+rule_id: iac_coverage.resource.owner_missing
+title: Unmanaged cloud resource owner missing
+description: Detects unmanaged cloud resources without owner, team, service, application, or ownership registry metadata.
+severity_default: HIGH
+category: operational_safety
+author: beacon.iac_coverage
+recommendation: Add owner/application tags or ownership registry metadata before deciding whether to import, delete, or quarantine the resource.
+version: "1.0"
+tags: [iac-coverage, ownership, governance]
+

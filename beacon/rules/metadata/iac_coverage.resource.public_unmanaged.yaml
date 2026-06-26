@@ -1,0 +1,10 @@
+rule_id: iac_coverage.resource.public_unmanaged
+title: Unmanaged cloud resource publicly exposed
+description: Detects unmanaged cloud resources that appear internet-facing or publicly accessible.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.iac_coverage
+recommendation: Prioritize security review, restrict exposure if unauthorized, then import or document an approved exception.
+version: "1.0"
+tags: [iac-coverage, public-exposure, security]
+

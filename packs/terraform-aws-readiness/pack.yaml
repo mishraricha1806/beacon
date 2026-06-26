@@ -1,0 +1,67 @@
+id: terraform-aws-readiness
+name: Terraform AWS Readiness
+version: 0.1.0
+status: preview
+owner: beacon
+summary: >
+  Inspectable AWS/Terraform readiness checks for database recovery, network
+  exposure, identity blast radius, object-storage posture, capacity headroom,
+  and production survivability.
+domains:
+  - cloud
+  - cloud_identity
+  - object_storage
+  - terraform
+use_cases:
+  - Can this Terraform-managed AWS infrastructure safely go to production?
+  - Are databases protected from public exposure, deletion, and weak recovery?
+  - Are IAM permissions and managed policy attachments too broad?
+  - Can object storage recover from accidental delete or overwrite?
+  - Is cloud capacity or quota headroom insufficient for release?
+non_goals:
+  - Replacing Terraform, Sentinel, OPA, AWS Config, or cloud inventory tools
+  - Applying Terraform changes or mutating cloud resources
+  - Auto-importing unmanaged resources into Terraform state
+rules:
+  - rule_id: cloud.network.security_group.open_ingress
+    intent: Public network exposure risk.
+  - rule_id: cloud.database.rds.publicly_accessible
+    intent: Public database exposure risk.
+  - rule_id: cloud.database.rds.backup_retention_missing
+    intent: Database recovery readiness risk.
+  - rule_id: cloud.database.rds.deletion_protection.disabled
+    intent: Accidental database deletion risk.
+  - rule_id: cloud.database.rds.storage_encryption.disabled
+    intent: Database storage encryption risk.
+  - rule_id: cloud.compute.ec2.detailed_monitoring.disabled
+    intent: Runtime visibility and capacity detection gap.
+  - rule_id: cloud.compute.autoscaling.capacity.insufficient
+    intent: Scale-out headroom risk.
+  - rule_id: cloud.quota.headroom.insufficient
+    intent: Cloud quota and capacity planning risk.
+  - rule_id: cloud.database.rds.multi_az.disabled
+    intent: Database availability and failover risk.
+  - rule_id: cloud.database.rds.private_subnet.missing
+    intent: Database network isolation risk.
+  - rule_id: cloud.network.vpc_endpoint.private_dns.disabled
+    intent: Private service connectivity posture risk.
+  - rule_id: cloud.region.high_availability.missing
+    intent: Regional high-availability posture risk.
+  - rule_id: iam.permissions.wildcard
+    intent: Least-privilege IAM risk.
+  - rule_id: iam.admin_or_owner.excessive
+    intent: Excessive admin/owner blast-radius risk.
+  - rule_id: iam.managed_admin_policy.attached
+    intent: Broad AWS managed-policy attachment risk.
+  - rule_id: object_storage.public_access.enabled
+    intent: Public object-storage exposure risk.
+  - rule_id: object_storage.encryption.missing
+    intent: Object-storage encryption posture risk.
+  - rule_id: object_storage.versioning.missing
+    intent: Object overwrite/delete recovery risk.
+  - rule_id: object_storage.lifecycle_policy.missing
+    intent: Storage cost and lifecycle hygiene risk.
+  - rule_id: object_storage.recovery_controls.missing
+    intent: Object-storage recovery control gap.
+  - rule_id: object_storage.labels_or_tags.missing
+    intent: Ownership, cost, and governance metadata gap.

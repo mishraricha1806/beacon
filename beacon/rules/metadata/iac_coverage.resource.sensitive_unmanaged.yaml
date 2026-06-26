@@ -1,0 +1,9 @@
+rule_id: iac_coverage.resource.sensitive_unmanaged
+title: Sensitive cloud resource unmanaged
+description: Detects unmanaged databases, search clusters, storage, and platform resources that can hide backup, encryption, deletion, and ownership risk.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.iac_coverage
+recommendation: Review blast radius and recovery posture before import or deletion. Prefer import for active production resources.
+version: "1.0"
+tags: [iac-coverage, recovery, sensitive-resource]

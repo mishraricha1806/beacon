@@ -1,0 +1,10 @@
+rule_id: iac_coverage.resource.unmanaged
+title: Cloud resource unmanaged by Terraform
+description: Detects cloud resources present in inventory exports but absent from Terraform state.
+severity_default: HIGH
+category: operational_safety
+author: beacon.iac_coverage
+recommendation: Classify the resource before import or deletion. Review owner, dependencies, and blast radius, then import into Terraform or document an approved exception.
+version: "1.0"
+tags: [iac-coverage, terraform, cloud-inventory, unmanaged]
+

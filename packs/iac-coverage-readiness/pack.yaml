@@ -1,0 +1,34 @@
+id: iac-coverage-readiness
+name: IaC Coverage Readiness
+version: 0.1.0
+status: preview
+owner: beacon
+summary: >
+  Inspectable IaC coverage checks for unmanaged cloud resources, owner metadata,
+  activity/cost signals, public exposure, and sensitive infrastructure outside
+  Terraform state.
+domains:
+  - iac_coverage
+  - cloud
+  - terraform
+use_cases:
+  - What cloud resources exist outside Terraform state?
+  - Which unmanaged resources have no owner?
+  - Which unmanaged resources are active or still costing money?
+  - Which unmanaged resources are public or sensitive?
+  - Should a resource be imported, deleted after validation, tagged, quarantined, or reviewed?
+non_goals:
+  - Replacing Terraform drift detection
+  - Connecting to AWS, GCP, or Azure in the first MVP
+  - Automatically importing or deleting cloud resources
+rules:
+  - rule_id: iac_coverage.resource.unmanaged
+    intent: Cloud resource exists in inventory but not Terraform state.
+  - rule_id: iac_coverage.resource.owner_missing
+    intent: Unmanaged resource has no owner/application metadata.
+  - rule_id: iac_coverage.resource.active_unmanaged
+    intent: Unmanaged resource has recent activity or cost.
+  - rule_id: iac_coverage.resource.public_unmanaged
+    intent: Unmanaged resource appears publicly exposed.
+  - rule_id: iac_coverage.resource.sensitive_unmanaged
+    intent: Unmanaged database, search, storage, or platform resource.

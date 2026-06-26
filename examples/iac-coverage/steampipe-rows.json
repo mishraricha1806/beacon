@@ -1,0 +1,15 @@
+{
+  "rows": [
+    {
+      "__table": "aws_s3_bucket",
+      "name": "legacy-claim-exports",
+      "arn": "arn:aws:s3:::legacy-claim-exports",
+      "account_id": "111111111111",
+      "region": "us-east-1",
+      "tags": {
+        "owner": "data-platform"
+      },
+      "monthly_cost": "18.50"
+    }
+  ]
+}

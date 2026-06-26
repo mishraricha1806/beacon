@@ -1,0 +1,19 @@
+{
+  "configurationItems": [
+    {
+      "resourceType": "AWS::OpenSearchService::Domain",
+      "resourceId": "claims-archive-search",
+      "resourceName": "claims-archive-search",
+      "accountId": "111111111111",
+      "awsRegion": "us-east-1",
+      "arn": "arn:aws:es:us-east-1:111111111111:domain/claims-archive-search",
+      "tags": [
+        {
+          "key": "environment",
+          "value": "prod"
+        }
+      ],
+      "configuration": "{\"DomainName\":\"claims-archive-search\",\"Endpoint\":\"search-claims-archive.us-east-1.es.amazonaws.com\"}"
+    }
+  ]
+}

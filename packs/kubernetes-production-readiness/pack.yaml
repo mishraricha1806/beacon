@@ -1,0 +1,72 @@
+id: kubernetes-production-readiness
+name: Kubernetes Production Readiness
+version: 0.1.0
+status: preview
+owner: beacon
+summary: >
+  Inspectable Kubernetes readiness checks for workload availability, cluster
+  attack surface, admission safety, runtime stability, and production
+  survivability.
+domains:
+  - kubernetes
+use_cases:
+  - Can this workload survive pod or node disruption?
+  - Can this service scale without exhausting cluster capacity?
+  - Does the cluster enforce safe workload security posture?
+  - Are RBAC, admission webhooks, and secrets safe enough for production?
+  - Is runtime health showing node, pod, or deployment instability?
+non_goals:
+  - Replacing OPA Gatekeeper, Kyverno, Pod Security admission, or admission controllers
+  - Mutating Kubernetes resources or applying manifests
+  - Becoming a Kubernetes monitoring dashboard
+rules:
+  - rule_id: k8s.workload.replicas.single
+    intent: Workload availability baseline.
+  - rule_id: k8s.workload.resources.missing
+    intent: Scheduling, noisy-neighbor, and capacity safety signal.
+  - rule_id: k8s.workload.probes.missing
+    intent: Traffic routing and recovery readiness signal.
+  - rule_id: k8s.container.privileged
+    intent: Container blast-radius and privilege risk.
+  - rule_id: k8s.image.latest_tag
+    intent: Deployment repeatability and rollback risk.
+  - rule_id: k8s.workload.topology_spread.missing
+    intent: Node/failure-domain concentration risk.
+  - rule_id: k8s.workload.pod_disruption_budget.missing
+    intent: Voluntary disruption survivability risk.
+  - rule_id: k8s.workload.pod_disruption_budget.unsafe
+    intent: Maintenance and upgrade availability risk.
+  - rule_id: k8s.hpa.scale_headroom.missing
+    intent: Traffic spike and autoscaling headroom risk.
+  - rule_id: k8s.namespace.pod_security.enforce_missing
+    intent: Namespace-level workload admission posture risk.
+  - rule_id: k8s.rbac.role.wildcard_permissions
+    intent: Least-privilege RBAC risk.
+  - rule_id: k8s.rbac.cluster_admin.broad_binding
+    intent: Broad cluster-admin blast-radius risk.
+  - rule_id: k8s.admission_webhook.failure_policy.ignore
+    intent: Fail-open admission-control bypass risk.
+  - rule_id: k8s.secret.inline_material
+    intent: Secret management and source-control exposure risk.
+  - rule_id: k8s.workload.network_policy.missing
+    intent: East-west traffic segmentation gap.
+  - rule_id: k8s.workload.host_namespace.enabled
+    intent: Host namespace escape/blast-radius risk.
+  - rule_id: k8s.container.run_as_non_root.missing
+    intent: Container least-privilege runtime risk.
+  - rule_id: k8s.container.allow_privilege_escalation.enabled
+    intent: Container privilege escalation risk.
+  - rule_id: k8s.container.read_only_root_filesystem.disabled
+    intent: Container filesystem hardening risk.
+  - rule_id: k8s.container.seccomp_profile.missing
+    intent: Kernel syscall hardening gap.
+  - rule_id: k8s.runtime.node.not_ready
+    intent: Runtime node availability signal.
+  - rule_id: k8s.runtime.node.pressure
+    intent: Runtime node capacity pressure signal.
+  - rule_id: k8s.runtime.pod.crash_loop
+    intent: Runtime workload stability signal.
+  - rule_id: k8s.runtime.pod.pending
+    intent: Runtime scheduling/capacity signal.
+  - rule_id: k8s.runtime.deployment.unavailable
+    intent: Runtime deployment availability signal.

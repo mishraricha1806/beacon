@@ -1,0 +1,17 @@
+{
+  "values": {
+    "root_module": {
+      "resources": [
+        {
+          "type": "aws_instance",
+          "name": "api",
+          "values": {
+            "id": "i-0123456789abcdef0",
+            "name": "api"
+          }
+        }
+      ]
+    }
+  }
+}
+

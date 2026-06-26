@@ -1,0 +1,10 @@
+rule_id: iac_coverage.resource.active_unmanaged
+title: Unmanaged cloud resource has recent activity
+description: Detects unmanaged cloud resources with recent activity or cost signals.
+severity_default: HIGH
+category: operational_safety
+author: beacon.iac_coverage
+recommendation: Do not delete blindly. Review activity, dependencies, and owner before import, quarantine, or removal.
+version: "1.0"
+tags: [iac-coverage, cost, activity, unmanaged]
+

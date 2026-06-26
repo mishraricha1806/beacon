@@ -1,0 +1,6 @@
+owners:
+  aws_instance.api:
+    owner: platform
+    service: checkout
+    slack: "#platform"
+

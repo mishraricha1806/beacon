@@ -11,6 +11,7 @@ from beacon.readiness.distributed import (
 )
 from beacon.readiness.evidence import build_release_evidence_pack
 from beacon.readiness.interpretation import (
+    ROLLUP_RULES,
     build_business_categories,
     interpret_findings,
     readiness_score_from_points,
@@ -371,11 +372,18 @@ def build_next_best_actions(summary):
 
 def build_architect_assessment(summary):
     grouped_risks = summary.get("grouped_risks") or []
-    material_risks = [
+    grouped_material_risks = [
         risk
         for risk in grouped_risks
         if risk.get("severity") in {"ERROR", "CRITICAL", "HIGH", "MEDIUM"}
     ]
+    direct_material_risks = [
+        architect_finding_risk(finding)
+        for finding in summary.get("interpreted_findings", [])
+        if finding.get("severity") in {"ERROR", "CRITICAL", "HIGH", "MEDIUM"}
+        and finding.get("rule_id") not in ROLLUP_RULES
+    ]
+    material_risks = sort_architect_risks(grouped_material_risks + direct_material_risks)
     informational_risks = [
         risk for risk in grouped_risks if risk.get("severity") in {"LOW", "INFO"}
     ]
@@ -490,7 +498,7 @@ def build_context_gaps(summary, material_risks):
 
     if material_risks and not summary.get("root_cause_hypotheses"):
         gaps.append(
-            "No cross-system correlation evidence was available, so Beacon cannot yet distinguish Kafka-native pressure from downstream service or database pressure."
+            "No cross-system correlation evidence was available, so Beacon cannot yet connect this risk to upstream services, downstream dependencies, or business flows."
         )
 
     return gaps[:5]
@@ -506,6 +514,32 @@ def architect_risk_item(risk):
         "remediation_command": risk.get("remediation_command"),
         "examples": risk.get("examples", [])[:3],
     }
+
+
+def architect_finding_risk(finding):
+    return {
+        "key": finding.get("rule_id"),
+        "severity": finding.get("severity"),
+        "category": finding.get("category"),
+        "business_category": finding.get("business_category"),
+        "title": finding.get("title"),
+        "affected_count": 1,
+        "recommendation": finding.get("recommendation"),
+        "remediation_command": finding.get("remediation_command"),
+        "examples": [finding.get("entity") or finding.get("resource") or finding.get("file")],
+    }
+
+
+def sort_architect_risks(risks):
+    severity_order = {"ERROR": 0, "CRITICAL": 1, "HIGH": 2, "MEDIUM": 3}
+    return sorted(
+        risks,
+        key=lambda risk: (
+            severity_order.get(risk.get("severity"), 99),
+            risk.get("key") or "",
+            risk.get("title") or "",
+        ),
+    )
 
 
 def build_investigate_now(material_risks):

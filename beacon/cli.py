@@ -26,6 +26,7 @@ from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.schema_registry_connector import analyze_schema_registry_config
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
 from beacon.deployment_events import analyze_deployment_events_file
+from beacon.iac_coverage import analyze_iac_coverage
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.readiness.comparison import compare_release_evidence
 from beacon.engine import metadata_registry as rules_registry
@@ -1274,6 +1275,69 @@ def readiness_kafka_history(
         environment=environment,
         context_path=context_path,
     )
+
+
+@readiness_app.command("iac-coverage")
+def readiness_iac_coverage(
+    cloud_inventory: str = typer.Option(
+        ...,
+        "--cloud-inventory",
+        help="Path to cloud inventory export YAML or JSON.",
+    ),
+    terraform_state: str = typer.Option(
+        ...,
+        "--terraform-state",
+        help="Path to Terraform state JSON or plan/state-style JSON.",
+    ),
+    owners: str = typer.Option(
+        None,
+        "--owners",
+        help="Optional ownership metadata YAML or JSON.",
+    ),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+    policy_path: str = typer.Option(None, "--policy", help="Policy and waiver YAML."),
+    ci: bool = typer.Option(
+        False, "--ci", help="Exit non-zero when readiness crosses the configured threshold."
+    ),
+    fail_on: str = typer.Option(
+        None,
+        "--fail-on",
+        help="CI threshold: none, critical, high, medium, or low.",
+    ),
+    evidence_output: str = typer.Option(
+        None,
+        "--evidence-output",
+        help="Write readiness_summary.release_evidence to this JSON file.",
+    ),
+):
+    """Detect unmanaged cloud resources outside Terraform state."""
+
+    findings = analyze_iac_coverage(
+        cloud_inventory_path=cloud_inventory,
+        terraform_state_path=terraform_state,
+        owners_path=owners,
+    )
+    summary = emit_readiness(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        environment=environment,
+        context_path=context_path,
+        policy_path=policy_path,
+        evidence_output=evidence_output,
+    )
+    maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
 
 @readiness_app.command("all")

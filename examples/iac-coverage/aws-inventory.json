@@ -1,0 +1,45 @@
+{
+  "resources": [
+    {
+      "type": "aws_instance",
+      "name": "api",
+      "id": "i-0123456789abcdef0",
+      "account_id": "111111111111",
+      "region": "us-east-1",
+      "tags": {
+        "owner": "platform",
+        "application": "checkout"
+      },
+      "cost_30d": 12.5,
+      "config": {
+        "monitoring": false
+      }
+    },
+    {
+      "type": "aws_opensearch_domain",
+      "name": "claims-archive-search",
+      "arn": "arn:aws:es:us-east-1:111111111111:domain/claims-archive-search",
+      "account_id": "111111111111",
+      "region": "us-east-1",
+      "tags": {},
+      "cost_30d": 840.0,
+      "activity_30d": true,
+      "config": {
+        "domain_name": "claims-archive-search",
+        "network_exposure": "public"
+      }
+    },
+    {
+      "type": "aws_s3_bucket",
+      "name": "legacy-claim-exports",
+      "account_id": "111111111111",
+      "region": "us-east-1",
+      "tags": {},
+      "cost_30d": 35.8,
+      "config": {
+        "bucket": "legacy-claim-exports"
+      }
+    }
+  ]
+}
+

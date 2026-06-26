@@ -8,9 +8,15 @@ Beacon helps engineering teams answer one practical question before release:
 Is this system production ready?
 ```
 
+New here? Start with the
+[`5-minute quickstart`](QUICKSTART_5_MINUTES.md).
+
 It scans infrastructure configuration, runtime snapshots, and operational
 signals, then produces a deterministic readiness decision, ranked risks,
 root-cause hypotheses, and next actions.
+
+The full product spec and long-term company blueprint live in
+[`docs/BEACON_SSD.md`](docs/BEACON_SSD.md).
 
 Beacon is not a dashboard, log store, or generic observability platform. Its
 core product principle is:
@@ -51,6 +57,11 @@ High-impact readiness use cases now covered include:
 - **Can object storage recover from overwrite/delete mistakes?** Beacon flags buckets with neither versioning nor lifecycle controls.
 - **Can Terraform plan/state changes safely go to production?** Beacon scans HCL, plan JSON, and state JSON for infrastructure survivability risks before rollout.
 
+Additional readiness capability:
+
+- **What cloud resources exist outside Terraform state?** Beacon compares cloud inventory exports, Terraform state, ownership metadata, and optional activity/cost context to detect unmanaged resources, classify risk, and recommend whether to import, delete, tag, quarantine, or review. See [`docs/IAC_COVERAGE_READINESS.md`](docs/IAC_COVERAGE_READINESS.md).
+- **Can Beacon use inventory exports I already have?** Yes. IaC coverage accepts Beacon `resources`, AWS Config `configurationItems`, AWS Resource Explorer `Resources`, and Steampipe/CloudQuery `rows` as file inputs.
+
 ## Inspectable Readiness Packs
 
 Beacon is not meant to replace OPA, Sentinel, admission controllers, or
@@ -72,10 +83,17 @@ the runner, normalizer, scorer, reporter, and UI.
 python3 -m beacon.cli packs list
 python3 -m beacon.cli packs show kafka-production-readiness
 python3 -m beacon.cli packs rules kafka-production-readiness
+python3 -m beacon.cli packs show kubernetes-production-readiness
+python3 -m beacon.cli packs rules kubernetes-production-readiness
+python3 -m beacon.cli packs show terraform-aws-readiness
+python3 -m beacon.cli packs rules terraform-aws-readiness
+python3 -m beacon.cli packs show iac-coverage-readiness
+python3 -m beacon.cli packs rules iac-coverage-readiness
 ```
 
 See [`docs/BEACON_VS_OPA_SENTINEL.md`](docs/BEACON_VS_OPA_SENTINEL.md) and
-[`packs/`](packs/) for the first Kafka production-readiness pack.
+[`packs/`](packs/) for the current Kafka, Kubernetes, Terraform/AWS, and IaC
+coverage readiness packs.
 
 ## Fastest Way To Try Beacon
 
@@ -159,6 +177,37 @@ also mount the real examples directory. Otherwise Beacon will correctly report:
 
 ```text
 Path does not exist: /workspace/project/examples/...
+```
+
+## Use Case 0: IaC Coverage Readiness
+
+Question:
+
+```text
+What cloud resources exist outside Terraform state?
+```
+
+What Beacon checks:
+
+- cloud resources present in inventory but missing from Terraform state
+- missing owner/application metadata
+- recent cost or activity on unmanaged resources
+- public exposure on unmanaged resources
+- sensitive unmanaged databases, search clusters, storage, or platform resources
+- recommended disposition: import, delete after validation, tag, quarantine, or review
+
+CLI test:
+
+```bash
+docker run --rm \
+  -v "$PWD:/workspace/project:ro" \
+  ghcr.io/mishraricha1806/beacon:latest readiness iac-coverage \
+  --cloud-inventory /workspace/project/examples/iac-coverage/aws-inventory.json \
+  --terraform-state /workspace/project/examples/iac-coverage/terraform-state.json \
+  --owners /workspace/project/examples/iac-coverage/owners.yaml \
+  --environment prod \
+  --no-html \
+  --no-open-report
 ```
 
 ## Use Case 1: Bad Infra Readiness Gate
