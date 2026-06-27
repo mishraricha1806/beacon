@@ -11,3 +11,19 @@ cloud_inventory:
         role_definition_name: Contributor
         principal_id: platform-team
         scope: /subscriptions/example-subscription
+    - type: azurerm_postgresql_flexible_server
+      name: claims-postgres
+      config:
+        id: /subscriptions/example/resourceGroups/claims/providers/Microsoft.DBforPostgreSQL/flexibleServers/claims-postgres
+        public_network_access_enabled: true
+        backup_retention_days: 3
+        high_availability:
+          - mode: Disabled
+    - type: azurerm_key_vault
+      name: claims-vault
+      config:
+        id: /subscriptions/example/resourceGroups/claims/providers/Microsoft.KeyVault/vaults/claims-vault
+        public_network_access_enabled: true
+        purge_protection_enabled: false
+        network_acls:
+          - default_action: Allow

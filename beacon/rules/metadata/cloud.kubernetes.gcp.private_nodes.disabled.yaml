@@ -1,0 +1,9 @@
+rule_id: cloud.kubernetes.gcp.private_nodes.disabled
+title: GKE private nodes disabled
+description: Detects GKE clusters without private nodes.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Enable private nodes for production GKE clusters or document an approved exception.
+version: "1.0"
+tags: [cloud, gcp, gke, network]

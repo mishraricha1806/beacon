@@ -1,0 +1,9 @@
+rule_id: cloud.database.gcp.ha.disabled
+title: GCP Cloud SQL HA disabled
+description: Detects GCP Cloud SQL instances without regional high availability.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Set availability_type to REGIONAL for production databases or document an approved exception.
+version: "1.0"
+tags: [cloud, database, gcp, ha]

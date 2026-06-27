@@ -1,0 +1,141 @@
+id: distributed-system-production-readiness
+name: Distributed System Production Readiness
+version: 0.1.0
+status: preview
+owner: beacon
+summary: >
+  Cross-domain readiness checks that answer whether a distributed system can go
+  to production across Kafka, Kubernetes, cloud, IaC coverage, CI/CD, topology,
+  and flow signals.
+domains:
+  - kafka
+  - kubernetes
+  - cloud
+  - cloud_identity
+  - object_storage
+  - iac_coverage
+  - cicd
+  - topology
+  - flow
+use_cases:
+  - Can this distributed system safely go to production?
+  - What are the release blockers across Kafka, Kubernetes, cloud, IaC, CI/CD, and topology?
+  - Which risks affect survivability, scalability, recovery, security, and operational ownership?
+  - What should engineers fix before rollout instead of reviewing one domain at a time?
+non_goals:
+  - Replacing domain-specific packs such as Kafka, Kubernetes, cloud, or IaC coverage
+  - Claiming complete provider parity across every cloud service
+  - Replacing OPA, Sentinel, admission controllers, or cloud-native policy enforcement
+  - Auto-remediating infrastructure or mutating production systems
+decision_model:
+  release_blocker:
+    - CRITICAL findings
+    - ERROR findings
+    - correlated cross-domain risks
+  major_risk:
+    - HIGH findings
+    - weak recovery posture
+    - missing ownership or deployment safety controls
+  needs_context:
+    - environment-specific exceptions
+    - topology or business criticality not provided
+rules:
+  # Kafka survivability and runtime readiness
+  - rule_id: kafka.topic.replication_factor.low
+    intent: Kafka topic cannot survive broker failure.
+  - rule_id: kafka.topic.min_insync_replicas.unsafe
+    intent: Kafka topic has unsafe write durability posture.
+  - rule_id: kafka.topic.retention_ms.unbounded
+    intent: Kafka topic can create uncontrolled storage growth.
+  - rule_id: kafka.cluster.broker_count.low
+    intent: Kafka cluster has weak broker-failure survivability.
+  - rule_id: kafka.cluster.under_replicated_partitions
+    intent: Kafka cluster has replication health risk.
+  - rule_id: kafka.consumer_group.lag.high
+    intent: Runtime consumer lag can indicate downstream or consumer bottlenecks.
+  - rule_id: schema_registry.compatibility.global_unsafe
+    intent: Unsafe schema compatibility can break consumers during release.
+
+  # Kubernetes workload, security, and admission readiness
+  - rule_id: k8s.workload.replicas.single
+    intent: Kubernetes workload has weak pod-failure survivability.
+  - rule_id: k8s.workload.probes.missing
+    intent: Kubernetes workload has weak health and traffic-routing posture.
+  - rule_id: k8s.workload.resources.missing
+    intent: Kubernetes workload can cause scheduling and noisy-neighbor instability.
+  - rule_id: k8s.workload.pod_disruption_budget.missing
+    intent: Kubernetes workload has weak voluntary-disruption protection.
+  - rule_id: k8s.namespace.pod_security.enforce_missing
+    intent: Namespace is missing admission-level pod security enforcement.
+  - rule_id: k8s.rbac.cluster_admin.broad_binding
+    intent: Kubernetes RBAC grants broad cluster-admin blast radius.
+  - rule_id: k8s.admission_webhook.failure_policy.ignore
+    intent: Admission control can be bypassed during webhook failure.
+  - rule_id: k8s.runtime.deployment.unavailable
+    intent: Runtime Kubernetes deployment is unavailable.
+
+  # Cloud and storage readiness
+  - rule_id: cloud.network.security_group.open_ingress
+    intent: Cloud network allows public ingress.
+  - rule_id: cloud.database.rds.publicly_accessible
+    intent: AWS RDS database is publicly accessible.
+  - rule_id: cloud.database.azure.public_network_access.enabled
+    intent: Azure managed database allows public network access.
+  - rule_id: cloud.database.gcp.public_ip.enabled
+    intent: GCP Cloud SQL exposes public network access.
+  - rule_id: cloud.key_vault.azure.public_network_access.enabled
+    intent: Azure Key Vault allows public network access.
+  - rule_id: cloud.network.gcp.firewall.open_ingress
+    intent: GCP firewall allows public ingress.
+  - rule_id: cloud.kubernetes.gcp.private_nodes.disabled
+    intent: GKE nodes are not private.
+  - rule_id: cloud.quota.headroom.insufficient
+    intent: Cloud quota cannot support required capacity plus buffer.
+  - rule_id: iam.permissions.wildcard
+    intent: Cloud IAM policy has wildcard blast-radius risk.
+  - rule_id: iam.admin_or_owner.excessive
+    intent: Cloud identity has broad admin or owner access.
+  - rule_id: object_storage.public_access.enabled
+    intent: Object storage public access is enabled.
+  - rule_id: object_storage.recovery_controls.missing
+    intent: Object storage lacks recovery controls for delete/overwrite events.
+
+  # IaC coverage and ownership readiness
+  - rule_id: iac_coverage.resource.unmanaged
+    intent: Cloud resource exists outside Terraform state.
+  - rule_id: iac_coverage.resource.owner_missing
+    intent: Unmanaged resource has no owner metadata.
+  - rule_id: iac_coverage.resource.active_unmanaged
+    intent: Unmanaged resource has activity or cost and should not be blindly deleted.
+  - rule_id: iac_coverage.resource.public_unmanaged
+    intent: Public unmanaged resource creates unknown blast radius.
+  - rule_id: iac_coverage.resource.sensitive_unmanaged
+    intent: Sensitive unmanaged infrastructure requires owner and recovery review.
+
+  # Deployment, topology, and flow readiness
+  - rule_id: cicd.deployment.environment.missing
+    intent: Deployment workflow lacks explicit environment gate.
+  - rule_id: cicd.github.permissions.write_all
+    intent: CI/CD workflow grants broad write permissions.
+  - rule_id: cicd.github.third_party_actions.unpinned
+    intent: CI/CD workflow has supply-chain pinning risk.
+  - rule_id: topology.service.blast_radius.high
+    intent: Service topology has high blast-radius risk.
+  - rule_id: topology.service.critical_single_instance
+    intent: Critical topology component is a single instance.
+  - rule_id: topology.service.owner.missing
+    intent: Service ownership is missing for operational response.
+  - rule_id: readiness.correlation.internet_exposed_database
+    intent: Cross-domain correlation detected internet-exposed database risk.
+  - rule_id: readiness.correlation.storage_data_exposure
+    intent: Cross-domain correlation detected storage data exposure risk.
+  - rule_id: readiness.correlation.uncontrolled_production_deploy
+    intent: Cross-domain correlation detected uncontrolled production deployment risk.
+  - rule_id: readiness.correlation.capacity_plan_mismatch
+    intent: Cross-domain correlation detected capacity planning mismatch.
+  - rule_id: flow.runtime.downstream_db_bottleneck
+    intent: Flow diagnostics indicate downstream database bottleneck.
+  - rule_id: flow.runtime.deployment_correlated_degradation
+    intent: Flow degradation correlates with deployment timing.
+  - rule_id: flow.runtime.cascading_latency
+    intent: Latency is cascading across the distributed flow.

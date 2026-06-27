@@ -191,6 +191,28 @@ def print_readiness_summary(summary):
 
         console.print()
 
+    if summary.get("operational_decisions"):
+        decisions_table = Table(title="Operational Decisions")
+        decisions_table.add_column("Rank")
+        decisions_table.add_column("Action")
+        decisions_table.add_column("Target")
+        decisions_table.add_column("Safety")
+        decisions_table.add_column("Confidence")
+        decisions_table.add_column("Do Not Do")
+
+        for decision in summary["operational_decisions"][:5]:
+            decisions_table.add_row(
+                str(decision.get("rank", "")),
+                decision.get("action", ""),
+                decision.get("target", ""),
+                decision.get("safety", ""),
+                decision.get("confidence", ""),
+                "; ".join(decision.get("do_not_do", [])[:2]),
+            )
+
+        console.print(decisions_table)
+        console.print()
+
     if summary.get("grouped_risks"):
         grouped_table = Table(title="Grouped Root-Cause Risks")
         grouped_table.add_column("Severity")

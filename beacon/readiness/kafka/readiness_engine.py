@@ -3,6 +3,7 @@ from beacon.scoring import (
     production_readiness_decision,
 )
 from beacon.correlations.root_cause import correlate_findings
+from beacon.decisions.decision_engine import DecisionEngine
 from beacon.intelligence.context import context_summary
 from beacon.kafka_report import build_kafka_report
 from beacon.readiness.distributed import (
@@ -89,6 +90,7 @@ def calculate_readiness(
         "environment_readiness": None,
         "release_evidence": None,
         "root_cause_hypotheses": [],
+        "operational_decisions": [],
         "kafka_report": None,
     }
 
@@ -131,6 +133,11 @@ def calculate_readiness(
     )
     summary["kafka_report"] = build_kafka_report(sort_findings(interpreted_findings))
     summary["release_evidence"] = build_release_evidence_pack(summary, interpreted_findings)
+    summary["operational_decisions"] = DecisionEngine.build_operational_decisions(
+        summary["interpreted_findings"],
+        summary=summary,
+        max_decisions=5,
+    )
     return summary
 
 

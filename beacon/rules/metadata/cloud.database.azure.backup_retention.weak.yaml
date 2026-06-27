@@ -1,0 +1,9 @@
+rule_id: cloud.database.azure.backup_retention.weak
+title: Azure database backup retention weak
+description: Detects Azure managed databases with missing or weak backup retention.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Set backup retention to a production-approved duration and test restore procedures.
+version: "1.0"
+tags: [cloud, database, azure, backup]

@@ -1,0 +1,9 @@
+rule_id: cloud.database.gcp.backup.disabled
+title: GCP Cloud SQL backups disabled
+description: Detects GCP Cloud SQL instances without backup configuration enabled.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Enable backup_configuration.enabled and validate restore procedures for production databases.
+version: "1.0"
+tags: [cloud, database, gcp, backup]

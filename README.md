@@ -95,11 +95,14 @@ python3 -m beacon.cli packs show terraform-aws-readiness
 python3 -m beacon.cli packs rules terraform-aws-readiness
 python3 -m beacon.cli packs show iac-coverage-readiness
 python3 -m beacon.cli packs rules iac-coverage-readiness
+python3 -m beacon.cli packs show distributed-system-production-readiness
+python3 -m beacon.cli packs rules distributed-system-production-readiness
 ```
 
 See [`docs/BEACON_VS_OPA_SENTINEL.md`](docs/BEACON_VS_OPA_SENTINEL.md) and
 [`packs/`](packs/) for the current Kafka, Kubernetes, cloud, Azure, GCP,
-provider-specific Terraform/AWS, and IaC coverage readiness packs.
+provider-specific Terraform/AWS, IaC coverage, and distributed-system readiness
+packs.
 
 ## Fastest Way To Try Beacon
 

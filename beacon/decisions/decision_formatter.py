@@ -102,6 +102,11 @@ class DecisionFormatter:
         categorized = DecisionEngine.categorize_findings(findings)
         risk_areas = DecisionEngine.identify_primary_risk_areas(findings)
         actions = DecisionEngine.prioritize_remediation_actions(findings, max_actions=5)
+        operational_decisions = DecisionEngine.build_operational_decisions(
+            findings,
+            summary=readiness_summary,
+            max_decisions=5,
+        )
 
         return {
             "production_decision": decision.value,
@@ -133,6 +138,7 @@ class DecisionFormatter:
                 }
                 for idx, action in enumerate(actions)
             ],
+            "operational_decisions": operational_decisions,
             "findings": findings,
             "readiness_summary": readiness_summary,
         }

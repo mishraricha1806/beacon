@@ -26,10 +26,12 @@ non_goals:
 provider_coverage:
   current:
     - AWS-backed Terraform and cloud inventory signals
-    - provider-neutral object storage, identity, network, and quota readiness concepts
+    - Azure managed database, storage, and RBAC readiness signals
+    - GCP Cloud SQL, Cloud Storage, and IAM readiness signals
+    - provider-neutral object storage, identity, network, database, and quota readiness concepts
   planned:
-    - Azure compute, storage, identity, network, and database readiness
-    - GCP compute, storage, IAM, network, and database readiness
+    - deeper Azure compute, quota, and regional resiliency readiness
+    - deeper GCP quota, regional workload, and private connectivity readiness
     - provider-specific evidence mapping for equivalent cross-cloud controls
 rules:
   - rule_id: cloud.network.security_group.open_ingress
@@ -42,6 +44,32 @@ rules:
     intent: Accidental managed database deletion risk.
   - rule_id: cloud.database.rds.storage_encryption.disabled
     intent: Managed database storage encryption risk.
+  - rule_id: cloud.database.azure.public_network_access.enabled
+    intent: Azure managed database public network exposure risk.
+  - rule_id: cloud.database.azure.backup_retention.weak
+    intent: Azure managed database weak backup retention risk.
+  - rule_id: cloud.database.azure.ha.disabled
+    intent: Azure managed database high-availability posture risk.
+  - rule_id: cloud.key_vault.azure.public_network_access.enabled
+    intent: Azure Key Vault public network exposure risk.
+  - rule_id: cloud.key_vault.azure.purge_protection.disabled
+    intent: Azure Key Vault permanent deletion recovery risk.
+  - rule_id: cloud.network.azure.private_endpoint.missing
+    intent: Sensitive Azure managed service private endpoint posture risk.
+  - rule_id: cloud.database.gcp.public_ip.enabled
+    intent: GCP Cloud SQL public IP or authorized network exposure risk.
+  - rule_id: cloud.database.gcp.backup.disabled
+    intent: GCP Cloud SQL backup posture risk.
+  - rule_id: cloud.database.gcp.deletion_protection.disabled
+    intent: GCP Cloud SQL accidental deletion risk.
+  - rule_id: cloud.database.gcp.ha.disabled
+    intent: GCP Cloud SQL regional high-availability posture risk.
+  - rule_id: cloud.network.gcp.firewall.open_ingress
+    intent: GCP firewall public ingress risk.
+  - rule_id: cloud.kubernetes.gcp.private_nodes.disabled
+    intent: GKE worker-node public exposure risk.
+  - rule_id: cloud.kubernetes.gcp.master_authorized_networks.missing
+    intent: GKE control-plane access restriction risk.
   - rule_id: cloud.compute.ec2.detailed_monitoring.disabled
     intent: Runtime visibility and capacity detection gap.
   - rule_id: cloud.compute.autoscaling.capacity.insufficient

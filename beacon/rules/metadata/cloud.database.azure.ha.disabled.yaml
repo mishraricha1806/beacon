@@ -1,0 +1,9 @@
+rule_id: cloud.database.azure.ha.disabled
+title: Azure database HA disabled
+description: Detects Azure managed databases without high-availability posture.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Enable zone-redundant or high-availability mode for production databases, or document an approved exception.
+version: "1.0"
+tags: [cloud, database, azure, ha]

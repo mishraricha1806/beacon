@@ -1,0 +1,9 @@
+rule_id: cloud.key_vault.azure.purge_protection.disabled
+title: Azure Key Vault purge protection disabled
+description: Detects Azure Key Vaults without purge protection.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Enable purge_protection_enabled and validate recovery procedures for production vaults.
+version: "1.0"
+tags: [cloud, azure, key-vault, recovery]

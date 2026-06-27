@@ -1,6 +1,16 @@
 from beacon.engine.models import Finding, Rule
 from beacon.engine.registry import registry
 
+AZURE_DATABASE_RESOURCE_TYPES = {
+    "azurerm_mssql_server",
+    "azurerm_mysql_flexible_server",
+    "azurerm_postgresql_flexible_server",
+}
+
+AZURE_PRIVATE_ENDPOINT_TARGET_TYPES = AZURE_DATABASE_RESOURCE_TYPES | {
+    "azurerm_key_vault",
+}
+
 
 def build_cloud_finding(
     resource,
@@ -176,6 +186,472 @@ def rds_storage_encryption_disabled(resource, context):
         },
         ["cloud", "database", "rds", "encryption"],
     )
+
+
+def azure_database_public_access_enabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type not in AZURE_DATABASE_RESOURCE_TYPES:
+        return None
+
+    public_network_access = config.get("public_network_access_enabled")
+    if str(public_network_access).lower() in {"false", "disabled"}:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.azure.public_network_access.enabled",
+        "operational_safety",
+        "CRITICAL",
+        f"Azure managed database '{resource.name}' allows public network access",
+        "Public database network access increases data exposure and operational blast radius.",
+        "Disable public network access and require private endpoint or approved private connectivity before production.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "public_network_access_enabled": public_network_access,
+        },
+        ["cloud", "database", "azure", "network"],
+    )
+
+
+def azure_database_backup_retention_weak(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type not in AZURE_DATABASE_RESOURCE_TYPES:
+        return None
+
+    retention = config.get("backup_retention_days")
+    if isinstance(retention, str) and retention.isdigit():
+        retention = int(retention)
+
+    if isinstance(retention, (int, float)) and retention >= 7:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.azure.backup_retention.weak",
+        "recovery_readiness",
+        "HIGH",
+        f"Azure managed database '{resource.name}' has weak backup retention",
+        "Short or missing backup retention weakens recovery after corruption, deletion, or operational mistakes.",
+        "Set backup retention to a production-approved duration and test restore procedures.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "backup_retention_days": retention,
+        },
+        ["cloud", "database", "azure", "backup"],
+    )
+
+
+def azure_database_ha_disabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type not in AZURE_DATABASE_RESOURCE_TYPES:
+        return None
+
+    high_availability = config.get("high_availability")
+    zone_redundant = config.get("zone_redundant")
+
+    ha_enabled = False
+    if isinstance(high_availability, list):
+        ha_enabled = any(
+            item.get("mode") not in {None, "Disabled"}
+            for item in high_availability
+            if isinstance(item, dict)
+        )
+    elif isinstance(high_availability, dict):
+        ha_enabled = high_availability.get("mode") not in {None, "Disabled"}
+
+    if ha_enabled or zone_redundant is True:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.azure.ha.disabled",
+        "resiliency",
+        "HIGH",
+        f"Azure managed database '{resource.name}' does not enable HA",
+        "Single-zone managed databases have weaker failover posture during zone failure or maintenance.",
+        "Enable zone-redundant or high-availability mode for production databases, or document an approved exception.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "high_availability": high_availability,
+            "zone_redundant": zone_redundant,
+        },
+        ["cloud", "database", "azure", "ha"],
+    )
+
+
+def gcp_sql_public_access_enabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "google_sql_database_instance":
+        return None
+
+    ip_config = cloud_sql_ip_configuration(config)
+    authorized_networks = ip_config.get("authorized_networks") or []
+    public_ipv4 = ip_config.get("ipv4_enabled")
+
+    if public_ipv4 is not True and not authorized_networks:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.gcp.public_ip.enabled",
+        "operational_safety",
+        "CRITICAL",
+        f"GCP Cloud SQL instance '{resource.name}' exposes public network access",
+        "Public Cloud SQL access increases data exposure and operational blast radius.",
+        "Disable public IPv4 or restrict authorized networks behind approved private connectivity.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "ipv4_enabled": public_ipv4,
+            "authorized_networks": authorized_networks,
+        },
+        ["cloud", "database", "gcp", "network"],
+    )
+
+
+def gcp_sql_backup_disabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "google_sql_database_instance":
+        return None
+
+    backup_config = cloud_sql_backup_configuration(config)
+    if backup_config.get("enabled") is True:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.gcp.backup.disabled",
+        "recovery_readiness",
+        "HIGH",
+        f"GCP Cloud SQL instance '{resource.name}' does not enable backups",
+        "Missing database backups reduce recovery ability after corruption, deletion, or operational mistakes.",
+        "Enable backup_configuration.enabled and validate restore procedures for production databases.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "backup_configuration": backup_config,
+        },
+        ["cloud", "database", "gcp", "backup"],
+    )
+
+
+def gcp_sql_deletion_protection_disabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "google_sql_database_instance":
+        return None
+
+    if config.get("deletion_protection") is True:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.gcp.deletion_protection.disabled",
+        "recovery_readiness",
+        "HIGH",
+        f"GCP Cloud SQL instance '{resource.name}' does not enable deletion protection",
+        "Without deletion protection, accidental Terraform or console deletion can remove a production database more easily.",
+        "Enable deletion_protection for production databases and require explicit break-glass deletion approval.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "deletion_protection": config.get("deletion_protection"),
+        },
+        ["cloud", "database", "gcp", "recovery"],
+    )
+
+
+def gcp_sql_ha_disabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "google_sql_database_instance":
+        return None
+
+    settings = cloud_sql_settings(config)
+    if settings.get("availability_type") == "REGIONAL":
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.gcp.ha.disabled",
+        "resiliency",
+        "HIGH",
+        f"GCP Cloud SQL instance '{resource.name}' does not enable regional HA",
+        "Zonal Cloud SQL instances have weaker failover posture during zone failure or maintenance.",
+        "Set availability_type to REGIONAL for production databases or document an approved exception.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "availability_type": settings.get("availability_type"),
+        },
+        ["cloud", "database", "gcp", "ha"],
+    )
+
+
+def azure_key_vault_public_network_access_enabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "azurerm_key_vault":
+        return None
+
+    public_network_access = config.get("public_network_access_enabled")
+    default_action = key_vault_default_action(config)
+
+    if str(public_network_access).lower() in {"false", "disabled"} and default_action == "Deny":
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.key_vault.azure.public_network_access.enabled",
+        "operational_safety",
+        "CRITICAL",
+        f"Azure Key Vault '{resource.name}' allows public network access",
+        "Public Key Vault access can expose secrets and keys to broader network attack paths.",
+        "Disable public network access, set network ACL default_action to Deny, and require private endpoint access.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "public_network_access_enabled": public_network_access,
+            "default_action": default_action,
+        },
+        ["cloud", "azure", "key-vault", "network"],
+    )
+
+
+def azure_key_vault_purge_protection_disabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "azurerm_key_vault":
+        return None
+
+    if config.get("purge_protection_enabled") is True:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.key_vault.azure.purge_protection.disabled",
+        "recovery_readiness",
+        "HIGH",
+        f"Azure Key Vault '{resource.name}' does not enable purge protection",
+        "Without purge protection, accidental or malicious deletion can permanently remove secrets and keys.",
+        "Enable purge_protection_enabled and validate recovery procedures for production vaults.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "purge_protection_enabled": config.get("purge_protection_enabled"),
+        },
+        ["cloud", "azure", "key-vault", "recovery"],
+    )
+
+
+def azure_private_endpoint_missing(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type not in AZURE_PRIVATE_ENDPOINT_TARGET_TYPES:
+        return None
+
+    if config.get("private_endpoint_not_required") is True:
+        return None
+
+    if has_matching_azure_private_endpoint(resource, context):
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.network.azure.private_endpoint.missing",
+        "operational_safety",
+        "HIGH",
+        f"Azure resource '{resource.name}' has no private endpoint evidence",
+        "Sensitive Azure services without private endpoint evidence may rely on public network paths or unclear access controls.",
+        "Add a private endpoint for production databases and Key Vaults, or document an approved exception with compensating controls.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "id": config.get("id"),
+        },
+        ["cloud", "azure", "private-endpoint"],
+    )
+
+
+def gcp_firewall_open_ingress(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "google_compute_firewall":
+        return None
+
+    direction = str(config.get("direction") or "INGRESS").upper()
+    source_ranges = normalize_cidrs(config.get("source_ranges") or [])
+    if direction != "INGRESS" or "0.0.0.0/0" not in source_ranges:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.network.gcp.firewall.open_ingress",
+        "operational_safety",
+        "HIGH",
+        f"GCP firewall rule '{resource.name}' allows public ingress",
+        "Public ingress firewall rules increase attack surface and can expose services directly to the internet.",
+        "Restrict source_ranges to approved networks or front services with approved load balancing and WAF controls.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "source_ranges": source_ranges,
+            "allowed": config.get("allow"),
+        },
+        ["cloud", "gcp", "network", "firewall"],
+    )
+
+
+def gke_private_nodes_disabled(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "google_container_cluster":
+        return None
+
+    private_config = first_block(config.get("private_cluster_config"))
+    if private_config.get("enable_private_nodes") is True:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.kubernetes.gcp.private_nodes.disabled",
+        "operational_safety",
+        "HIGH",
+        f"GKE cluster '{resource.name}' does not enable private nodes",
+        "Publicly reachable worker nodes increase cluster attack surface and weaken network isolation.",
+        "Enable private nodes for production GKE clusters or document an approved exception.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "enable_private_nodes": private_config.get("enable_private_nodes"),
+        },
+        ["cloud", "gcp", "gke", "network"],
+    )
+
+
+def gke_master_authorized_networks_missing(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "google_container_cluster":
+        return None
+
+    if config.get("master_authorized_networks_config"):
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.kubernetes.gcp.master_authorized_networks.missing",
+        "operational_safety",
+        "HIGH",
+        f"GKE cluster '{resource.name}' has no master authorized networks",
+        "A control plane without authorized network restrictions has weaker administrative access posture.",
+        "Define master_authorized_networks_config for production clusters or use approved private control-plane access.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "master_authorized_networks_config_present": False,
+        },
+        ["cloud", "gcp", "gke", "control-plane"],
+    )
+
+
+def key_vault_default_action(config):
+    network_acls = first_block(config.get("network_acls"))
+    return network_acls.get("default_action")
+
+
+def has_matching_azure_private_endpoint(resource, context):
+    config = resource.attributes.get("config", {})
+    identifiers = {
+        str(value).lower()
+        for value in [
+            resource.name,
+            config.get("id"),
+            config.get("name"),
+        ]
+        if value
+    }
+
+    endpoints = [
+        item
+        for item in context.get("resources", [])
+        if item.attributes.get("provider_resource_type") == "azurerm_private_endpoint"
+    ]
+    for endpoint in endpoints:
+        endpoint_config = endpoint.attributes.get("config", {})
+        connections = endpoint_config.get("private_service_connection") or []
+        for connection in ensure_list(connections):
+            if not isinstance(connection, dict):
+                continue
+            connection_values = {
+                str(value).lower()
+                for value in [
+                    connection.get("private_connection_resource_id"),
+                    connection.get("name"),
+                    connection.get("private_connection_resource_alias"),
+                ]
+                if value
+            }
+            if identifiers & connection_values:
+                return True
+
+    return False
+
+
+def first_block(value):
+    if isinstance(value, list):
+        return value[0] if value and isinstance(value[0], dict) else {}
+    return value if isinstance(value, dict) else {}
+
+
+def ensure_list(value):
+    if value is None:
+        return []
+    return value if isinstance(value, list) else [value]
+
+
+def cloud_sql_settings(config):
+    settings = config.get("settings") or {}
+    if isinstance(settings, list):
+        return settings[0] if settings and isinstance(settings[0], dict) else {}
+    return settings if isinstance(settings, dict) else {}
+
+
+def cloud_sql_ip_configuration(config):
+    settings = cloud_sql_settings(config)
+    ip_config = settings.get("ip_configuration") or {}
+    if isinstance(ip_config, list):
+        return ip_config[0] if ip_config and isinstance(ip_config[0], dict) else {}
+    return ip_config if isinstance(ip_config, dict) else {}
+
+
+def cloud_sql_backup_configuration(config):
+    settings = cloud_sql_settings(config)
+    backup_config = settings.get("backup_configuration") or {}
+    if isinstance(backup_config, list):
+        return backup_config[0] if backup_config and isinstance(backup_config[0], dict) else {}
+    return backup_config if isinstance(backup_config, dict) else {}
 
 
 def ec2_detailed_monitoring_disabled(resource, context):
@@ -470,6 +946,124 @@ register(
     "Detects RDS instances without storage encryption.",
     rds_storage_encryption_disabled,
     ["cloud", "database", "rds", "encryption"],
+)
+
+register(
+    "cloud.database.azure.public_network_access.enabled",
+    "operational_safety",
+    "CRITICAL",
+    "Azure database public network access enabled",
+    "Detects Azure managed databases with public network access enabled.",
+    azure_database_public_access_enabled,
+    ["cloud", "database", "azure", "network"],
+)
+register(
+    "cloud.database.azure.backup_retention.weak",
+    "recovery_readiness",
+    "HIGH",
+    "Azure database backup retention weak",
+    "Detects Azure managed databases with missing or weak backup retention.",
+    azure_database_backup_retention_weak,
+    ["cloud", "database", "azure", "backup"],
+)
+register(
+    "cloud.database.azure.ha.disabled",
+    "resiliency",
+    "HIGH",
+    "Azure database HA disabled",
+    "Detects Azure managed databases without high-availability posture.",
+    azure_database_ha_disabled,
+    ["cloud", "database", "azure", "ha"],
+)
+register(
+    "cloud.database.gcp.public_ip.enabled",
+    "operational_safety",
+    "CRITICAL",
+    "GCP Cloud SQL public IP enabled",
+    "Detects GCP Cloud SQL instances with public IP or authorized networks.",
+    gcp_sql_public_access_enabled,
+    ["cloud", "database", "gcp", "network"],
+)
+register(
+    "cloud.database.gcp.backup.disabled",
+    "recovery_readiness",
+    "HIGH",
+    "GCP Cloud SQL backups disabled",
+    "Detects GCP Cloud SQL instances without backup configuration enabled.",
+    gcp_sql_backup_disabled,
+    ["cloud", "database", "gcp", "backup"],
+)
+register(
+    "cloud.database.gcp.deletion_protection.disabled",
+    "recovery_readiness",
+    "HIGH",
+    "GCP Cloud SQL deletion protection disabled",
+    "Detects GCP Cloud SQL instances without deletion protection.",
+    gcp_sql_deletion_protection_disabled,
+    ["cloud", "database", "gcp", "recovery"],
+)
+register(
+    "cloud.database.gcp.ha.disabled",
+    "resiliency",
+    "HIGH",
+    "GCP Cloud SQL HA disabled",
+    "Detects GCP Cloud SQL instances without regional high availability.",
+    gcp_sql_ha_disabled,
+    ["cloud", "database", "gcp", "ha"],
+)
+register(
+    "cloud.key_vault.azure.public_network_access.enabled",
+    "operational_safety",
+    "CRITICAL",
+    "Azure Key Vault public network access enabled",
+    "Detects Azure Key Vaults with public network access or permissive network ACLs.",
+    azure_key_vault_public_network_access_enabled,
+    ["cloud", "azure", "key-vault", "network"],
+)
+register(
+    "cloud.key_vault.azure.purge_protection.disabled",
+    "recovery_readiness",
+    "HIGH",
+    "Azure Key Vault purge protection disabled",
+    "Detects Azure Key Vaults without purge protection.",
+    azure_key_vault_purge_protection_disabled,
+    ["cloud", "azure", "key-vault", "recovery"],
+)
+register(
+    "cloud.network.azure.private_endpoint.missing",
+    "operational_safety",
+    "HIGH",
+    "Azure private endpoint missing",
+    "Detects sensitive Azure managed services without private endpoint evidence.",
+    azure_private_endpoint_missing,
+    ["cloud", "azure", "private-endpoint"],
+)
+register(
+    "cloud.network.gcp.firewall.open_ingress",
+    "operational_safety",
+    "HIGH",
+    "GCP firewall public ingress",
+    "Detects GCP firewall rules with public ingress source ranges.",
+    gcp_firewall_open_ingress,
+    ["cloud", "gcp", "network", "firewall"],
+)
+register(
+    "cloud.kubernetes.gcp.private_nodes.disabled",
+    "operational_safety",
+    "HIGH",
+    "GKE private nodes disabled",
+    "Detects GKE clusters without private nodes.",
+    gke_private_nodes_disabled,
+    ["cloud", "gcp", "gke", "network"],
+)
+register(
+    "cloud.kubernetes.gcp.master_authorized_networks.missing",
+    "operational_safety",
+    "HIGH",
+    "GKE master authorized networks missing",
+    "Detects GKE clusters without master authorized networks.",
+    gke_master_authorized_networks_missing,
+    ["cloud", "gcp", "gke", "control-plane"],
 )
 
 register(

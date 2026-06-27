@@ -1,0 +1,9 @@
+rule_id: cloud.network.azure.private_endpoint.missing
+title: Azure private endpoint missing
+description: Detects sensitive Azure managed services without private endpoint evidence.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Add a private endpoint for production databases and Key Vaults, or document an approved exception with compensating controls.
+version: "1.0"
+tags: [cloud, azure, private-endpoint]

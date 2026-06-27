@@ -4,9 +4,9 @@ version: 0.1.0
 status: preview
 owner: beacon
 summary: >
-  Inspectable Azure readiness checks for storage public access, encryption,
-  ownership metadata, and broad RBAC assignments that increase production blast
-  radius.
+  Inspectable Azure readiness checks for managed database public access,
+  backup, HA, storage public access, encryption, ownership metadata, and broad
+  RBAC assignments that increase production blast radius.
 domains:
   - cloud
   - cloud_identity
@@ -14,16 +14,22 @@ domains:
   - terraform
 provider_coverage:
   current:
+    - Azure PostgreSQL/MySQL/MSSQL public network access posture
+    - Azure PostgreSQL/MySQL/MSSQL backup retention posture
+    - Azure PostgreSQL/MySQL/MSSQL high-availability posture
+    - Azure Key Vault public network and purge-protection posture
+    - Azure private endpoint evidence for sensitive managed services
     - Azure Storage Account public blob access posture
     - Azure Storage Account infrastructure encryption posture
     - Azure Storage Account ownership/tag metadata
     - Azure RBAC Owner, Contributor, and User Access Administrator assignments
   planned:
-    - Azure SQL/PostgreSQL/MySQL public exposure, backup, deletion, encryption, and HA posture
+    - Azure managed database deletion protection and customer-managed encryption posture where supported by resource type
     - Azure VM scale set and autoscaling headroom
-    - Azure Key Vault, private endpoint, and network exposure posture
     - Azure subscription quota and regional resiliency posture
 use_cases:
+  - Are Azure managed databases exposed to public networks?
+  - Can Azure managed databases recover through backup and HA posture?
   - Can this Azure storage estate safely go to production?
   - Are public blob access and weak encryption settings present?
   - Are Owner, Contributor, or User Access Administrator grants too broad?
@@ -33,6 +39,18 @@ non_goals:
   - Replacing Azure Policy, Defender for Cloud, Sentinel, OPA, or Terraform
   - Applying Azure changes or mutating cloud resources
 rules:
+  - rule_id: cloud.database.azure.public_network_access.enabled
+    intent: Azure managed database public network exposure risk.
+  - rule_id: cloud.database.azure.backup_retention.weak
+    intent: Azure managed database weak backup retention risk.
+  - rule_id: cloud.database.azure.ha.disabled
+    intent: Azure managed database high-availability posture risk.
+  - rule_id: cloud.key_vault.azure.public_network_access.enabled
+    intent: Azure Key Vault public network exposure risk.
+  - rule_id: cloud.key_vault.azure.purge_protection.disabled
+    intent: Azure Key Vault permanent deletion recovery risk.
+  - rule_id: cloud.network.azure.private_endpoint.missing
+    intent: Sensitive Azure managed service private endpoint posture risk.
   - rule_id: object_storage.public_access.enabled
     intent: Azure Storage Account public blob access risk.
   - rule_id: object_storage.encryption.missing

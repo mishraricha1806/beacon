@@ -48,6 +48,19 @@ def test_supported_examples_cover_governance_and_topology():
     assert "object_storage.public_access.enabled" in ids
     assert "object_storage.encryption.missing" in ids
     assert "iam.admin_or_owner.excessive" in ids
+    assert "cloud.database.azure.public_network_access.enabled" in ids
+    assert "cloud.database.azure.backup_retention.weak" in ids
+    assert "cloud.database.azure.ha.disabled" in ids
+    assert "cloud.key_vault.azure.public_network_access.enabled" in ids
+    assert "cloud.key_vault.azure.purge_protection.disabled" in ids
+    assert "cloud.network.azure.private_endpoint.missing" in ids
+    assert "cloud.database.gcp.public_ip.enabled" in ids
+    assert "cloud.database.gcp.backup.disabled" in ids
+    assert "cloud.database.gcp.deletion_protection.disabled" in ids
+    assert "cloud.database.gcp.ha.disabled" in ids
+    assert "cloud.network.gcp.firewall.open_ingress" in ids
+    assert "cloud.kubernetes.gcp.private_nodes.disabled" in ids
+    assert "cloud.kubernetes.gcp.master_authorized_networks.missing" in ids
 
     findings = scan_path(str(ROOT / "topology"))
     ids = rule_ids(findings)

@@ -3,13 +3,20 @@
 This pack defines the Azure checks Beacon currently supports for production
 readiness.
 
-It is intentionally honest about scope: the first preview focuses on Azure
-Storage Account posture and broad Azure RBAC assignments. Azure managed
-database, Key Vault, private endpoint, quota, and compute capacity checks are
-planned next.
+It is intentionally honest about scope: the first preview covers Azure managed
+database network/backup/HA posture, Azure Key Vault public/purge posture,
+private endpoint evidence for sensitive managed services, Azure Storage Account
+posture, and broad Azure RBAC assignments. Quota and compute capacity checks
+are planned next.
 
 ## Current Coverage
 
+- Azure PostgreSQL/MySQL/MSSQL public network access posture
+- Azure PostgreSQL/MySQL/MSSQL backup retention posture
+- Azure PostgreSQL/MySQL/MSSQL high-availability posture
+- Azure Key Vault public network access posture
+- Azure Key Vault purge-protection posture
+- Azure private endpoint evidence for managed databases and Key Vaults
 - Azure Storage Account public blob access posture
 - Azure Storage Account infrastructure encryption posture
 - Azure Storage Account missing tags
@@ -17,10 +24,9 @@ planned next.
 
 ## Planned Expansion
 
-- Azure SQL, PostgreSQL, and MySQL backup, public exposure, deletion protection,
-  encryption, and HA posture
+- Azure managed database deletion protection and customer-managed encryption
+  posture where supported by resource type
 - Azure VM scale set and autoscaling headroom
-- Azure Key Vault and private endpoint posture
 - Azure subscription quota and regional resiliency posture
 
 ## Commands

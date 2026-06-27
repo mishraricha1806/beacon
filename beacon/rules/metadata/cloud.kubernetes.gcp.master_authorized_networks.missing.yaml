@@ -1,0 +1,9 @@
+rule_id: cloud.kubernetes.gcp.master_authorized_networks.missing
+title: GKE master authorized networks missing
+description: Detects GKE clusters without master authorized networks.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Define master_authorized_networks_config for production clusters or use approved private control-plane access.
+version: "1.0"
+tags: [cloud, gcp, gke, control-plane]

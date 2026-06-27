@@ -1,0 +1,9 @@
+rule_id: cloud.key_vault.azure.public_network_access.enabled
+title: Azure Key Vault public network access enabled
+description: Detects Azure Key Vaults with public network access or permissive network ACLs.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.rules
+recommendation: Disable public network access, set network ACL default_action to Deny, and require private endpoint access.
+version: "1.0"
+tags: [cloud, azure, key-vault, network]

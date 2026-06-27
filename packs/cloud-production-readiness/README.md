@@ -15,6 +15,8 @@ recovery, managed database survivability, and capacity headroom.
 ## Current Coverage
 
 - AWS-backed Terraform and cloud inventory signals
+- Azure managed database, storage, and RBAC readiness signals
+- GCP Cloud SQL, Cloud Storage, and IAM readiness signals
 - object-storage public access, encryption, versioning, lifecycle, and recovery
 - identity wildcard/admin blast-radius checks
 - managed database exposure, backup, deletion protection, encryption, and HA
@@ -23,8 +25,8 @@ recovery, managed database survivability, and capacity headroom.
 
 ## Planned Provider Expansion
 
-- Azure compute, storage, identity, network, and managed database readiness
-- GCP compute, storage, IAM, network, and managed database readiness
+- deeper Azure compute, quota, and regional resiliency readiness
+- deeper GCP quota, regional workload, and private connectivity readiness
 - provider-specific evidence mapping for equivalent controls
 
 ## Commands

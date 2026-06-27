@@ -1,0 +1,9 @@
+rule_id: cloud.database.gcp.public_ip.enabled
+title: GCP Cloud SQL public IP enabled
+description: Detects GCP Cloud SQL instances with public IP or authorized networks.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.rules
+recommendation: Disable public IPv4 or restrict authorized networks behind approved private connectivity.
+version: "1.0"
+tags: [cloud, database, gcp, network]

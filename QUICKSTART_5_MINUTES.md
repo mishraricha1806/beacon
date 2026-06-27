@@ -143,6 +143,9 @@ docker run --rm ghcr.io/mishraricha1806/beacon:latest packs show \
   terraform-aws-readiness
 
 docker run --rm ghcr.io/mishraricha1806/beacon:latest packs show \
+  distributed-system-production-readiness
+
+docker run --rm ghcr.io/mishraricha1806/beacon:latest packs show \
   iac-coverage-readiness
 ```
 

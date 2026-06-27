@@ -1,0 +1,9 @@
+rule_id: cloud.database.gcp.deletion_protection.disabled
+title: GCP Cloud SQL deletion protection disabled
+description: Detects GCP Cloud SQL instances without deletion protection.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+recommendation: Enable deletion_protection for production databases and require explicit break-glass deletion approval.
+version: "1.0"
+tags: [cloud, database, gcp, recovery]

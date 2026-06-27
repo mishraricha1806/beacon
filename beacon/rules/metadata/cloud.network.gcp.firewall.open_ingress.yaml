@@ -1,0 +1,9 @@
+rule_id: cloud.network.gcp.firewall.open_ingress
+title: GCP firewall public ingress
+description: Detects GCP firewall rules with public ingress source ranges.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Restrict source_ranges to approved networks or front services with approved load balancing and WAF controls.
+version: "1.0"
+tags: [cloud, gcp, network, firewall]

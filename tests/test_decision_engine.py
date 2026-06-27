@@ -120,6 +120,54 @@ class TestDecisionEngine:
         actions = DecisionEngine.prioritize_remediation_actions(findings, max_actions=3)
         assert len(actions) == 3
 
+    def test_operational_decisions_rank_downstream_db_before_kafka_scaling(self):
+        """Test first-class operational decision for downstream DB bottleneck."""
+        findings = [
+            finding(
+                "HIGH",
+                "Likely downstream DB bottleneck",
+                "Consumer lag is caused by database latency.",
+                "Investigate DB latency before scaling Kafka.",
+                "runtime.yaml",
+                rule_id="flow.runtime.downstream_db_bottleneck",
+            ),
+            finding(
+                "HIGH",
+                "Kafka lag high",
+                "Consumers are behind.",
+                "Investigate consumers.",
+                "runtime.yaml",
+                rule_id="kafka.consumer_group.lag.high",
+            ),
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["rank"] == 1
+        assert decisions[0]["target"] == "database"
+        assert "before scaling Kafka" in decisions[0]["action"]
+        assert any("Do not scale Kafka first" in item for item in decisions[0]["do_not_do"])
+
+    def test_operational_decisions_block_public_exposure(self):
+        findings = [
+            finding(
+                "CRITICAL",
+                "GCP Cloud SQL exposes public network access",
+                "Public database access increases blast radius.",
+                "Disable public IPv4.",
+                "cloud.yaml",
+                rule_id="cloud.database.gcp.public_ip.enabled",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["decision_type"] == "release_blocker"
+        assert decisions[0]["target"] == "security"
+        assert decisions[0]["safety"] == "SAFE"
+        assert decisions[0]["confidence"] == "HIGH"
+        assert "public exposure" in decisions[0]["action"].lower()
+
 
 class TestDecisionFormatter:
     """Test decision output formatting."""
@@ -163,6 +211,7 @@ class TestDecisionFormatter:
         assert "findings_summary" in output
         assert "primary_risk_areas" in output
         assert "next_best_actions" in output
+        assert "operational_decisions" in output
 
     def test_json_output_has_all_fields(self):
         """Test that JSON output includes all required fields."""

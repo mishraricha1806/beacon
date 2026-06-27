@@ -27,6 +27,32 @@ def test_readiness_handles_runtime_stability_category():
     assert summary["high"] == 1
 
 
+def test_readiness_summary_includes_first_class_operational_decisions():
+    findings = [
+        {
+            "rule_id": "flow.runtime.downstream_db_bottleneck",
+            "domain": "flow",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Likely downstream DB bottleneck",
+            "impact": "Consumer lag is rising while DB latency is high.",
+            "recommendation": "Investigate database latency before scaling Kafka.",
+            "file": "flow-runtime.yaml",
+            "evidence": {"flow": "checkout", "database_latency_p95_ms": 1800},
+            "tags": [],
+        }
+    ]
+
+    summary = calculate_readiness(findings)
+    decisions = summary["operational_decisions"]
+
+    assert decisions
+    assert decisions[0]["rank"] == 1
+    assert decisions[0]["target"] == "database"
+    assert decisions[0]["evidence_required"]
+    assert decisions[0]["do_not_do"]
+
+
 def test_readiness_summarizes_whole_distributed_system_not_only_kafka():
     findings = [
         {

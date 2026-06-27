@@ -20,6 +20,14 @@ CLOUD_RESOURCE_TYPES = {
     "aws_instance",
     "aws_autoscaling_group",
     "aws_vpc_endpoint",
+    "azurerm_mssql_server",
+    "azurerm_mysql_flexible_server",
+    "azurerm_postgresql_flexible_server",
+    "azurerm_key_vault",
+    "azurerm_private_endpoint",
+    "google_compute_firewall",
+    "google_container_cluster",
+    "google_sql_database_instance",
     "cloud_quota_profile",
 }
 

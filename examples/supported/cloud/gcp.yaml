@@ -13,3 +13,31 @@ cloud_inventory:
         role: roles/owner
         members:
           - group:platform@example.com
+    - type: google_sql_database_instance
+      name: claims-sql
+      config:
+        deletion_protection: false
+        settings:
+          - availability_type: ZONAL
+            ip_configuration:
+              - ipv4_enabled: true
+                authorized_networks:
+                  - name: office
+                    value: 0.0.0.0/0
+            backup_configuration:
+              - enabled: false
+    - type: google_compute_firewall
+      name: public-api
+      config:
+        direction: INGRESS
+        source_ranges:
+          - 0.0.0.0/0
+        allow:
+          - protocol: tcp
+            ports:
+              - "443"
+    - type: google_container_cluster
+      name: claims-gke
+      config:
+        private_cluster_config:
+          - enable_private_nodes: false

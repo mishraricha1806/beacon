@@ -1,0 +1,9 @@
+rule_id: cloud.database.azure.public_network_access.enabled
+title: Azure database public network access enabled
+description: Detects Azure managed databases with public network access enabled.
+severity_default: CRITICAL
+category: operational_safety
+author: beacon.rules
+recommendation: Disable public network access and require private endpoint or approved private connectivity before production.
+version: "1.0"
+tags: [cloud, database, azure, network]

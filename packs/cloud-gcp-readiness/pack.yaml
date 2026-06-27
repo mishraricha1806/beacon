@@ -4,9 +4,10 @@ version: 0.1.0
 status: preview
 owner: beacon
 summary: >
-  Inspectable GCP readiness checks for Cloud Storage recovery, uniform bucket
-  access, ownership labels, and broad project IAM grants that increase
-  production blast radius.
+  Inspectable GCP readiness checks for Cloud SQL public access, backup,
+  deletion protection, HA, Cloud Storage recovery, uniform bucket access,
+  ownership labels, and broad project IAM grants that increase production blast
+  radius.
 domains:
   - cloud
   - cloud_identity
@@ -14,16 +15,24 @@ domains:
   - terraform
 provider_coverage:
   current:
+    - Cloud SQL public IP and authorized network posture
+    - Cloud SQL backup configuration posture
+    - Cloud SQL deletion protection posture
+    - Cloud SQL regional high-availability posture
+    - GCP firewall public ingress posture
+    - GKE private-node and control-plane access posture
     - Google Cloud Storage bucket versioning posture
     - Google Cloud Storage uniform bucket-level access posture
     - Google Cloud Storage ownership/label metadata
     - GCP project IAM Owner, Editor, and admin role blast-radius checks
   planned:
-    - Cloud SQL public exposure, backup, deletion protection, encryption, and HA posture
-    - GKE and regional workload resiliency posture
-    - VPC firewall public ingress and private connectivity posture
+    - Cloud SQL customer-managed encryption posture
+    - GKE regional workload resiliency posture
+    - deeper VPC private connectivity posture
     - project quota and regional resiliency posture
 use_cases:
+  - Are GCP Cloud SQL instances publicly reachable?
+  - Can GCP Cloud SQL recover through backup, deletion protection, and HA posture?
   - Can this GCP storage estate safely go to production?
   - Can buckets recover from accidental overwrite or delete?
   - Are object-level ACLs still enabled through disabled uniform access?
@@ -33,6 +42,20 @@ non_goals:
   - Replacing Organization Policy, Security Command Center, OPA, or Terraform
   - Applying GCP changes or mutating cloud resources
 rules:
+  - rule_id: cloud.database.gcp.public_ip.enabled
+    intent: GCP Cloud SQL public IP or authorized network exposure risk.
+  - rule_id: cloud.database.gcp.backup.disabled
+    intent: GCP Cloud SQL backup posture risk.
+  - rule_id: cloud.database.gcp.deletion_protection.disabled
+    intent: GCP Cloud SQL accidental deletion risk.
+  - rule_id: cloud.database.gcp.ha.disabled
+    intent: GCP Cloud SQL regional high-availability posture risk.
+  - rule_id: cloud.network.gcp.firewall.open_ingress
+    intent: GCP firewall public ingress risk.
+  - rule_id: cloud.kubernetes.gcp.private_nodes.disabled
+    intent: GKE worker-node public exposure risk.
+  - rule_id: cloud.kubernetes.gcp.master_authorized_networks.missing
+    intent: GKE control-plane access restriction risk.
   - rule_id: object_storage.versioning.missing
     intent: GCS bucket overwrite/delete recovery risk.
   - rule_id: object_storage.labels_or_tags.missing
