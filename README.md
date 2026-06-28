@@ -25,6 +25,14 @@ core product principle is:
 Deterministic intelligence first. AI explanation second.
 ```
 
+## Architecture At A Glance
+
+![Beacon production-readiness and operational intelligence architecture](docs/assets/beacon-operational-intelligence.svg)
+
+Beacon reads infrastructure configs, runtime snapshots, and flow signals, then
+turns them into deterministic readiness decisions, root-cause hypotheses,
+ranked operational actions, and evidence-backed reports.
+
 ## What Beacon Does
 
 Beacon currently focuses on four release modules:
@@ -46,6 +54,14 @@ Beacon can evaluate:
 - API, database, storage, and platform runtime snapshots
 - Prometheus collector configs and OpenTelemetry exports
 - Cross-system flow degradation and deployment-triggered regression signals
+
+## Operational Reasoning Flow
+
+![Beacon operational reasoning flow](docs/assets/beacon-operational-reasoning.svg)
+
+Beacon is designed to connect scattered infrastructure signals into one
+readiness and operations answer: what is risky, why it matters, what evidence
+supports it, and what engineers should do first.
 
 High-impact readiness use cases now covered include:
 
@@ -77,6 +93,9 @@ OPA/Sentinel enforce individual policies.
 Beacon explains release readiness across many operational signals.
 ```
 
+For the longer explanation, see
+[`docs/BEACON_VS_OPA_SENTINEL.md`](docs/BEACON_VS_OPA_SENTINEL.md).
+
 To keep that transparent, Beacon includes inspectable readiness packs. A pack is
 a visible grouping of rule IDs, intent, use cases, and non-goals. Beacon remains
 the runner, normalizer, scorer, reporter, and UI.
@@ -101,10 +120,50 @@ python3 -m beacon.cli packs show distributed-system-production-readiness
 python3 -m beacon.cli packs rules distributed-system-production-readiness
 ```
 
-See [`docs/BEACON_VS_OPA_SENTINEL.md`](docs/BEACON_VS_OPA_SENTINEL.md) and
-[`packs/`](packs/) for the current Kafka, Kubernetes, cloud, Azure, GCP,
+See [`packs/`](packs/) for the current Kafka, Kubernetes, cloud, Azure, GCP,
 provider-specific Terraform/AWS, IaC coverage, and distributed-system readiness
 packs.
+
+## Custom Policy Overrides
+
+You can customize Beacon's interpretation of existing rules with a policy file.
+This is useful for environment-specific exceptions, temporary waivers, and
+severity overrides.
+
+Example:
+
+```yaml
+policy:
+  rules:
+    kafka.topic.owner.missing:
+      severity: LOW
+  waivers:
+    - rule_id: kafka.topic.partitions.low
+      resource: checkout.retry
+      reason: Dev retry topic preserves ordering and is intentionally single-partitioned.
+      expires: 2026-12-31
+      severity: INFO
+```
+
+Beacon can load policy from:
+
+```bash
+BEACON_POLICY_FILE=./beacon-policy.yaml beacon readiness
+```
+
+or from the default local path:
+
+```text
+~/.beacon/policy.yaml
+```
+
+See [`beacon/policy.py`](beacon/policy.py) and
+[`examples/product-readiness/dev-exception/beacon-policy.yaml`](examples/product-readiness/dev-exception/beacon-policy.yaml)
+for the current policy injection model.
+
+Current boundary: readiness packs are inspectable, and policy files can disable
+existing rules, change severity, or add visible waivers. New custom rule
+execution is still defined internally by Beacon's registered rule system.
 
 ## Fastest Way To Try Beacon
 

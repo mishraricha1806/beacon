@@ -1,0 +1,219 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2048" height="1152" viewBox="0 0 2048 1152" role="img" aria-labelledby="title desc">
+  <title id="title">Beacon production-readiness and operational intelligence architecture</title>
+  <desc id="desc">A dark Beacon architecture diagram showing infrastructure and runtime signals flowing into deterministic readiness, diagnostics, correlation, and decision engines, producing production decisions, root-cause hypotheses, operational actions, and reports.</desc>
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="75%">
+      <stop offset="0%" stop-color="#1d2633"/>
+      <stop offset="55%" stop-color="#121820"/>
+      <stop offset="100%" stop-color="#080b10"/>
+    </radialGradient>
+    <linearGradient id="bluePanel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18273d"/>
+      <stop offset="100%" stop-color="#0d1420"/>
+    </linearGradient>
+    <linearGradient id="greenPanel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#102f2d"/>
+      <stop offset="100%" stop-color="#14331e"/>
+    </linearGradient>
+    <linearGradient id="orangePanel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3f2417"/>
+      <stop offset="100%" stop-color="#19120d"/>
+    </linearGradient>
+    <linearGradient id="cyanLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#5793ff"/>
+      <stop offset="45%" stop-color="#4fd5df"/>
+      <stop offset="100%" stop-color="#64d47b"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="12" flood-color="#000000" flood-opacity="0.38"/>
+    </filter>
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <marker id="arrowBlue" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L12,7 L2,12 Z" fill="#5793ff"/>
+    </marker>
+    <marker id="arrowGreen" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L12,7 L2,12 Z" fill="#64d47b"/>
+    </marker>
+    <marker id="arrowCyan" markerWidth="14" markerHeight="14" refX="12" refY="7" orient="auto" markerUnits="strokeWidth">
+      <path d="M2,2 L12,7 L2,12 Z" fill="#4fd5df"/>
+    </marker>
+    <style>
+      .bg { fill: url(#bgGlow); }
+      .title { fill: #f7fafc; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 72px; font-weight: 800; letter-spacing: 0; }
+      .subtitle { fill: #c9d4e2; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 28px; font-weight: 500; letter-spacing: 0; }
+      .section { fill: #f8fafc; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 28px; font-weight: 800; letter-spacing: 0; }
+      .label { fill: #eef4fb; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 23px; font-weight: 700; letter-spacing: 0; }
+      .small { fill: #c7d2df; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 18px; font-weight: 500; letter-spacing: 0; }
+      .tiny { fill: #aeb9c7; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 16px; font-weight: 500; letter-spacing: 0; }
+      .blueText { fill: #6ea2ff; }
+      .greenText { fill: #78dd8e; }
+      .orangeText { fill: #ff9859; }
+      .panel { fill: rgba(14, 20, 30, 0.76); stroke: #6f7e91; stroke-width: 3; rx: 16; filter: url(#shadow); }
+      .inputPanel { fill: url(#orangePanel); stroke: #f0823e; stroke-width: 3; rx: 14; }
+      .enginePanel { fill: url(#bluePanel); stroke: #5793ff; stroke-width: 4; rx: 16; filter: url(#shadow); }
+      .decisionPanel { fill: url(#greenPanel); stroke: #64d47b; stroke-width: 4; rx: 16; filter: url(#shadow); }
+      .smallPanel { fill: rgba(17, 24, 36, 0.86); stroke: #516070; stroke-width: 2; rx: 13; }
+      .dash { fill: none; stroke: #5793ff; stroke-width: 8; stroke-linecap: round; stroke-dasharray: 15 22; marker-end: url(#arrowBlue); }
+      .solidCyan { fill: none; stroke: url(#cyanLine); stroke-width: 7; stroke-linecap: round; marker-end: url(#arrowCyan); }
+      .solidGreen { fill: none; stroke: #64d47b; stroke-width: 6; stroke-linecap: round; marker-end: url(#arrowGreen); }
+      .mutedLine { fill: none; stroke: #7d8794; stroke-width: 4; stroke-linecap: round; marker-end: url(#arrowCyan); }
+      .xLine { stroke: #f45e43; stroke-width: 18; stroke-linecap: round; opacity: 0.95; }
+    </style>
+  </defs>
+
+  <rect class="bg" width="2048" height="1152"/>
+
+  <g transform="translate(74 78)">
+    <rect x="0" y="0" width="86" height="86" rx="12" fill="none" stroke="#5793ff" stroke-width="8"/>
+    <path d="M26 32 L43 47 L26 62" fill="none" stroke="#5793ff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M52 64 H78" fill="none" stroke="#5793ff" stroke-width="8" stroke-linecap="round"/>
+    <text class="title" x="118" y="66">Beacon</text>
+    <text class="subtitle" x="121" y="107">Production-readiness and operational intelligence for distributed systems</text>
+  </g>
+
+  <g transform="translate(82 270)">
+    <rect class="panel" x="0" y="0" width="545" height="465"/>
+    <text class="section" x="36" y="52">Signals Beacon Reads</text>
+    <text class="small" x="36" y="82">Read-only inputs. No mutation. No offset reset.</text>
+
+    <g transform="translate(34 120)">
+      <rect class="inputPanel" x="0" y="0" width="475" height="286"/>
+      <g transform="translate(30 34)">
+        <circle cx="22" cy="17" r="17" fill="#ff9859" opacity="0.22"/>
+        <path d="M14 18 H30 M18 10 H34 M18 26 H34" stroke="#ff9859" stroke-width="5" stroke-linecap="round"/>
+        <text class="label" x="58" y="25">Terraform / Helm / Kubernetes YAML</text>
+      </g>
+      <g transform="translate(30 86)">
+        <circle cx="22" cy="17" r="17" fill="#ff9859" opacity="0.22"/>
+        <path d="M13 12 H31 M13 22 H31 M18 7 V27 M26 7 V27" stroke="#ff9859" stroke-width="4" stroke-linecap="round"/>
+        <text class="label" x="58" y="25">Kafka / Schema Registry</text>
+      </g>
+      <g transform="translate(30 138)">
+        <circle cx="22" cy="17" r="17" fill="#ff9859" opacity="0.22"/>
+        <path d="M10 25 C18 6 30 6 38 25 M16 25 H32" stroke="#ff9859" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <text class="label" x="58" y="25">Runtime snapshots</text>
+      </g>
+      <g transform="translate(30 190)">
+        <circle cx="22" cy="17" r="17" fill="#ff9859" opacity="0.22"/>
+        <path d="M10 18 H17 L21 9 L27 29 L32 18 H40" stroke="#ff9859" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        <text class="label" x="58" y="25">Prometheus / OpenTelemetry</text>
+      </g>
+      <g transform="translate(30 242)">
+        <circle cx="22" cy="17" r="17" fill="#ff9859" opacity="0.22"/>
+        <path d="M13 13 L22 7 L31 13 V28 H13 Z" stroke="#ff9859" stroke-width="4" fill="none" stroke-linejoin="round"/>
+        <text class="label" x="58" y="25">Cloud inventory / IAM / Storage</text>
+      </g>
+    </g>
+  </g>
+
+  <path class="dash" d="M650 503 C720 503 744 503 804 503"/>
+  <text class="small" x="667" y="458">normalize</text>
+  <text class="small" x="667" y="485">evidence</text>
+
+  <g transform="translate(820 238)">
+    <rect class="enginePanel" x="0" y="0" width="430" height="525"/>
+    <text class="section" x="45" y="60">Beacon Reasoning Core</text>
+    <text class="small" x="45" y="91">Deterministic intelligence first</text>
+
+    <g transform="translate(42 130)">
+      <rect class="smallPanel" x="0" y="0" width="346" height="74" stroke="#5793ff"/>
+      <text class="label" x="25" y="31">Production Readiness</text>
+      <text class="tiny" x="25" y="57">release risk, score, blast radius</text>
+    </g>
+    <g transform="translate(42 224)">
+      <rect class="smallPanel" x="0" y="0" width="346" height="74" stroke="#4fd5df"/>
+      <text class="label" x="25" y="31">Runtime Diagnostics</text>
+      <text class="tiny" x="25" y="57">lag, ISR, storage, rebalances</text>
+    </g>
+    <g transform="translate(42 318)">
+      <rect class="smallPanel" x="0" y="0" width="346" height="74" stroke="#64d47b"/>
+      <text class="label" x="25" y="31">Flow Correlation</text>
+      <text class="tiny" x="25" y="57">API to Kafka to consumer to DB</text>
+    </g>
+    <g transform="translate(42 412)">
+      <rect class="decisionPanel" x="0" y="0" width="346" height="74"/>
+      <text class="label" x="25" y="31">Decision Intelligence</text>
+      <text class="tiny" x="25" y="57">what to fix first, with evidence</text>
+    </g>
+  </g>
+
+  <path class="solidCyan" d="M1260 503 C1322 503 1362 503 1418 503"/>
+
+  <g transform="translate(1435 270)">
+    <text class="section" x="0" y="0">Beacon Output</text>
+    <text class="small" x="0" y="31">Not another dashboard. A ranked operational answer.</text>
+
+    <g transform="translate(0 78)">
+      <rect class="decisionPanel" x="0" y="0" width="480" height="82"/>
+      <text class="label" x="28" y="34">Production Decision</text>
+      <text class="tiny" x="28" y="61">READY / NOT READY with environment context</text>
+    </g>
+    <g transform="translate(0 185)">
+      <rect class="smallPanel" x="0" y="0" width="480" height="82" stroke="#5793ff"/>
+      <text class="label" x="28" y="34">Root-Cause Hypothesis</text>
+      <text class="tiny" x="28" y="61">why degradation is likely happening</text>
+    </g>
+    <g transform="translate(0 292)">
+      <rect class="smallPanel" x="0" y="0" width="480" height="82" stroke="#4fd5df"/>
+      <text class="label" x="28" y="34">Operational Decisions</text>
+      <text class="tiny" x="28" y="61">scale, rollback, throttle, tune, investigate</text>
+    </g>
+    <g transform="translate(0 399)">
+      <rect class="smallPanel" x="0" y="0" width="480" height="82" stroke="#f0823e"/>
+      <text class="label" x="28" y="34">Evidence Pack / Report</text>
+      <text class="tiny" x="28" y="61">HTML, JSON, CI gate, local UI</text>
+    </g>
+  </g>
+
+  <g transform="translate(80 830)">
+    <rect class="panel" x="0" y="0" width="785" height="185"/>
+    <text class="section" x="32" y="50">Traditional Incident Review</text>
+    <g transform="translate(55 84)">
+      <rect x="0" y="0" width="120" height="64" rx="12" fill="#192331" stroke="#7d8794" stroke-width="3"/>
+      <text class="small" x="26" y="39">Logs</text>
+      <path class="mutedLine" d="M145 32 H207"/>
+      <rect x="225" y="0" width="160" height="64" rx="12" fill="#192331" stroke="#7d8794" stroke-width="3"/>
+      <text class="small" x="257" y="39">Metrics</text>
+      <path class="mutedLine" d="M410 32 H472"/>
+      <rect x="490" y="0" width="190" height="64" rx="12" fill="#192331" stroke="#7d8794" stroke-width="3"/>
+      <text class="small" x="526" y="39">Dashboards</text>
+    </g>
+    <line class="xLine" x1="350" y1="24" x2="500" y2="174"/>
+    <line class="xLine" x1="500" y1="24" x2="350" y2="174"/>
+    <text class="label" x="204" y="222">Manual correlation, slow context, unclear first action</text>
+  </g>
+
+  <g transform="translate(980 830)">
+    <rect class="decisionPanel" x="0" y="0" width="930" height="185"/>
+    <text class="section" x="35" y="50">Beacon Way</text>
+    <g transform="translate(75 84)">
+      <circle cx="32" cy="32" r="28" fill="#5793ff" opacity="0.18" stroke="#5793ff" stroke-width="4"/>
+      <path d="M22 35 C22 24 30 17 40 19 M45 28 C48 40 40 49 28 47" fill="none" stroke="#5793ff" stroke-width="5" stroke-linecap="round"/>
+      <text class="label" x="82" y="40">deterministic rules</text>
+      <path class="solidGreen" d="M318 32 H420"/>
+      <text class="label" x="455" y="40">ranked decision</text>
+      <path class="solidGreen" d="M665 32 H745"/>
+      <text class="label greenText" x="775" y="40">next action</text>
+    </g>
+    <text class="label" x="186" y="222">Run Beacon before production. Ask Beacon why it is degrading.</text>
+  </g>
+
+  <g transform="translate(82 1050)">
+    <text class="small blueText" x="0" y="0">Module 1:</text>
+    <text class="small" x="96" y="0">Production readiness</text>
+    <text class="small blueText" x="330" y="0">Module 2:</text>
+    <text class="small" x="426" y="0">Runtime diagnostics</text>
+    <text class="small blueText" x="671" y="0">Module 3:</text>
+    <text class="small" x="767" y="0">Flow intelligence</text>
+    <text class="small blueText" x="985" y="0">Module 4:</text>
+    <text class="small" x="1081" y="0">Operational decisions</text>
+    <text class="small blueText" x="1352" y="0">Module 5:</text>
+    <text class="small" x="1448" y="0">Predictive survivability</text>
+  </g>
+</svg>

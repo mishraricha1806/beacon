@@ -1,0 +1,205 @@
+<svg width="2048" height="1152" viewBox="0 0 2048 1152" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1160 540) rotate(90) scale(720 1020)">
+      <stop stop-color="#1f3b4f" stop-opacity="0.55"/>
+      <stop offset="0.55" stop-color="#151b22" stop-opacity="0.92"/>
+      <stop offset="1" stop-color="#0c1015"/>
+    </radialGradient>
+    <linearGradient id="blueStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#5a95ff"/>
+      <stop offset="1" stop-color="#2bd2c5"/>
+    </linearGradient>
+    <linearGradient id="greenStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#4fdf8c"/>
+      <stop offset="1" stop-color="#99f2ba"/>
+    </linearGradient>
+    <linearGradient id="orangeStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#ff9a4d"/>
+      <stop offset="1" stop-color="#ff573d"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+    <style>
+      .title { font: 800 70px Arial, Helvetica, sans-serif; fill: #f5f7fb; letter-spacing: 0; }
+      .subtitle { font: 500 26px Arial, Helvetica, sans-serif; fill: #b7c1cc; letter-spacing: 0; }
+      .section { font: 800 31px Arial, Helvetica, sans-serif; fill: #f4f6fa; letter-spacing: 0; }
+      .label { font: 700 27px Arial, Helvetica, sans-serif; fill: #f4f7fb; letter-spacing: 0; }
+      .small { font: 500 21px Arial, Helvetica, sans-serif; fill: #c2cbd5; letter-spacing: 0; }
+      .tiny { font: 700 17px Arial, Helvetica, sans-serif; fill: #8fa0ae; letter-spacing: 0; }
+      .blue { fill: #66a0ff; }
+      .green { fill: #67db94; }
+      .orange { fill: #ff914d; }
+      .muted { fill: #9ca9b5; }
+    </style>
+  </defs>
+
+  <rect width="2048" height="1152" fill="url(#bgGlow)"/>
+  <rect x="32" y="32" width="1984" height="1088" rx="34" stroke="#2b3440" stroke-width="2"/>
+
+  <!-- Header -->
+  <g transform="translate(74 74)">
+    <rect x="0" y="0" width="108" height="108" rx="18" stroke="#5a95ff" stroke-width="7"/>
+    <path d="M34 38 L58 54 L34 70" stroke="#5a95ff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M62 74 H88" stroke="#5a95ff" stroke-width="8" stroke-linecap="round"/>
+    <text x="140" y="73" class="title">Beacon</text>
+    <text x="142" y="113" class="subtitle">Production-readiness and operational intelligence for distributed systems</text>
+  </g>
+
+  <!-- Input panel -->
+  <g transform="translate(76 250)" filter="url(#shadow)">
+    <rect x="0" y="0" width="520" height="470" rx="18" fill="#121920" stroke="#7f8c9b" stroke-width="4"/>
+    <text x="38" y="54" class="section">Infrastructure and Runtime Signals</text>
+
+    <g transform="translate(42 92)">
+      <rect x="0" y="0" width="190" height="300" rx="14" fill="#202b36" stroke="#8192a5" stroke-width="4"/>
+      <g stroke="#9eabb8" stroke-width="5" stroke-linecap="round">
+        <path d="M26 38 H86"/>
+        <path d="M26 72 H112"/>
+        <path d="M26 106 H96"/>
+        <path d="M26 170 H114"/>
+        <path d="M26 204 H78"/>
+        <path d="M26 238 H130"/>
+      </g>
+      <g fill="#5a95ff">
+        <rect x="136" y="32" width="24" height="24" rx="5"/>
+        <rect x="136" y="98" width="24" height="24" rx="5"/>
+        <rect x="136" y="198" width="24" height="24" rx="5"/>
+      </g>
+      <text x="12" y="342" class="small">Terraform</text>
+      <text x="12" y="372" class="small">Helm / K8s YAML</text>
+    </g>
+
+    <g transform="translate(260 92)">
+      <rect x="0" y="0" width="220" height="300" rx="14" fill="#2b1e17" stroke="#ff914d" stroke-width="4"/>
+      <g transform="translate(24 30)">
+        <circle cx="26" cy="26" r="20" stroke="#ff914d" stroke-width="5"/>
+        <path d="M26 10 V26 L40 34" stroke="#ff914d" stroke-width="5" stroke-linecap="round"/>
+        <text x="64" y="36" class="small">Kafka</text>
+      </g>
+      <g transform="translate(24 95)">
+        <rect x="4" y="4" width="44" height="44" rx="9" stroke="#ff914d" stroke-width="5"/>
+        <path d="M16 18 H38 M16 31 H38" stroke="#ff914d" stroke-width="4" stroke-linecap="round"/>
+        <text x="64" y="36" class="small">Cloud / IAM</text>
+      </g>
+      <g transform="translate(24 160)">
+        <path d="M12 48 C36 10 72 10 96 48" stroke="#ff914d" stroke-width="5" fill="none"/>
+        <circle cx="12" cy="48" r="8" fill="#ff914d"/>
+        <circle cx="96" cy="48" r="8" fill="#ff914d"/>
+        <text x="116" y="52" class="small">Runtime</text>
+      </g>
+      <g transform="translate(24 228)">
+        <path d="M4 24 H42 M42 24 L28 10 M42 24 L28 38" stroke="#ff914d" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="64" y="32" class="small">Flow / OTel</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Arrow into Beacon -->
+  <g stroke="#5a95ff" stroke-width="7" stroke-linecap="round">
+    <path d="M630 492 H804" stroke-dasharray="22 18"/>
+    <path d="M804 492 L776 472 M804 492 L776 512"/>
+  </g>
+  <text x="665" y="450" class="small">local, read-only</text>
+
+  <!-- Beacon engine panel -->
+  <g transform="translate(850 230)" filter="url(#shadow)">
+    <rect x="0" y="0" width="500" height="520" rx="20" fill="#142030" stroke="url(#blueStroke)" stroke-width="5"/>
+    <rect x="42" y="46" width="416" height="108" rx="16" fill="#202b3a" stroke="#5a95ff" stroke-width="4"/>
+    <text x="174" y="96" class="label blue">BEACON</text>
+    <text x="112" y="130" class="small">Operational Reasoning Layer</text>
+
+    <g transform="translate(72 196)">
+      <rect x="0" y="0" width="356" height="74" rx="14" fill="#172936" stroke="#55c3ff" stroke-width="4"/>
+      <text x="34" y="46" class="small">Deterministic rule packs</text>
+    </g>
+
+    <g transform="translate(72 296)">
+      <rect x="0" y="0" width="356" height="74" rx="14" fill="#172d28" stroke="#67db94" stroke-width="4"/>
+      <text x="30" y="46" class="small">Correlation and root cause</text>
+    </g>
+
+    <g transform="translate(72 396)">
+      <rect x="0" y="0" width="356" height="74" rx="14" fill="#2c2518" stroke="#ffb052" stroke-width="4"/>
+      <text x="31" y="46" class="small">Ranked operational decisions</text>
+    </g>
+
+    <g stroke="#5a95ff" stroke-width="6" stroke-linecap="round">
+      <path d="M250 154 V190"/>
+      <path d="M250 270 V290"/>
+      <path d="M250 370 V390"/>
+    </g>
+  </g>
+
+  <!-- Arrow into output -->
+  <g stroke="#5a95ff" stroke-width="7" stroke-linecap="round">
+    <path d="M1382 492 H1525" stroke-dasharray="22 18"/>
+    <path d="M1525 492 L1497 472 M1525 492 L1497 512"/>
+  </g>
+
+  <!-- Output cards -->
+  <g transform="translate(1568 236)" filter="url(#shadow)">
+    <text x="14" y="0" class="section">Engineer Answers</text>
+    <g transform="translate(0 35)">
+      <rect x="0" y="0" width="390" height="98" rx="16" fill="#1b2935" stroke="#5a95ff" stroke-width="4"/>
+      <text x="26" y="39" class="label">Is this production ready?</text>
+      <text x="26" y="72" class="small blue">Decision: NOT READY / READY</text>
+    </g>
+    <g transform="translate(0 156)">
+      <rect x="0" y="0" width="390" height="98" rx="16" fill="#1b2d28" stroke="#67db94" stroke-width="4"/>
+      <text x="26" y="39" class="label">Why is it degrading?</text>
+      <text x="26" y="72" class="small green">Root cause hypotheses</text>
+    </g>
+    <g transform="translate(0 277)">
+      <rect x="0" y="0" width="390" height="98" rx="16" fill="#302318" stroke="#ff914d" stroke-width="4"/>
+      <text x="26" y="39" class="label">What should we do first?</text>
+      <text x="26" y="72" class="small orange">Safe ranked actions</text>
+    </g>
+    <g transform="translate(0 398)">
+      <rect x="0" y="0" width="390" height="98" rx="16" fill="#20262e" stroke="#9aa7b5" stroke-width="4"/>
+      <text x="26" y="39" class="label">What is the blast radius?</text>
+      <text x="26" y="72" class="small muted">Owners, flows, dependencies</text>
+    </g>
+  </g>
+
+  <!-- Traditional path -->
+  <g transform="translate(78 820)" filter="url(#shadow)">
+    <rect x="0" y="0" width="860" height="178" rx="18" fill="#11171d" stroke="#7f8c9b" stroke-width="4"/>
+    <text x="30" y="62" class="label">Traditional incident review</text>
+    <g transform="translate(36 92)">
+      <circle cx="36" cy="36" r="32" fill="#24313d" stroke="#9aa7b5" stroke-width="4"/>
+      <text x="19" y="45" class="tiny">logs</text>
+      <path d="M86 36 H170" stroke="#8d99a6" stroke-width="5"/>
+      <circle cx="226" cy="36" r="32" fill="#24313d" stroke="#9aa7b5" stroke-width="4"/>
+      <text x="202" y="45" class="tiny">dash</text>
+      <path d="M276 36 H360" stroke="#8d99a6" stroke-width="5"/>
+      <circle cx="416" cy="36" r="32" fill="#24313d" stroke="#9aa7b5" stroke-width="4"/>
+      <text x="397" y="45" class="tiny">alerts</text>
+      <path d="M466 36 H550" stroke="#8d99a6" stroke-width="5"/>
+      <circle cx="606" cy="36" r="32" fill="#24313d" stroke="#9aa7b5" stroke-width="4"/>
+      <text x="584" y="45" class="tiny">tribal</text>
+      <path d="M670 2 L528 144" stroke="#f15a3c" stroke-width="16" stroke-linecap="round"/>
+      <path d="M528 2 L670 144" stroke="#f15a3c" stroke-width="16" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <!-- Beacon path -->
+  <g transform="translate(1080 820)" filter="url(#shadow)">
+    <rect x="0" y="0" width="890" height="178" rx="18" fill="#10251f" stroke="url(#greenStroke)" stroke-width="5"/>
+    <text x="30" y="62" class="label">Beacon path</text>
+    <g transform="translate(50 92)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M0 36 H160" stroke="#5a95ff"/>
+      <path d="M160 36 L132 18 M160 36 L132 54" stroke="#5a95ff"/>
+      <text x="5" y="86" class="small">Signals</text>
+      <path d="M235 36 H395" stroke="#2bd2c5"/>
+      <path d="M395 36 L367 18 M395 36 L367 54" stroke="#2bd2c5"/>
+      <text x="206" y="86" class="small">Reasoning</text>
+      <path d="M470 36 H630" stroke="#67db94"/>
+      <path d="M630 36 L602 18 M630 36 L602 54" stroke="#67db94"/>
+      <text x="466" y="86" class="small">Decision</text>
+      <text x="674" y="43" class="section green">Fix first</text>
+    </g>
+  </g>
+
+  <text x="78" y="1080" class="subtitle">Beacon: deterministic readiness checks, runtime diagnostics, flow correlation, and operational decisions.</text>
+</svg>
