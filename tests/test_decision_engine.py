@@ -168,6 +168,105 @@ class TestDecisionEngine:
         assert decisions[0]["confidence"] == "HIGH"
         assert "public exposure" in decisions[0]["action"].lower()
 
+    def test_operational_decisions_hot_partition_warns_against_consumer_scaling(self):
+        findings = [
+            finding(
+                "HIGH",
+                "Kafka consumer group hot partition",
+                "Lag is concentrated on one partition.",
+                "Review partition key strategy.",
+                "runtime.yaml",
+                rule_id="kafka.consumer_group.hot_partition",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "kafka_partitioning"
+        assert "partition-key skew" in decisions[0]["action"]
+        assert any("more consumers" in item for item in decisions[0]["do_not_do"])
+
+    def test_operational_decisions_rebalance_storm_prioritizes_stability(self):
+        findings = [
+            finding(
+                "HIGH",
+                "Kafka rebalance storm",
+                "Consumer group is repeatedly rebalancing.",
+                "Inspect member churn and deployment rollouts.",
+                "runtime.yaml",
+                rule_id="kafka.runtime.rebalance_storm",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "kafka_consumers"
+        assert "Stabilize consumer group" in decisions[0]["action"]
+        assert any("rolling consumer deployments" in item for item in decisions[0]["do_not_do"])
+
+    def test_operational_decisions_cascading_latency_warns_against_retry_amplification(self):
+        findings = [
+            finding(
+                "CRITICAL",
+                "Cascading latency across API and Kafka",
+                "API timeouts are causing retries and lag growth.",
+                "Review retries and downstream latency.",
+                "flow.yaml",
+                rule_id="flow.runtime.cascading_latency",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "flow"
+        assert decisions[0]["confidence"] == "HIGH"
+        assert "retry" in decisions[0]["action"].lower()
+        assert any("increase retries" in item for item in decisions[0]["do_not_do"])
+
+    def test_operational_decisions_kubernetes_runtime_before_kafka_capacity(self):
+        findings = [
+            finding(
+                "HIGH",
+                "Kubernetes pod is crash looping",
+                "Consumer pods are unavailable.",
+                "Inspect pod events and recent deployment.",
+                "runtime.yaml",
+                rule_id="k8s.runtime.pod.crash_loop",
+            ),
+            finding(
+                "HIGH",
+                "Kafka lag high",
+                "Consumers are behind.",
+                "Investigate consumers.",
+                "runtime.yaml",
+                rule_id="kafka.consumer_group.lag.high",
+            ),
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "kubernetes_runtime"
+        assert "workload health" in decisions[0]["action"]
+        assert any("scale Kafka first" in item for item in decisions[0]["do_not_do"])
+
+    def test_operational_decisions_cicd_guardrails_for_release_path(self):
+        findings = [
+            finding(
+                "HIGH",
+                "CI/CD deployment concurrency missing",
+                "Overlapping deployments can mutate production at the same time.",
+                "Add deployment concurrency.",
+                ".github/workflows/deploy.yml",
+                rule_id="cicd.deployment.concurrency.missing",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "cicd"
+        assert decisions[0]["decision_type"] == "release_blocker"
+        assert "deployment guardrails" in decisions[0]["action"]
+
 
 class TestDecisionFormatter:
     """Test decision output formatting."""

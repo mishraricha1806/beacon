@@ -10,9 +10,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
+
+ROOT = Path(__file__).resolve().parent.parent
 
 
 def get_version():
@@ -21,7 +22,7 @@ def get_version():
     if version_file.exists():
         return version_file.read_text(encoding="utf-8").strip()
 
-    pyproject_file = Path(__file__).parent.parent / "pyproject.toml"
+    pyproject_file = ROOT / "pyproject.toml"
 
     if pyproject_file.exists():
         for line in pyproject_file.read_text(encoding="utf-8").splitlines():
@@ -66,8 +67,9 @@ def build_binary(platform: str, output_name: str):
         "beacon/cli.py",
     ]
 
-    if Path("packs").exists():
-        pyinstaller_args.insert(-1, f"--add-data=packs{os.pathsep}packs")
+    packs_path = ROOT / "packs"
+    if packs_path.exists():
+        pyinstaller_args.insert(-1, f"--add-data={packs_path}{os.pathsep}packs")
 
     if sys.platform == "darwin":
         pyinstaller_args.extend(

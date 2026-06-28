@@ -157,3 +157,108 @@ def test_iac_coverage_normalizes_steampipe_or_cloudquery_rows(tmp_path):
     assert "iac_coverage.resource.active_unmanaged" in rule_ids
     assert "iac_coverage.resource.sensitive_unmanaged" in rule_ids
     assert "iac_coverage.resource.owner_missing" not in rule_ids
+
+
+def test_iac_coverage_indexes_multiple_terraform_states_from_directory(tmp_path):
+    inventory = {
+        "resources": [
+            {"type": "aws_instance", "name": "api", "id": "i-managed"},
+            {"type": "aws_db_instance", "name": "orders-db", "id": "db-managed"},
+            {
+                "type": "aws_opensearch_domain",
+                "name": "legacy-search",
+                "config": {"domain_name": "legacy-search"},
+            },
+        ]
+    }
+    state_one = {
+        "values": {
+            "root_module": {
+                "resources": [
+                    {
+                        "type": "aws_instance",
+                        "name": "api",
+                        "values": {"id": "i-managed", "name": "api"},
+                    }
+                ]
+            }
+        }
+    }
+    state_two = {
+        "values": {
+            "root_module": {
+                "resources": [
+                    {
+                        "type": "aws_db_instance",
+                        "name": "orders-db",
+                        "values": {"id": "db-managed", "name": "orders-db"},
+                    }
+                ]
+            }
+        }
+    }
+
+    inventory_path = tmp_path / "inventory.json"
+    states_dir = tmp_path / "states"
+    states_dir.mkdir()
+    inventory_path.write_text(json.dumps(inventory), encoding="utf-8")
+    (states_dir / "network.tfstate").write_text(json.dumps(state_one), encoding="utf-8")
+    (states_dir / "database.tfstate.json").write_text(json.dumps(state_two), encoding="utf-8")
+
+    findings = analyze_iac_coverage(
+        str(inventory_path),
+        terraform_state_dir=str(states_dir),
+    )
+
+    unmanaged_names = {
+        finding["evidence"]["resource_name"]
+        for finding in findings
+        if finding["rule_id"] == "iac_coverage.resource.unmanaged"
+    }
+
+    assert unmanaged_names == {"legacy-search"}
+
+
+def test_iac_coverage_indexes_terraform_states_from_manifest(tmp_path):
+    inventory = {
+        "resources": [
+            {"type": "aws_s3_bucket", "name": "managed-exports"},
+            {"type": "aws_s3_bucket", "name": "unknown-exports"},
+        ]
+    }
+    managed_state = {
+        "values": {
+            "root_module": {
+                "resources": [
+                    {
+                        "type": "aws_s3_bucket",
+                        "name": "managed-exports",
+                        "values": {"bucket": "managed-exports"},
+                    }
+                ]
+            }
+        }
+    }
+
+    inventory_path = tmp_path / "inventory.json"
+    state_path = tmp_path / "workspace-a.tfstate"
+    manifest_path = tmp_path / "terraform-workspaces.yaml"
+    inventory_path.write_text(json.dumps(inventory), encoding="utf-8")
+    state_path.write_text(json.dumps(managed_state), encoding="utf-8")
+    manifest_path.write_text(
+        "terraform_states:\n" "  - path: workspace-a.tfstate\n" "    workspace: platform-prod\n",
+        encoding="utf-8",
+    )
+
+    findings = analyze_iac_coverage(
+        str(inventory_path),
+        state_manifest_path=str(manifest_path),
+    )
+
+    unmanaged_names = {
+        finding["evidence"]["resource_name"]
+        for finding in findings
+        if finding["rule_id"] == "iac_coverage.resource.unmanaged"
+    }
+
+    assert unmanaged_names == {"unknown-exports"}

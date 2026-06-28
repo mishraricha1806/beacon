@@ -1,0 +1,3 @@
+terraform_states:
+  - path: states/platform-prod.tfstate
+    workspace: platform-prod

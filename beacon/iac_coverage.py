@@ -43,13 +43,22 @@ ARN_SERVICE_TYPE_MAP = {
 }
 
 
-def analyze_iac_coverage(cloud_inventory_path, terraform_state_path, owners_path=None):
+def analyze_iac_coverage(
+    cloud_inventory_path,
+    terraform_state_path=None,
+    owners_path=None,
+    terraform_state_dir=None,
+    state_manifest_path=None,
+):
     inventory = load_structured_file(cloud_inventory_path)
-    state = load_structured_file(terraform_state_path)
     owners = load_structured_file(owners_path) if owners_path else {}
 
     cloud_resources = normalize_cloud_inventory(inventory, cloud_inventory_path)
-    managed_keys = terraform_state_keys(state)
+    managed_keys = terraform_state_keys_from_sources(
+        terraform_state_path=terraform_state_path,
+        terraform_state_dir=terraform_state_dir,
+        state_manifest_path=state_manifest_path,
+    )
     owners_index = build_owners_index(owners)
 
     findings = []
@@ -73,6 +82,118 @@ def analyze_iac_coverage(cloud_inventory_path, terraform_state_path, owners_path
             findings.append(unmanaged_sensitive_resource_finding(resource, cloud_inventory_path))
 
     return findings
+
+
+def terraform_state_keys_from_sources(
+    terraform_state_path=None,
+    terraform_state_dir=None,
+    state_manifest_path=None,
+):
+    """Build one managed-resource index across one or many Terraform states."""
+    paths = terraform_state_source_paths(
+        terraform_state_path=terraform_state_path,
+        terraform_state_dir=terraform_state_dir,
+        state_manifest_path=state_manifest_path,
+    )
+
+    keys = set()
+    for path in paths:
+        keys.update(terraform_state_keys(load_structured_file(path)))
+    return keys
+
+
+def terraform_state_source_paths(
+    terraform_state_path=None,
+    terraform_state_dir=None,
+    state_manifest_path=None,
+):
+    paths = []
+
+    if terraform_state_path:
+        paths.append(Path(terraform_state_path))
+
+    if terraform_state_dir:
+        paths.extend(discover_terraform_state_files(terraform_state_dir))
+
+    if state_manifest_path:
+        paths.extend(terraform_state_manifest_paths(state_manifest_path))
+
+    unique_paths = []
+    seen = set()
+    for path in paths:
+        resolved = Path(path).expanduser()
+        key = str(resolved.resolve()) if resolved.exists() else str(resolved)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique_paths.append(resolved)
+
+    if not unique_paths:
+        raise ValueError("Provide --terraform-state, --terraform-state-dir, or --state-manifest.")
+
+    return unique_paths
+
+
+def discover_terraform_state_files(directory):
+    directory = Path(directory).expanduser()
+    candidates = []
+    for path in directory.rglob("*"):
+        if not path.is_file():
+            continue
+        name = path.name.lower()
+        if name.endswith(".tfstate") or name.endswith(".tfstate.json"):
+            candidates.append(path)
+        elif path.suffix.lower() == ".json":
+            candidates.append(path)
+    return sorted(candidates)
+
+
+def terraform_state_manifest_paths(path):
+    manifest_path = Path(path).expanduser()
+    manifest = load_structured_file(manifest_path)
+    base_dir = manifest_path.parent
+    entries = manifest_entries(manifest)
+
+    paths = []
+    for entry in entries:
+        raw_path = entry
+        if isinstance(entry, dict):
+            raw_path = (
+                entry.get("path")
+                or entry.get("state")
+                or entry.get("state_path")
+                or entry.get("terraform_state")
+            )
+        if not raw_path:
+            continue
+
+        state_path = Path(raw_path).expanduser()
+        if not state_path.is_absolute():
+            state_path = base_dir / state_path
+        paths.append(state_path)
+
+    return paths
+
+
+def manifest_entries(manifest):
+    if isinstance(manifest, list):
+        return manifest
+
+    if not isinstance(manifest, dict):
+        return []
+
+    for key in (
+        "terraform_states",
+        "states",
+        "state_files",
+        "workspaces",
+        "terraform_workspaces",
+    ):
+        value = manifest.get(key)
+        if isinstance(value, list):
+            return value
+
+    return []
 
 
 def load_structured_file(path):

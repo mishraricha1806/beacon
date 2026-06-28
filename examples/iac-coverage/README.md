@@ -9,6 +9,8 @@ Beacon compares:
 - `aws-config-inventory.json`: AWS Config-style `configurationItems` export
 - `steampipe-rows.json`: Steampipe/CloudQuery-style row export
 - `terraform-state.json`: Terraform state-style JSON
+- `states/`: directory of Terraform state files for larger-org indexing
+- `terraform-workspaces.yaml`: manifest of state files/workspaces
 - `owners.yaml`: optional ownership metadata
 
 Run:
@@ -53,6 +55,30 @@ Steampipe/CloudQuery-style rows:
 python3 -m beacon.cli readiness iac-coverage \
   --cloud-inventory examples/iac-coverage/steampipe-rows.json \
   --terraform-state examples/iac-coverage/terraform-state.json \
+  --environment prod \
+  --no-html \
+  --no-open-report
+```
+
+Multiple Terraform state files:
+
+```bash
+python3 -m beacon.cli readiness iac-coverage \
+  --cloud-inventory examples/iac-coverage/aws-inventory.json \
+  --terraform-state-dir examples/iac-coverage/states \
+  --owners examples/iac-coverage/owners.yaml \
+  --environment prod \
+  --no-html \
+  --no-open-report
+```
+
+Manifest of Terraform states or workspaces:
+
+```bash
+python3 -m beacon.cli readiness iac-coverage \
+  --cloud-inventory examples/iac-coverage/aws-inventory.json \
+  --state-manifest examples/iac-coverage/terraform-workspaces.yaml \
+  --owners examples/iac-coverage/owners.yaml \
   --environment prod \
   --no-html \
   --no-open-report

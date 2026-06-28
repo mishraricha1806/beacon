@@ -13,7 +13,7 @@ New here? Start with the
 
 It scans infrastructure configuration, runtime snapshots, and operational
 signals, then produces a deterministic readiness decision, ranked risks,
-root-cause hypotheses, and next actions.
+root-cause hypotheses, and ranked operational decisions.
 
 The full product spec and long-term company blueprint live in
 [`docs/BEACON_SSD.md`](docs/BEACON_SSD.md).
@@ -27,13 +27,14 @@ Deterministic intelligence first. AI explanation second.
 
 ## What Beacon Does
 
-Beacon currently focuses on three release modules:
+Beacon currently focuses on four release modules:
 
 | Module | Status | Purpose |
 | --- | --- | --- |
 | Module 1 | Stable/RC | Production readiness scan before release |
 | Module 2 | Active | Kafka-first runtime diagnostics |
 | Module 3 | Active | Flow intelligence across API, Kafka, consumers, databases, storage, Kubernetes, and deployments |
+| Module 4 | Started | Ranked operational decisions: what to fix first, what not to do, and why |
 
 Beacon can evaluate:
 
@@ -56,6 +57,7 @@ High-impact readiness use cases now covered include:
 - **Can cloud identity and database controls survive compromise scenarios?** Beacon flags broad AWS managed admin policy attachments and unencrypted RDS storage.
 - **Can object storage recover from overwrite/delete mistakes?** Beacon flags buckets with neither versioning nor lifecycle controls.
 - **Can Terraform plan/state changes safely go to production?** Beacon scans HCL, plan JSON, and state JSON for infrastructure survivability risks before rollout.
+- **What should engineers fix first?** Beacon turns grouped findings into ranked operational decisions with target domain, confidence, evidence, safety, and "do not do" guidance.
 
 Additional readiness capability:
 
@@ -113,6 +115,16 @@ Pull the image:
 
 ```bash
 docker pull ghcr.io/mishraricha1806/beacon:latest
+```
+
+`latest` is convenient for trying Beacon quickly. For safer and reproducible
+internal usage, pin the image by digest because tags can move:
+
+```bash
+docker buildx imagetools inspect ghcr.io/mishraricha1806/beacon:latest
+
+docker run --rm \
+  ghcr.io/mishraricha1806/beacon@sha256:<digest> --help
 ```
 
 Run the UI:
@@ -214,6 +226,35 @@ docker run --rm \
   --cloud-inventory /workspace/project/examples/iac-coverage/aws-inventory.json \
   --terraform-state /workspace/project/examples/iac-coverage/terraform-state.json \
   --owners /workspace/project/examples/iac-coverage/owners.yaml \
+  --environment prod \
+  --no-html \
+  --no-open-report
+```
+
+For larger organizations with many Terraform states, use a state directory or
+manifest so Beacon builds one managed-resource index before comparing cloud
+inventory:
+
+```bash
+docker run --rm \
+  -v "$PWD:/workspace/project:ro" \
+  ghcr.io/mishraricha1806/beacon:latest readiness iac-coverage \
+  --cloud-inventory /workspace/project/exports/aws-config-prod.json \
+  --terraform-state-dir /workspace/project/exports/terraform-states \
+  --owners /workspace/project/exports/owners.yaml \
+  --environment prod \
+  --no-html \
+  --no-open-report
+```
+
+Manifest mode is also supported:
+
+```bash
+docker run --rm \
+  -v "$PWD:/workspace/project:ro" \
+  ghcr.io/mishraricha1806/beacon:latest readiness iac-coverage \
+  --cloud-inventory /workspace/project/exports/aws-config-prod.json \
+  --state-manifest /workspace/project/exports/terraform-workspaces.yaml \
   --environment prod \
   --no-html \
   --no-open-report

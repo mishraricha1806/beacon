@@ -1,6 +1,7 @@
 from collections import Counter, defaultdict
 
 from beacon.correlations.root_cause import correlate_findings
+from beacon.decisions.decision_engine import DecisionEngine
 from beacon.diagnose.flow_ranker import build_flow_bottleneck_rankings
 from beacon.readiness.interpretation import SEVERITY_ORDER, sort_findings
 
@@ -359,6 +360,11 @@ def build_diagnostic_summary(findings):
         "scope": diagnostic_scope(sorted_items),
     }
 
+    summary["operational_decisions"] = DecisionEngine.build_operational_decisions(
+        material,
+        summary=summary,
+        max_decisions=5,
+    )
     summary["incident_diagnosis"] = incident_diagnosis(summary)
     summary["executive_summary"] = executive_summary(summary)
     return summary

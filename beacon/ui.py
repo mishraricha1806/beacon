@@ -263,6 +263,61 @@ HTML = """<!doctype html>
       line-height: 1.45;
       font-size: 13px;
     }
+    .decision-grid {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .decision-card {
+      border: 1px solid #c8d8e4;
+      border-left: 5px solid #2f6f95;
+      border-radius: 8px;
+      background: #f6fbff;
+      padding: 12px 14px;
+    }
+    .decision-head {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .decision-head strong {
+      font-size: 14px;
+      line-height: 1.3;
+    }
+    .decision-rank {
+      flex: 0 0 auto;
+      border: 1px solid #a9c5d6;
+      border-radius: 999px;
+      background: white;
+      color: #2f5870;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .decision-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .decision-meta span {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: white;
+      padding: 4px 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .decision-card ul {
+      margin: 6px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
     .release-gate-card {
       border: 1px solid #d9b8b8;
       border-left: 5px solid var(--danger);
@@ -670,6 +725,8 @@ HTML = """<!doctype html>
       const architectAssessment = summary.architect_assessment || null;
       const distributedReadiness = summary.distributed_system_readiness || null;
       const diagnosticSummary = data.diagnostic_summary || null;
+      const operationalDecisions = summary.operational_decisions || [];
+      const diagnosticDecisions = diagnosticSummary && diagnosticSummary.operational_decisions || [];
       const requestScope = data.request_scope || {};
       const diagnosticTimeline = data.diagnostic_timeline || [];
       const summaryHtml = `
@@ -689,6 +746,8 @@ HTML = """<!doctype html>
         ${renderDiagnosticTimeline(diagnosticTimeline)}
         ${renderKafkaConsumerGroupScope(diagnosticSummary && diagnosticSummary.scope && diagnosticSummary.scope.kafka_consumer_group_scope)}
         ${renderIncidentDiagnosis(diagnosticSummary && diagnosticSummary.incident_diagnosis)}
+        ${renderOperationalDecisions('Operational Decisions', operationalDecisions)}
+        ${renderOperationalDecisions('Runtime Operational Decisions', diagnosticDecisions)}
         ${renderDiagnosticSummary(diagnosticSummary)}
         ${renderDistributedReadiness(distributedReadiness)}
         ${renderArchitectAssessment(architectAssessment)}
@@ -744,6 +803,36 @@ HTML = """<!doctype html>
           return '<li>' + escapeHtml(label) + '</li>';
         }).join('') +
         '</ul></div>';
+    }
+
+    function renderOperationalDecisions(title, decisions) {
+      if (!decisions || !decisions.length) {
+        return '';
+      }
+      return '<div class="decision-grid"><h3>' + escapeHtml(title) + '</h3>' +
+        decisions.slice(0, 5).map((decision) => {
+          const rank = decision.rank || '';
+          const meta = [
+            decision.target ? 'Target: ' + decision.target : '',
+            decision.safety ? 'Safety: ' + decision.safety : '',
+            decision.confidence ? 'Confidence: ' + decision.confidence : '',
+            decision.decision_type ? 'Type: ' + decision.decision_type : ''
+          ].filter(Boolean).map((item) => '<span>' + escapeHtml(item) + '</span>').join('');
+          const why = decision.why ?
+            '<div class="hint"><strong>Why:</strong> ' + escapeHtml(decision.why) + '</div>' :
+            '';
+          const evidenceRequired = renderPlainNestedList('Evidence required', decision.evidence_required || []);
+          const doNotDo = renderPlainNestedList('Do not do', decision.do_not_do || []);
+          const sources = renderPlainNestedList('Source rules', decision.source_rule_ids || []);
+          return '<div class="decision-card">' +
+            '<div class="decision-head"><strong>' + escapeHtml(decision.action || 'Operational decision') + '</strong>' +
+            '<span class="decision-rank">#' + escapeHtml(rank || '-') + '</span></div>' +
+            '<div class="decision-meta">' + meta + '</div>' +
+            why +
+            '<ul>' + evidenceRequired + doNotDo + sources + '</ul>' +
+            '</div>';
+        }).join('') +
+        '</div>';
     }
 
     function renderRequestScope(scope) {

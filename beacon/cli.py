@@ -1285,9 +1285,19 @@ def readiness_iac_coverage(
         help="Path to cloud inventory export YAML or JSON.",
     ),
     terraform_state: str = typer.Option(
-        ...,
+        None,
         "--terraform-state",
-        help="Path to Terraform state JSON or plan/state-style JSON.",
+        help="Path to one Terraform state JSON or plan/state-style JSON.",
+    ),
+    terraform_state_dir: str = typer.Option(
+        None,
+        "--terraform-state-dir",
+        help="Directory of Terraform state JSON files. Beacon recursively indexes .tfstate, .tfstate.json, and .json files.",
+    ),
+    state_manifest: str = typer.Option(
+        None,
+        "--state-manifest",
+        help="YAML/JSON manifest listing many Terraform state files or workspaces.",
     ),
     owners: str = typer.Option(
         None,
@@ -1322,9 +1332,16 @@ def readiness_iac_coverage(
 ):
     """Detect unmanaged cloud resources outside Terraform state."""
 
+    if not any([terraform_state, terraform_state_dir, state_manifest]):
+        raise typer.BadParameter(
+            "Provide --terraform-state, --terraform-state-dir, or --state-manifest."
+        )
+
     findings = analyze_iac_coverage(
         cloud_inventory_path=cloud_inventory,
         terraform_state_path=terraform_state,
+        terraform_state_dir=terraform_state_dir,
+        state_manifest_path=state_manifest,
         owners_path=owners,
     )
     summary = emit_readiness(

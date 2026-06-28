@@ -161,6 +161,25 @@ def print_diagnostic_summary(summary):
             )
         console.print(table)
 
+    if summary.get("operational_decisions"):
+        table = Table(title="Operational Decisions")
+        table.add_column("Rank")
+        table.add_column("Action")
+        table.add_column("Target")
+        table.add_column("Safety")
+        table.add_column("Confidence")
+        table.add_column("Do Not Do")
+        for decision in summary["operational_decisions"][:5]:
+            table.add_row(
+                str(decision.get("rank", "")),
+                decision.get("action", ""),
+                decision.get("target", ""),
+                decision.get("safety", ""),
+                decision.get("confidence", ""),
+                "; ".join(decision.get("do_not_do") or []),
+            )
+        console.print(table)
+
     console.print("[bold]First Actions:[/bold]")
     for action in summary.get("first_actions", [])[:5]:
         console.print(f"- {action}")

@@ -111,6 +111,8 @@ class DecisionEngine:
                 "deployment.window.kafka_lag_regression",
                 "deployment.window.api_latency_regression",
                 "deployment.window.error_rate_regression",
+                "api.runtime.deployment_correlated_degradation",
+                "kafka.history.deployment_correlated_lag",
             },
             "action": "Pause rollout and evaluate rollback before scaling infrastructure",
             "target": "deployment",
@@ -126,6 +128,29 @@ class DecisionEngine:
             ],
             "do_not_do": [
                 "Do not scale everything blindly before checking whether the release introduced the regression.",
+            ],
+        },
+        {
+            "match": {
+                "flow.runtime.cascading_latency",
+                "api.runtime.latency_p95.high",
+            },
+            "action": "Reduce retry and timeout amplification before adding capacity",
+            "target": "flow",
+            "safety": "CAUTION",
+            "decision_type": "incident_action",
+            "priority": 98,
+            "why": "Cascading latency can amplify API timeouts, retries, Kafka lag, and downstream saturation.",
+            "evidence_required": [
+                "API timeout and error trend",
+                "retry rate",
+                "consumer lag trend",
+                "downstream latency",
+                "queue or broker pressure",
+            ],
+            "do_not_do": [
+                "Do not increase retries or timeouts without checking downstream capacity.",
+                "Do not scale only the API tier if lag and downstream latency are already rising.",
             ],
         },
         {
@@ -153,6 +178,55 @@ class DecisionEngine:
             ],
         },
         {
+            "match": {
+                "kafka.consumer_group.hot_partition",
+                "kafka.consumer_group.decision.partition_skew",
+            },
+            "action": "Fix producer partition-key skew before scaling consumers",
+            "target": "kafka_partitioning",
+            "safety": "SAFE",
+            "decision_type": "incident_action",
+            "priority": 94,
+            "why": "Hot partitions limit consumer parallelism and can keep lag concentrated even after adding consumers.",
+            "evidence_required": [
+                "partition-level lag distribution",
+                "producer partition key strategy",
+                "message key cardinality",
+                "consumer assignment",
+            ],
+            "do_not_do": [
+                "Do not assume more consumers will fix lag when one partition is overloaded.",
+                "Do not repartition a topic without validating ordering and replay impact.",
+            ],
+        },
+        {
+            "match": {
+                "kafka.runtime.rebalance_storm",
+                "kafka.consumer_group.rebalancing",
+                "kafka.consumer_group.member_churn.high",
+                "kafka.history.rebalance_churn.high",
+                "kafka.history.consumer_group.member_churn",
+                "kafka.runtime.consumer_group.unstable",
+            },
+            "action": "Stabilize consumer group membership before scaling or redeploying consumers",
+            "target": "kafka_consumers",
+            "safety": "SAFE",
+            "decision_type": "incident_action",
+            "priority": 93,
+            "why": "Rebalance storms and member churn can pause consumption and amplify lag during incidents.",
+            "evidence_required": [
+                "consumer group state",
+                "member churn history",
+                "heartbeat and session timeout config",
+                "max.poll.interval.ms",
+                "recent deployment events",
+            ],
+            "do_not_do": [
+                "Do not keep rolling consumer deployments while the group is already rebalancing.",
+                "Do not add consumers until membership stability and partition assignment are understood.",
+            ],
+        },
+        {
             "match_prefix": (
                 "kafka.topic.retention",
                 "kafka.topic.max_message_bytes",
@@ -174,6 +248,58 @@ class DecisionEngine:
             ],
             "do_not_do": [
                 "Do not expand brokers as the only fix if retention or payload size is the growth driver.",
+            ],
+        },
+        {
+            "match": {
+                "kafka.runtime.replay.time_exceeds_target",
+                "kafka.runtime.replay.no_drain_capacity",
+                "kafka.runtime.replay.retention_window_insufficient",
+            },
+            "action": "Increase safe drain capacity or extend retention before backlog replay",
+            "target": "kafka_replay",
+            "safety": "CAUTION",
+            "decision_type": "recovery_action",
+            "priority": 88,
+            "why": "Replay risk means the system may not drain backlog before retention expires or recovery targets are missed.",
+            "evidence_required": [
+                "backlog size",
+                "consumer drain rate",
+                "retention window",
+                "replay SLO",
+                "downstream capacity",
+            ],
+            "do_not_do": [
+                "Do not start aggressive replay without validating downstream capacity.",
+                "Do not shorten retention while backlog replay time exceeds the recovery target.",
+            ],
+        },
+        {
+            "match": {
+                "kafka.runtime.producer_throttle.high",
+                "kafka.runtime.fetch_throttle.high",
+                "kafka.runtime.client_quotas.missing",
+                "kafka.broker.client_quotas.missing",
+                "kafka.runtime.request_queue_saturation.high",
+                "kafka.runtime.network_saturation.high",
+                "kafka.runtime.producer_error_rate.high",
+            },
+            "action": "Protect broker capacity with quotas and request-pressure investigation",
+            "target": "kafka_capacity",
+            "safety": "SAFE",
+            "decision_type": "capacity_action",
+            "priority": 86,
+            "why": "Throttling, queue saturation, network pressure, and missing quotas can make one workload degrade the shared Kafka platform.",
+            "evidence_required": [
+                "producer and consumer quota config",
+                "request queue time",
+                "network throughput",
+                "producer error rate",
+                "top clients by throughput",
+            ],
+            "do_not_do": [
+                "Do not remove throttles during an incident without identifying the noisy client.",
+                "Do not scale brokers before checking whether quotas or client behavior are the pressure source.",
             ],
         },
         {
@@ -203,8 +329,36 @@ class DecisionEngine:
         },
         {
             "match": {
+                "k8s.runtime.deployment.unavailable",
+                "k8s.runtime.pod.crash_loop",
+                "k8s.runtime.pod.pending",
+                "k8s.runtime.node.not_ready",
+                "k8s.runtime.node.pressure",
+                "readiness.correlation.kubernetes_single_point_of_failure",
+            },
+            "action": "Restore Kubernetes workload health before changing upstream traffic or Kafka capacity",
+            "target": "kubernetes_runtime",
+            "safety": "SAFE",
+            "decision_type": "incident_action",
+            "priority": 84,
+            "why": "Unavailable pods, node pressure, or single-point-of-failure Kubernetes posture can be the immediate service degradation source.",
+            "evidence_required": [
+                "deployment availability",
+                "pod events",
+                "node pressure conditions",
+                "recent rollout status",
+                "readiness probe failures",
+            ],
+            "do_not_do": [
+                "Do not scale Kafka first when consumer pods are unavailable or crash looping.",
+                "Do not route more traffic to workloads with failing readiness or node pressure.",
+            ],
+        },
+        {
+            "match": {
                 "cloud.quota.headroom.insufficient",
                 "cloud.compute.autoscaling.capacity.insufficient",
+                "readiness.correlation.capacity_plan_mismatch",
             },
             "action": "Create capacity and quota headroom before peak traffic or rollout",
             "target": "capacity",
@@ -220,6 +374,31 @@ class DecisionEngine:
             ],
             "do_not_do": [
                 "Do not approve peak-load readiness while requested capacity plus buffer exceeds quota.",
+            ],
+        },
+        {
+            "match": {
+                "cicd.deployment.environment.missing",
+                "cicd.deployment.concurrency.missing",
+                "cicd.deployment.timeout.missing",
+                "readiness.correlation.uncontrolled_production_deploy",
+            },
+            "action": "Add deployment guardrails before using the pipeline as a production release path",
+            "target": "cicd",
+            "safety": "SAFE",
+            "decision_type": "release_blocker",
+            "priority": 78,
+            "why": "Weak deployment governance allows overlapping, unreviewed, or uncontrolled production changes.",
+            "evidence_required": [
+                "protected environment",
+                "required reviewers or approval path",
+                "deployment concurrency control",
+                "deployment timeout",
+                "rollback procedure",
+            ],
+            "do_not_do": [
+                "Do not treat a pipeline as production-ready until concurrency and environment protection are explicit.",
+                "Do not rely on manual coordination to prevent overlapping production deploys.",
             ],
         },
         {
@@ -506,7 +685,7 @@ class DecisionEngine:
         return decisions[:max_decisions]
 
     @staticmethod
-    def match_decision_template(finding: Dict) -> Dict | None:
+    def match_decision_template(finding: Dict) -> Optional[Dict]:
         rule_id = finding.get("rule_id", "")
 
         for template in DecisionEngine.OPERATIONAL_DECISION_TEMPLATES:

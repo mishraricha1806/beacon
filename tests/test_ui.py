@@ -75,6 +75,8 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert 'id="intelligence_context"' in ui.HTML
     assert "Runtime Diagnosis" in ui.HTML
     assert "Incident Diagnosis" in ui.HTML
+    assert "Operational Decisions" in ui.HTML
+    assert "Runtime Operational Decisions" in ui.HTML
     assert "Primary likely cause" in ui.HTML
     assert "Why Beacon thinks this" in ui.HTML
     assert "Kafka consumer group diagnosis" in ui.HTML
@@ -100,6 +102,7 @@ def test_ui_e2e_static_config_upload_returns_backend_findings():
     assert payload["readiness_summary"]["release_gate"]["answer"] == "No"
     assert payload["readiness_summary"]["release_gate"]["why_not"]
     assert payload["readiness_summary"]["release_gate"]["fix_first"]
+    assert payload["readiness_summary"]["operational_decisions"]
 
 
 def test_ui_http_smoke_script_passes():
@@ -166,6 +169,7 @@ def test_ui_e2e_runtime_snapshot_upload_returns_root_cause_findings():
     assert payload["readiness_summary"]["root_cause_hypotheses"]
     assert payload["diagnostic_summary"]["diagnostic_status"] == ("ROOT_CAUSE_CANDIDATES_FOUND")
     assert payload["diagnostic_summary"]["flow_bottleneck_rankings"]
+    assert payload["diagnostic_summary"]["operational_decisions"]
 
 
 def test_kafka_ui_run_check_uses_existing_report_contract(monkeypatch):

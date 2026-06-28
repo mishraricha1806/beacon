@@ -82,6 +82,46 @@ python3 -m beacon.cli readiness iac-coverage \
   --environment prod
 ```
 
+For larger organizations, Beacon does not need to compare inventory against one
+state file only. It can build a managed-resource index across many Terraform
+state files.
+
+Directory mode:
+
+```bash
+python3 -m beacon.cli readiness iac-coverage \
+  --cloud-inventory exports/aws-config-prod.json \
+  --terraform-state-dir exports/terraform-states \
+  --owners exports/owners.yaml \
+  --environment prod
+```
+
+Manifest mode:
+
+```bash
+python3 -m beacon.cli readiness iac-coverage \
+  --cloud-inventory exports/aws-config-prod.json \
+  --state-manifest exports/terraform-workspaces.yaml \
+  --owners exports/owners.yaml \
+  --environment prod
+```
+
+Example manifest:
+
+```yaml
+terraform_states:
+  - path: states/platform-prod.tfstate
+    workspace: platform-prod
+  - path: states/payments-prod.tfstate
+    workspace: payments-prod
+  - path: states/data-prod.tfstate
+    workspace: data-prod
+```
+
+This is the intended large-org direction: cloud inventory compared against a
+combined Terraform-managed resource index, then grouped by account, region,
+service, owner, and risk.
+
 Example finding:
 
 ```text

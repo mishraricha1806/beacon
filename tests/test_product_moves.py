@@ -1209,7 +1209,36 @@ def test_diagnose_terminal_uses_runtime_diagnosis_language(capsys):
     assert "Beacon Runtime Diagnosis" in output
     assert "Incident Diagnosis" in output
     assert "Matched Diagnostic Playbooks" in output
+    assert "Operational Decisions" in output
     assert "Production Readiness Score" not in output
+
+
+def test_diagnostic_summary_includes_operational_decisions_for_runtime_incident():
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    findings = [
+        {
+            "rule_id": "flow.runtime.cascading_latency",
+            "domain": "flow",
+            "category": "runtime_stability",
+            "severity": "CRITICAL",
+            "title": "Flow shows cascading latency",
+            "impact": "API timeouts, retries, and lag are increasing together.",
+            "recommendation": "Reduce retry amplification before scaling broadly.",
+            "file": "flow.yaml",
+            "evidence": {"api_timeout_rate": 0.12, "retry_rate": 0.35},
+            "tags": [],
+        }
+    ]
+
+    summary = build_diagnostic_summary(findings)
+
+    assert summary["operational_decisions"]
+    assert summary["operational_decisions"][0]["target"] == "flow"
+    assert "retry" in summary["operational_decisions"][0]["action"].lower()
+    assert any(
+        "increase retries" in item for item in summary["operational_decisions"][0]["do_not_do"]
+    )
 
 
 def test_module2_diagnostic_summary_maps_scale_and_flow_use_cases():
