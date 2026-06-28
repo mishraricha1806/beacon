@@ -924,6 +924,7 @@ This lets users run Beacon quickly without receiving the source code.
 - [Packaging Release](docs/PACKAGING_RELEASE.md)
 - [Public Distribution](docs/PUBLIC_DISTRIBUTION.md)
 - [Kafka Release](docs/KAFKA_RELEASE.md)
+- [Community Discussion Prompts](docs/COMMUNITY_DISCUSSIONS.md)
 
 ## Product Philosophy
 
