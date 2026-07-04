@@ -1,0 +1,9 @@
+rule_id: cloud.database.azure.customer_managed_key.missing
+title: Azure database customer-managed key missing
+description: Detects Azure managed databases without customer-managed key evidence.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+version: "1.0"
+tags: [cloud, database, azure, encryption]
+recommendation: Use a customer-managed key where required by policy, or document provider-managed encryption approval for the environment.

@@ -266,6 +266,83 @@ class TestDecisionEngine:
         assert decisions[0]["target"] == "cicd"
         assert decisions[0]["decision_type"] == "release_blocker"
         assert "deployment guardrails" in decisions[0]["action"]
+        assert decisions[0]["disposition"] == "fix_before_rollout"
+
+    def test_operational_decisions_kubernetes_security_is_release_blocker(self):
+        findings = [
+            finding(
+                "CRITICAL",
+                "Kubernetes binding grants cluster-admin broadly",
+                "Broad RBAC expands cluster blast radius.",
+                "Restrict cluster-admin to break-glass identities.",
+                "kubernetes.yaml",
+                rule_id="k8s.rbac.cluster_admin.broad_binding",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "kubernetes_security"
+        assert decisions[0]["decision_type"] == "release_blocker"
+        assert decisions[0]["disposition"] == "fix_before_rollout"
+        assert any("inline secrets" in item for item in decisions[0]["do_not_do"])
+
+    def test_operational_decisions_database_recovery_blocks_release(self):
+        findings = [
+            finding(
+                "HIGH",
+                "RDS instance has no backup retention",
+                "Missing backups reduce recovery ability.",
+                "Set backup retention.",
+                "main.tf",
+                rule_id="cloud.database.rds.backup_retention_missing",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "database_recovery"
+        assert decisions[0]["decision_type"] == "release_blocker"
+        assert decisions[0]["disposition"] == "fix_before_rollout"
+        assert "recovery" in decisions[0]["action"].lower()
+
+    def test_operational_decisions_iac_coverage_requires_review_before_change(self):
+        findings = [
+            finding(
+                "HIGH",
+                "Unmanaged cloud resource has recent activity",
+                "Active unmanaged infrastructure may serve traffic.",
+                "Review owner and dependencies before import or deletion.",
+                "inventory.json",
+                rule_id="iac_coverage.resource.active_unmanaged",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "iac_coverage"
+        assert decisions[0]["decision_type"] == "governance_action"
+        assert decisions[0]["disposition"] == "review_before_change"
+        assert any("Do not delete active" in item for item in decisions[0]["do_not_do"])
+
+    def test_operational_decisions_low_lag_is_monitor_not_scale(self):
+        findings = [
+            finding(
+                "LOW",
+                "Kafka consumer lag is low",
+                "No major lag pressure detected.",
+                "Continue monitoring trend.",
+                "runtime.yaml",
+                rule_id="kafka.consumer_group.lag.low",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "monitoring"
+        assert decisions[0]["decision_type"] == "monitor"
+        assert decisions[0]["disposition"] == "monitor"
+        assert any("emergency scaling" in item for item in decisions[0]["do_not_do"])
 
 
 class TestDecisionFormatter:

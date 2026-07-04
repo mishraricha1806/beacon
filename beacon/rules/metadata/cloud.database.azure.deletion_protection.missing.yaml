@@ -1,0 +1,9 @@
+rule_id: cloud.database.azure.deletion_protection.missing
+title: Azure database deletion protection missing
+description: Detects Azure managed databases without deletion-protection or prevent-destroy evidence.
+severity_default: HIGH
+category: recovery_readiness
+author: beacon.rules
+version: "1.0"
+tags: [cloud, database, azure, recovery]
+recommendation: Enable deletion protection where supported, or require Terraform prevent-destroy and explicit break-glass deletion approval.

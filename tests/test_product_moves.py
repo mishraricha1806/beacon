@@ -119,6 +119,83 @@ def test_readiness_summarizes_whole_distributed_system_not_only_kafka():
     assert any(blocker["domain"] == "database" for blocker in distributed["release_blockers"])
 
 
+def test_distributed_readiness_propagates_service_context_and_disposition():
+    findings = [
+        {
+            "rule_id": "topology.service.blast_radius.high",
+            "domain": "topology",
+            "category": "resiliency",
+            "severity": "HIGH",
+            "title": "Service 'checkout-api' has high blast radius",
+            "impact": "Checkout failure affects multiple downstream services.",
+            "recommendation": "Review redundancy and document approved exception if needed.",
+            "file": "services.yaml",
+            "evidence": {
+                "service": "checkout-api",
+                "owner": "team-checkout",
+                "criticality": "critical",
+                "dependents": ["payments", "orders", "claims"],
+                "dependent_count": 3,
+            },
+            "tags": [],
+        },
+        {
+            "rule_id": "k8s.workload.probes.missing",
+            "domain": "kubernetes",
+            "category": "operational_safety",
+            "severity": "HIGH",
+            "title": "Kubernetes workload 'checkout-api' is missing probes",
+            "impact": "Failed pods may receive traffic.",
+            "recommendation": "Add readiness and liveness probes.",
+            "file": "deployment.yaml",
+            "evidence": {"workload": "checkout-api"},
+            "tags": [],
+        },
+    ]
+
+    summary = calculate_readiness(findings)
+    distributed = summary["distributed_system_readiness"]
+    blocker = next(
+        item
+        for item in distributed["release_blockers"]
+        if item["rule_id"] == "k8s.workload.probes.missing"
+    )
+
+    assert distributed["service_context"]["checkout-api"]["owner"] == "team-checkout"
+    assert distributed["service_context"]["checkout-api"]["criticality"] == "critical"
+    assert blocker["service"] == "checkout-api"
+    assert blocker["owner"] == "team-checkout"
+    assert blocker["criticality"] == "critical"
+    assert blocker["disposition"] == "fix_before_rollout"
+    assert "owner approval" in blocker["required_evidence"]
+
+
+def test_distributed_readiness_lists_exception_candidates_with_required_evidence():
+    findings = [
+        {
+            "rule_id": "cloud.database.rds.multi_az.disabled",
+            "domain": "cloud",
+            "category": "resiliency",
+            "severity": "HIGH",
+            "title": "RDS instance 'reporting' does not enable Multi-AZ",
+            "impact": "Single-AZ databases have weaker failover posture.",
+            "recommendation": "Enable Multi-AZ or document an approved environment-specific exception.",
+            "file": "main.tf",
+            "evidence": {"service": "reporting", "owner": "team-analytics"},
+            "tags": [],
+        }
+    ]
+
+    summary = calculate_readiness(findings)
+    distributed = summary["distributed_system_readiness"]
+
+    assert distributed["accepted_exception_candidates"]
+    candidate = distributed["accepted_exception_candidates"][0]
+    assert candidate["rule_id"] == "cloud.database.rds.multi_az.disabled"
+    assert candidate["owner"] == "team-analytics"
+    assert "security and recovery review" in candidate["required_evidence"]
+
+
 def test_static_readiness_release_gate_answers_first_user_questions():
     findings = [
         {
@@ -1196,12 +1273,14 @@ def test_diagnose_terminal_uses_runtime_diagnosis_language(capsys):
         }
     ]
 
+    diagnostic_summary = build_diagnostic_summary(findings)
+
     print_report(
         findings,
         html=False,
         open_report=False,
         output="terminal",
-        diagnostic_summary=build_diagnostic_summary(findings),
+        diagnostic_summary=diagnostic_summary,
     )
 
     output = capsys.readouterr().out
@@ -1210,6 +1289,7 @@ def test_diagnose_terminal_uses_runtime_diagnosis_language(capsys):
     assert "Incident Diagnosis" in output
     assert "Matched Diagnostic Playbooks" in output
     assert "Operational Decisions" in output
+    assert diagnostic_summary["operational_decisions"][0]["disposition"]
     assert "Production Readiness Score" not in output
 
 

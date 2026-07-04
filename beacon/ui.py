@@ -814,6 +814,7 @@ HTML = """<!doctype html>
           const rank = decision.rank || '';
           const meta = [
             decision.target ? 'Target: ' + decision.target : '',
+            decision.disposition ? 'Disposition: ' + decision.disposition : '',
             decision.safety ? 'Safety: ' + decision.safety : '',
             decision.confidence ? 'Confidence: ' + decision.confidence : '',
             decision.decision_type ? 'Type: ' + decision.decision_type : ''

@@ -64,7 +64,8 @@ def build_distributed_system_readiness(findings, summary):
     domains = [domain for domain in domains if domain]
     dimensions = [dimension_status(dimension, findings) for dimension in SYSTEM_DIMENSIONS]
     observed_dimensions = [item for item in dimensions if item["observed"]]
-    release_blockers = distributed_release_blockers(findings)
+    service_context = build_service_context(findings)
+    release_blockers = distributed_release_blockers(findings, service_context)
 
     return {
         "title": "Distributed System Production Readiness",
@@ -76,6 +77,8 @@ def build_distributed_system_readiness(findings, summary):
         "dimension_count": len(SYSTEM_DIMENSIONS),
         "dimensions": dimensions,
         "release_blockers": release_blockers,
+        "accepted_exception_candidates": accepted_exception_candidates(release_blockers),
+        "service_context": service_context,
         "coverage_gaps": distributed_coverage_gaps(dimensions),
         "critical_paths": infer_critical_paths(domains),
     }
@@ -221,20 +224,138 @@ def distributed_confidence(summary, observed_dimensions):
     return "LOW"
 
 
-def distributed_release_blockers(findings):
+def distributed_release_blockers(findings, service_context=None):
+    service_context = service_context or {}
     blockers = [
         finding for finding in findings if finding.get("severity") in {"ERROR", "CRITICAL", "HIGH"}
     ]
     return [
-        {
-            "severity": finding.get("severity"),
-            "domain": normalize_domain(finding.get("domain")) or "unknown",
-            "title": finding.get("title"),
-            "recommendation": finding.get("recommendation"),
-            "rule_id": finding.get("rule_id"),
-        }
+        distributed_release_blocker(finding, service_context)
         for finding in sorted(blockers, key=finding_sort_key)[:8]
     ]
+
+
+def distributed_release_blocker(finding, service_context):
+    service = finding_service_name(finding)
+    context = service_context.get(service, {}) if service else {}
+    severity = finding.get("severity")
+    rule_id = finding.get("rule_id")
+
+    return {
+        "severity": severity,
+        "domain": normalize_domain(finding.get("domain")) or "unknown",
+        "title": finding.get("title"),
+        "recommendation": finding.get("recommendation"),
+        "rule_id": rule_id,
+        "service": service,
+        "owner": context.get("owner"),
+        "criticality": context.get("criticality"),
+        "disposition": distributed_blocker_disposition(finding, context),
+        "required_evidence": distributed_required_evidence(finding, context),
+        "exception_candidate": is_exception_candidate(finding),
+    }
+
+
+def build_service_context(findings):
+    services = {}
+    for finding in findings:
+        evidence = finding.get("evidence") or {}
+        if not isinstance(evidence, dict):
+            continue
+        service = evidence.get("service")
+        if not service:
+            continue
+        current = services.setdefault(str(service), {"service": str(service)})
+        if evidence.get("owner"):
+            current["owner"] = evidence.get("owner")
+        if evidence.get("criticality"):
+            current["criticality"] = evidence.get("criticality")
+        if evidence.get("dependents"):
+            current["dependents"] = evidence.get("dependents")
+        if evidence.get("dependent_count") is not None:
+            current["dependent_count"] = evidence.get("dependent_count")
+
+    return services
+
+
+def finding_service_name(finding):
+    evidence = finding.get("evidence") or {}
+    if isinstance(evidence, dict):
+        for key in ("service", "workload", "application", "app"):
+            if evidence.get(key):
+                return str(evidence[key])
+
+    title = finding.get("title") or ""
+    if "'" in title:
+        parts = title.split("'")
+        for index in range(1, len(parts), 2):
+            if parts[index]:
+                return parts[index]
+    return None
+
+
+def distributed_blocker_disposition(finding, service_context):
+    severity = finding.get("severity")
+    criticality = str(service_context.get("criticality") or "").lower()
+    rule_id = finding.get("rule_id", "")
+
+    if severity in {"ERROR", "CRITICAL"}:
+        return "fix_before_rollout"
+    if criticality in {"critical", "high"} and severity == "HIGH":
+        return "fix_before_rollout"
+    if rule_id in {"topology.service.owner.missing", "kafka.topic.owner.missing"}:
+        return "assign_owner_before_rollout"
+    if "owner" in rule_id or "metadata" in rule_id:
+        return "assign_owner_before_rollout"
+    return "review_before_approval"
+
+
+def distributed_required_evidence(finding, service_context):
+    evidence = [
+        "owner approval",
+        "remediation plan or accepted-risk record",
+    ]
+    rule_id = finding.get("rule_id", "")
+    criticality = service_context.get("criticality")
+
+    if criticality:
+        evidence.append(f"criticality confirmed as {criticality}")
+    if rule_id.startswith("topology."):
+        evidence.extend(["service dependency map", "blast-radius review"])
+    if rule_id.startswith("kafka."):
+        evidence.extend(["topic or consumer ownership", "runtime or config evidence"])
+    if rule_id.startswith("cloud.") or rule_id.startswith("iam.") or rule_id.startswith("iac_coverage."):
+        evidence.extend(["cloud ownership metadata", "security and recovery review"])
+    if rule_id.startswith("k8s."):
+        evidence.extend(["workload owner", "rollout and rollback safety check"])
+
+    return list(dict.fromkeys(evidence))[:6]
+
+
+def is_exception_candidate(finding):
+    recommendation = str(finding.get("recommendation") or "").lower()
+    severity = finding.get("severity")
+    if severity in {"ERROR", "CRITICAL"}:
+        return False
+    return "exception" in recommendation or "approved" in recommendation or "document" in recommendation
+
+
+def accepted_exception_candidates(release_blockers):
+    candidates = []
+    for blocker in release_blockers:
+        if not blocker.get("exception_candidate"):
+            continue
+        candidates.append(
+            {
+                "rule_id": blocker.get("rule_id"),
+                "title": blocker.get("title"),
+                "severity": blocker.get("severity"),
+                "service": blocker.get("service"),
+                "owner": blocker.get("owner"),
+                "required_evidence": blocker.get("required_evidence", []),
+            }
+        )
+    return candidates[:5]
 
 
 def distributed_coverage_gaps(dimensions):

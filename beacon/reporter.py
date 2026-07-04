@@ -166,6 +166,7 @@ def print_diagnostic_summary(summary):
         table.add_column("Rank")
         table.add_column("Action")
         table.add_column("Target")
+        table.add_column("Disposition")
         table.add_column("Safety")
         table.add_column("Confidence")
         table.add_column("Do Not Do")
@@ -174,6 +175,7 @@ def print_diagnostic_summary(summary):
                 str(decision.get("rank", "")),
                 decision.get("action", ""),
                 decision.get("target", ""),
+                decision.get("disposition", ""),
                 decision.get("safety", ""),
                 decision.get("confidence", ""),
                 "; ".join(decision.get("do_not_do") or []),

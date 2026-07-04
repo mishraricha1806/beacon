@@ -1,0 +1,9 @@
+rule_id: cloud.database.gcp.cmek.missing
+title: GCP Cloud SQL CMEK missing
+description: Detects GCP Cloud SQL instances without customer-managed encryption key evidence.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+version: "1.0"
+tags: [cloud, database, gcp, encryption]
+recommendation: Configure a customer-managed encryption key where required by policy, or document provider-managed encryption approval.

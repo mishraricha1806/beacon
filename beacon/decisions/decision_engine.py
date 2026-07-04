@@ -329,6 +329,34 @@ class DecisionEngine:
         },
         {
             "match": {
+                "k8s.rbac.cluster_admin.broad_binding",
+                "k8s.rbac.role.wildcard_permissions",
+                "k8s.secret.inline_material",
+                "k8s.workload.network_policy.missing",
+                "k8s.container.privileged",
+                "k8s.container.allow_privilege_escalation.enabled",
+                "k8s.workload.host_namespace.enabled",
+            },
+            "action": "Remove Kubernetes privilege, secret, and network-isolation risks before rollout",
+            "target": "kubernetes_security",
+            "safety": "SAFE",
+            "decision_type": "release_blocker",
+            "priority": 108,
+            "why": "Kubernetes privilege, secret-management, and network-isolation gaps can expand blast radius even when the workload appears healthy.",
+            "evidence_required": [
+                "least-privilege RBAC",
+                "secret-manager or encrypted-secret workflow",
+                "NetworkPolicy coverage",
+                "container security context",
+                "owner-approved exception if any control is intentionally absent",
+            ],
+            "do_not_do": [
+                "Do not approve production rollout with broad cluster-admin access or inline secrets as an undocumented exception.",
+                "Do not treat workload health as proof that cluster security posture is safe.",
+            ],
+        },
+        {
+            "match": {
                 "k8s.runtime.deployment.unavailable",
                 "k8s.runtime.pod.crash_loop",
                 "k8s.runtime.pod.pending",
@@ -378,6 +406,36 @@ class DecisionEngine:
         },
         {
             "match": {
+                "cloud.database.rds.backup_retention_missing",
+                "cloud.database.rds.deletion_protection.disabled",
+                "cloud.database.rds.multi_az.disabled",
+                "cloud.database.rds.storage_encryption.disabled",
+                "cloud.database.azure.backup_retention.weak",
+                "cloud.database.azure.ha.disabled",
+                "cloud.database.gcp.backup.disabled",
+                "cloud.database.gcp.deletion_protection.disabled",
+                "cloud.database.gcp.ha.disabled",
+            },
+            "action": "Fix managed database recovery, HA, and encryption posture before production approval",
+            "target": "database_recovery",
+            "safety": "SAFE",
+            "decision_type": "release_blocker",
+            "priority": 92,
+            "why": "Managed database backup, deletion protection, HA, and encryption gaps weaken recovery from deletion, corruption, AZ failure, or data exposure.",
+            "evidence_required": [
+                "backup retention policy",
+                "restore test or runbook",
+                "deletion protection",
+                "HA or approved non-prod exception",
+                "encryption configuration",
+            ],
+            "do_not_do": [
+                "Do not rely on snapshots or provider defaults without an explicit restore and ownership path.",
+                "Do not waive database recovery gaps in production without a documented RPO/RTO exception.",
+            ],
+        },
+        {
+            "match": {
                 "cicd.deployment.environment.missing",
                 "cicd.deployment.concurrency.missing",
                 "cicd.deployment.timeout.missing",
@@ -399,6 +457,30 @@ class DecisionEngine:
             "do_not_do": [
                 "Do not treat a pipeline as production-ready until concurrency and environment protection are explicit.",
                 "Do not rely on manual coordination to prevent overlapping production deploys.",
+            ],
+        },
+        {
+            "match": {
+                "iac_coverage.resource.active_unmanaged",
+                "iac_coverage.resource.sensitive_unmanaged",
+                "iac_coverage.resource.owner_missing",
+            },
+            "action": "Review ownership, activity, and blast radius before importing or deleting unmanaged resources",
+            "target": "iac_coverage",
+            "safety": "CAUTION",
+            "decision_type": "governance_action",
+            "priority": 82,
+            "why": "Active, sensitive, or unowned unmanaged infrastructure may serve real traffic or hold data even when it is outside Terraform state.",
+            "evidence_required": [
+                "owner or service mapping",
+                "recent activity or cost signal",
+                "dependency review",
+                "data sensitivity",
+                "recommended disposition",
+            ],
+            "do_not_do": [
+                "Do not import unmanaged resources before confirming ownership and desired lifecycle.",
+                "Do not delete active or sensitive resources just because they are outside Terraform state.",
             ],
         },
         {
@@ -439,6 +521,29 @@ class DecisionEngine:
             ],
             "do_not_do": [
                 "Do not release producer schema changes with compatibility NONE unless explicitly approved.",
+            ],
+        },
+        {
+            "match": {
+                "kafka.consumer_group.lag.low",
+                "kafka.consumer_group.decision.no_urgent_action",
+                "kafka.runtime.decision.monitor_capacity",
+            },
+            "action": "Monitor the trend without urgent scaling or topology changes",
+            "target": "monitoring",
+            "safety": "SAFE",
+            "decision_type": "monitor",
+            "priority": 20,
+            "why": "Current evidence does not show urgent degradation; the safest action is to watch trend and improve context.",
+            "evidence_required": [
+                "lag trend",
+                "producer rate",
+                "consumer throughput",
+                "broker/storage trend",
+            ],
+            "do_not_do": [
+                "Do not turn low or stable lag into emergency scaling.",
+                "Do not make topology changes without trend evidence.",
             ],
         },
     ]
@@ -639,6 +744,7 @@ class DecisionEngine:
                     "target": template["target"],
                     "safety": template["safety"],
                     "decision_type": template["decision_type"],
+                    "disposition": DecisionEngine.decision_disposition(finding, template),
                     "severity": severity,
                     "confidence": DecisionEngine.decision_confidence(
                         finding, template, summary or {}
@@ -661,6 +767,7 @@ class DecisionEngine:
                     "target": "release",
                     "safety": "SAFE",
                     "decision_type": "release_action",
+                    "disposition": "proceed_with_standard_controls",
                     "severity": "INFO",
                     "confidence": "MEDIUM",
                     "why": "Beacon did not find material production-readiness blockers in the analyzed inputs.",
@@ -713,6 +820,25 @@ class DecisionEngine:
         if severity == "HIGH":
             return "MEDIUM"
         return "LOW"
+
+    @staticmethod
+    def decision_disposition(finding: Dict, template: Dict) -> str:
+        decision_type = template.get("decision_type")
+        severity = finding.get("severity")
+
+        if decision_type == "analysis_blocker":
+            return "rerun_after_fix"
+        if decision_type == "release_blocker":
+            return "fix_before_rollout"
+        if decision_type in {"incident_action", "capacity_action", "recovery_action"}:
+            return "investigate_before_action"
+        if decision_type == "governance_action":
+            return "review_before_change"
+        if decision_type == "monitor":
+            return "monitor"
+        if severity in {"ERROR", "CRITICAL", "HIGH"}:
+            return "fix_before_rollout"
+        return "monitor"
 
     @staticmethod
     def decision_evidence(finding: Dict) -> Dict:

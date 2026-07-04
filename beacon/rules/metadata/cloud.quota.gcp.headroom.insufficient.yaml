@@ -1,0 +1,9 @@
+rule_id: cloud.quota.gcp.headroom.insufficient
+title: GCP quota headroom insufficient
+description: Detects GCP quota profiles that cannot satisfy requested capacity plus reserved buffer.
+severity_default: CRITICAL
+category: scalability
+author: beacon.rules
+version: "1.0"
+tags: [cloud, gcp, quota, capacity]
+recommendation: Request quota increase, reduce requested capacity, or revise the safety buffer before production rollout.

@@ -47,7 +47,7 @@ Full pytest suite
 | Module 1: Production Readiness Intelligence | Strong RC foundation | `beacon/readiness/`, `beacon/scanner.py`, `beacon/rules/*_registered_rules.py`, `examples/product-readiness/`, `scripts/module1_release_check.py` | Closest to release. Keep polishing instead of adding broad scope. |
 | Module 2: Runtime Operational Diagnostics | Active and useful, Kafka-first | `beacon/kafka_runtime_connector.py`, `beacon/runtime_advisor.py`, `beacon/diagnose/`, `examples/supported/kafka/scenarios/`, `scripts/module2_diagnostic_check.py` | Good wedge. Needs more real-world evidence quality and live-cluster ergonomics. |
 | Module 3: Flow Intelligence | Early but real | `beacon/flow_runtime.py`, `beacon/diagnose/flow_ranker.py`, `beacon/correlations/root_cause.py`, `scripts/module3_flow_check.py` | Promising differentiator. Needs richer topology and dependency context. |
-| Module 4: Operational Decision Intelligence | Started and first-class | `beacon/decisions/decision_engine.py`, `beacon/readiness/kafka/readiness_engine.py`, `beacon/readiness/readiness_reporter.py`, JSON formatter | Ranked decisions now exist with action, target, safety, confidence, evidence, and "do not do" guidance. Needs more real incident templates and UI polish. |
+| Module 4: Operational Decision Intelligence | Started and first-class | `beacon/decisions/decision_engine.py`, `beacon/readiness/kafka/readiness_engine.py`, `beacon/readiness/readiness_reporter.py`, JSON formatter, UI renderer | Ranked decisions now include action, target, disposition, safety, confidence, evidence, and "do not do" guidance. Kubernetes, database recovery, IaC review, and monitor/no-urgent-action decisions now have explicit playbooks. |
 | Module 5: Predictive Operational Intelligence | Not implemented | docs only | Correctly deferred. Do not start until Modules 1-3 have user validation. |
 
 ## Adoption Principle Status
@@ -170,13 +170,15 @@ distributed-system-production-readiness
 
 The cloud-facing product pack now exists, and Azure/GCP provider packs are
 visible. Provider-specific evidence is still deepest for AWS; Azure/GCP now
-cover managed database basics, Key Vault/private endpoint posture, GCP
-firewall/GKE posture, plus storage/IAM posture.
+cover managed database basics, deletion-protection evidence, customer-managed
+encryption-key evidence, Key Vault/private endpoint posture, Azure VM scale-set
+headroom, Azure/GCP quota headroom, GCP firewall/GKE posture, plus storage/IAM
+posture.
 
 Missing next provider depth:
 
-- Azure compute, Key Vault, private endpoint, quota, deletion protection, encryption, and regional resiliency checks
-- GCP Cloud SQL encryption, GKE, VPC firewall, quota, and regional resiliency checks
+- deeper Azure regional resiliency checks across resource groups/subscriptions
+- deeper GCP private connectivity and regional dependency checks
 
 ### Gap 3: IaC Coverage Readiness Needs More Provider Depth
 
@@ -206,6 +208,7 @@ Current decision fields include:
 
 - rank
 - action
+- disposition
 - priority score
 - target
 - safety
@@ -219,8 +222,7 @@ Current decision fields include:
 Remaining work:
 
 - add more incident-specific templates
-- expose decisions more clearly in the UI
-- add domain-specific decisions for Kubernetes, cloud, and IaC coverage
+- add more domain-specific decisions beyond the first Kubernetes, cloud database, and IaC coverage playbooks
 - add "scale vs rollback vs investigate downstream" examples to demos
 
 ### Gap 5: Module 3 Needs More Topology Context
@@ -316,15 +318,15 @@ provider parity.
 ```
 
 Current Azure/GCP rules now include managed database network exposure, backup,
-HA basics, Key Vault/private endpoint posture, GCP firewall/GKE posture,
-storage, and IAM. Next rules should include:
+HA basics, deletion-protection evidence, customer-managed encryption-key
+evidence, Key Vault/private endpoint posture, Azure VM scale-set headroom,
+Azure/GCP quota headroom, GCP firewall/GKE posture, storage, and IAM.
 
-- Azure managed database deletion protection and customer-managed encryption posture where supported
-- Azure VM scale set and autoscaling headroom
-- Azure subscription quota and regional resiliency posture
-- GCP Cloud SQL customer-managed encryption posture
-- GCP GKE regional workload resiliency posture
-- GCP project quota and regional resiliency posture
+Next rules should include:
+
+- Azure subscription and resource-group regional resiliency posture
+- GCP private connectivity posture beyond firewall and GKE control-plane checks
+- provider-specific evidence mapping for approved exceptions and policy context
 
 Why third:
 
@@ -343,9 +345,9 @@ Move from a cross-domain rule pack to richer distributed-system reasoning.
 
 Add:
 
-- service criticality and owner propagation into release blockers
-- accepted exception candidates with required evidence
-- explicit "fix before rollout" vs "monitor" disposition
+- service criticality and owner propagation into release blockers (implemented in distributed readiness summary)
+- accepted exception candidates with required evidence (implemented for non-critical findings with approved-exception language)
+- explicit "fix before rollout" vs "monitor" disposition (implemented in operational decisions and distributed blockers)
 - distributed-system pack examples in the 5-minute demo
 
 Why fourth:

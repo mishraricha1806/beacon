@@ -17,16 +17,18 @@ provider_coverage:
     - Azure PostgreSQL/MySQL/MSSQL public network access posture
     - Azure PostgreSQL/MySQL/MSSQL backup retention posture
     - Azure PostgreSQL/MySQL/MSSQL high-availability posture
+    - Azure PostgreSQL/MySQL/MSSQL deletion-protection evidence
+    - Azure PostgreSQL/MySQL/MSSQL customer-managed key evidence
     - Azure Key Vault public network and purge-protection posture
     - Azure private endpoint evidence for sensitive managed services
+    - Azure VM scale set scale-out headroom
+    - Azure quota headroom posture
     - Azure Storage Account public blob access posture
     - Azure Storage Account infrastructure encryption posture
     - Azure Storage Account ownership/tag metadata
     - Azure RBAC Owner, Contributor, and User Access Administrator assignments
   planned:
-    - Azure managed database deletion protection and customer-managed encryption posture where supported by resource type
-    - Azure VM scale set and autoscaling headroom
-    - Azure subscription quota and regional resiliency posture
+    - deeper Azure subscription regional resiliency posture
 use_cases:
   - Are Azure managed databases exposed to public networks?
   - Can Azure managed databases recover through backup and HA posture?
@@ -34,6 +36,7 @@ use_cases:
   - Are public blob access and weak encryption settings present?
   - Are Owner, Contributor, or User Access Administrator grants too broad?
   - Is ownership metadata missing from production storage accounts?
+  - Can Azure compute scale during rollout or traffic spikes?
 non_goals:
   - Claiming complete Azure coverage in the first preview
   - Replacing Azure Policy, Defender for Cloud, Sentinel, OPA, or Terraform
@@ -45,12 +48,20 @@ rules:
     intent: Azure managed database weak backup retention risk.
   - rule_id: cloud.database.azure.ha.disabled
     intent: Azure managed database high-availability posture risk.
+  - rule_id: cloud.database.azure.deletion_protection.missing
+    intent: Azure managed database accidental deletion risk.
+  - rule_id: cloud.database.azure.customer_managed_key.missing
+    intent: Azure managed database customer-managed encryption posture risk.
   - rule_id: cloud.key_vault.azure.public_network_access.enabled
     intent: Azure Key Vault public network exposure risk.
   - rule_id: cloud.key_vault.azure.purge_protection.disabled
     intent: Azure Key Vault permanent deletion recovery risk.
   - rule_id: cloud.network.azure.private_endpoint.missing
     intent: Sensitive Azure managed service private endpoint posture risk.
+  - rule_id: cloud.compute.azure.vmss.scale_headroom.insufficient
+    intent: Azure VM scale set scale-out headroom risk.
+  - rule_id: cloud.quota.azure.headroom.insufficient
+    intent: Azure quota capacity headroom risk.
   - rule_id: object_storage.public_access.enabled
     intent: Azure Storage Account public blob access risk.
   - rule_id: object_storage.encryption.missing

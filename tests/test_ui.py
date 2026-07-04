@@ -77,6 +77,7 @@ def test_ui_e2e_homepage_template_contains_run_surface():
     assert "Incident Diagnosis" in ui.HTML
     assert "Operational Decisions" in ui.HTML
     assert "Runtime Operational Decisions" in ui.HTML
+    assert "Disposition:" in ui.HTML
     assert "Primary likely cause" in ui.HTML
     assert "Why Beacon thinks this" in ui.HTML
     assert "Kafka consumer group diagnosis" in ui.HTML
@@ -103,6 +104,7 @@ def test_ui_e2e_static_config_upload_returns_backend_findings():
     assert payload["readiness_summary"]["release_gate"]["why_not"]
     assert payload["readiness_summary"]["release_gate"]["fix_first"]
     assert payload["readiness_summary"]["operational_decisions"]
+    assert payload["readiness_summary"]["operational_decisions"][0]["disposition"]
 
 
 def test_ui_http_smoke_script_passes():

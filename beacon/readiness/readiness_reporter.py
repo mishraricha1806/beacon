@@ -147,6 +147,19 @@ def print_readiness_summary(summary):
             console.print("- Critical paths:")
             for path in distributed["critical_paths"][:3]:
                 console.print(f"  - {path}")
+        if distributed.get("release_blockers"):
+            console.print("- Release blockers:")
+            for blocker in distributed["release_blockers"][:3]:
+                owner = f", owner={blocker['owner']}" if blocker.get("owner") else ""
+                service = f", service={blocker['service']}" if blocker.get("service") else ""
+                console.print(
+                    f"  - {blocker['severity']}: {blocker['title']} "
+                    f"({blocker.get('disposition')}{service}{owner})"
+                )
+        if distributed.get("accepted_exception_candidates"):
+            console.print("- Accepted exception candidates:")
+            for candidate in distributed["accepted_exception_candidates"][:3]:
+                console.print(f"  - {candidate['title']}")
 
         dimension_table = Table(title="Distributed Readiness Dimensions")
         dimension_table.add_column("Dimension")
@@ -196,6 +209,7 @@ def print_readiness_summary(summary):
         decisions_table.add_column("Rank")
         decisions_table.add_column("Action")
         decisions_table.add_column("Target")
+        decisions_table.add_column("Disposition")
         decisions_table.add_column("Safety")
         decisions_table.add_column("Confidence")
         decisions_table.add_column("Do Not Do")
@@ -205,6 +219,7 @@ def print_readiness_summary(summary):
                 str(decision.get("rank", "")),
                 decision.get("action", ""),
                 decision.get("target", ""),
+                decision.get("disposition", ""),
                 decision.get("safety", ""),
                 decision.get("confidence", ""),
                 "; ".join(decision.get("do_not_do", [])[:2]),

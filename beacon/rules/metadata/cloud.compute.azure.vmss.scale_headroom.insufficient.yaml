@@ -1,0 +1,9 @@
+rule_id: cloud.compute.azure.vmss.scale_headroom.insufficient
+title: Azure VM scale set headroom insufficient
+description: Detects Azure VM scale sets without scale-out headroom.
+severity_default: HIGH
+category: scalability
+author: beacon.rules
+version: "1.0"
+tags: [cloud, azure, compute, autoscaling]
+recommendation: Increase autoscale max capacity above current instances and validate subnet, quota, and load balancer capacity before production rollout.

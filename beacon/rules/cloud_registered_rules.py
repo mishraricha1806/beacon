@@ -11,6 +11,11 @@ AZURE_PRIVATE_ENDPOINT_TARGET_TYPES = AZURE_DATABASE_RESOURCE_TYPES | {
     "azurerm_key_vault",
 }
 
+AZURE_VM_SCALE_SET_RESOURCE_TYPES = {
+    "azurerm_linux_virtual_machine_scale_set",
+    "azurerm_windows_virtual_machine_scale_set",
+}
+
 
 def build_cloud_finding(
     resource,
@@ -288,6 +293,73 @@ def azure_database_ha_disabled(resource, context):
     )
 
 
+def azure_database_deletion_protection_missing(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type not in AZURE_DATABASE_RESOURCE_TYPES:
+        return None
+
+    deletion_protection = first_present(
+        config,
+        "deletion_protection_enabled",
+        "deletion_protection",
+        "prevent_destroy",
+    )
+    if deletion_protection is True:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.azure.deletion_protection.missing",
+        "recovery_readiness",
+        "HIGH",
+        f"Azure managed database '{resource.name}' has no deletion protection evidence",
+        "Without deletion protection or an equivalent break-glass workflow, accidental deletion can remove production data services more easily.",
+        "Enable deletion protection where supported, or require a Terraform lifecycle/prevent-destroy and explicit break-glass deletion approval.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "deletion_protection": deletion_protection,
+        },
+        ["cloud", "database", "azure", "recovery"],
+    )
+
+
+def azure_database_customer_managed_key_missing(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type not in AZURE_DATABASE_RESOURCE_TYPES:
+        return None
+
+    cmk = first_present(
+        config,
+        "customer_managed_key_id",
+        "key_vault_key_id",
+        "data_encryption_key_vault_key_id",
+    )
+    customer_managed_key = first_block(config.get("customer_managed_key"))
+    if cmk or customer_managed_key:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.azure.customer_managed_key.missing",
+        "operational_safety",
+        "MEDIUM",
+        f"Azure managed database '{resource.name}' has no customer-managed key evidence",
+        "Production databases without customer-managed key evidence may not satisfy stricter encryption ownership or compliance requirements.",
+        "Use a customer-managed key where required by policy, or document that provider-managed encryption is approved for this environment.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "customer_managed_key": customer_managed_key or cmk,
+        },
+        ["cloud", "database", "azure", "encryption"],
+    )
+
+
 def gcp_sql_public_access_enabled(resource, context):
     resource_type = resource.attributes.get("provider_resource_type")
     config = resource.attributes.get("config", {})
@@ -400,6 +472,40 @@ def gcp_sql_ha_disabled(resource, context):
             "availability_type": settings.get("availability_type"),
         },
         ["cloud", "database", "gcp", "ha"],
+    )
+
+
+def gcp_sql_customer_managed_encryption_missing(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "google_sql_database_instance":
+        return None
+
+    encryption_key = first_present(
+        config,
+        "encryption_key_name",
+        "disk_encryption_configuration",
+        "kms_key_name",
+    )
+    settings = cloud_sql_settings(config)
+    if encryption_key or settings.get("encryption_key_name"):
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.database.gcp.cmek.missing",
+        "operational_safety",
+        "MEDIUM",
+        f"GCP Cloud SQL instance '{resource.name}' has no customer-managed encryption key evidence",
+        "Production databases without CMEK evidence may not satisfy encryption ownership, key-rotation, or compliance requirements.",
+        "Configure a customer-managed encryption key where required by policy, or document provider-managed encryption approval.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "encryption_key_name": encryption_key or settings.get("encryption_key_name"),
+        },
+        ["cloud", "database", "gcp", "encryption"],
     )
 
 
@@ -576,6 +682,130 @@ def gke_master_authorized_networks_missing(resource, context):
     )
 
 
+def gke_regional_resiliency_missing(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "google_container_cluster":
+        return None
+
+    regional = config.get("regional") is True
+    location = str(config.get("location") or config.get("region") or config.get("zone") or "")
+    node_locations = config.get("node_locations") or []
+    if isinstance(node_locations, str):
+        node_locations = [node_locations]
+
+    # Terraform often uses a zone like us-central1-a for zonal clusters. A
+    # regional cluster typically uses a region and multiple node locations.
+    looks_zonal = location.count("-") >= 2
+    if regional or len(node_locations) >= 2 or (location and not looks_zonal):
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.kubernetes.gcp.regional_resiliency.missing",
+        "resiliency",
+        "HIGH",
+        f"GKE cluster '{resource.name}' does not show regional resiliency",
+        "A zonal or single-location GKE cluster has weaker tolerance for zone failure and node-pool disruption.",
+        "Use a regional GKE cluster or multiple node locations for production workloads, or document an approved exception.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "location": location,
+            "node_locations": node_locations,
+            "regional": regional,
+        },
+        ["cloud", "gcp", "gke", "resiliency"],
+    )
+
+
+def azure_vm_scale_set_headroom_insufficient(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type not in AZURE_VM_SCALE_SET_RESOURCE_TYPES:
+        return None
+
+    instances = first_present(config, "instances", "capacity", "sku_capacity")
+    max_capacity = first_present(config, "max_capacity", "max_instances", "autoscale_max_capacity")
+
+    if instances is None or max_capacity is None:
+        return None
+
+    if as_number(max_capacity) > as_number(instances):
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.compute.azure.vmss.scale_headroom.insufficient",
+        "scalability",
+        "HIGH",
+        f"Azure VM scale set '{resource.name}' has no scale-out headroom",
+        "A VM scale set already at max capacity cannot absorb traffic spikes, node replacement, or rollout surge safely.",
+        "Increase autoscale max capacity above current instances and validate subnet, quota, and load balancer capacity before production rollout.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "instances": instances,
+            "max_capacity": max_capacity,
+        },
+        ["cloud", "azure", "compute", "autoscaling"],
+    )
+
+
+def provider_quota_headroom_insufficient(resource, context, expected_provider):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "cloud_quota_profile":
+        return None
+
+    provider = str(config.get("provider") or "").lower()
+    if provider != expected_provider:
+        return None
+
+    quota_limit = config.get("quota_limit")
+    required_capacity = config.get("required_capacity")
+    reserved_buffer = config.get("reserved_buffer", 0)
+
+    if quota_limit is None or required_capacity is None:
+        return None
+
+    if as_number(required_capacity) + as_number(reserved_buffer) <= as_number(quota_limit):
+        return None
+
+    provider_label = "Azure" if provider == "azure" else "GCP"
+    rule_id = f"cloud.quota.{provider}.headroom.insufficient"
+
+    return build_cloud_finding(
+        resource,
+        rule_id,
+        "scalability",
+        "CRITICAL",
+        f"{provider_label} quota profile '{resource.name}' lacks deployment headroom",
+        "Provider quota below required capacity plus buffer can block autoscaling, rollout surge, or incident recovery.",
+        "Request quota increase, reduce requested capacity, or revise the safety buffer before production rollout.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "provider": provider,
+            "quota_limit": quota_limit,
+            "required_capacity": required_capacity,
+            "reserved_buffer": reserved_buffer,
+        },
+        ["cloud", provider, "quota", "capacity"],
+    )
+
+
+def azure_quota_headroom_insufficient(resource, context):
+    return provider_quota_headroom_insufficient(resource, context, "azure")
+
+
+def gcp_quota_headroom_insufficient(resource, context):
+    return provider_quota_headroom_insufficient(resource, context, "gcp")
+
+
 def key_vault_default_action(config):
     network_acls = first_block(config.get("network_acls"))
     return network_acls.get("default_action")
@@ -629,6 +859,26 @@ def ensure_list(value):
     if value is None:
         return []
     return value if isinstance(value, list) else [value]
+
+
+def first_present(config, *keys):
+    for key in keys:
+        if key in config:
+            return config.get(key)
+    return None
+
+
+def as_number(value):
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, str):
+        try:
+            return float(value)
+        except ValueError:
+            return 0
+    return 0
 
 
 def cloud_sql_settings(config):
@@ -976,6 +1226,24 @@ register(
     ["cloud", "database", "azure", "ha"],
 )
 register(
+    "cloud.database.azure.deletion_protection.missing",
+    "recovery_readiness",
+    "HIGH",
+    "Azure database deletion protection missing",
+    "Detects Azure managed databases without deletion-protection or prevent-destroy evidence.",
+    azure_database_deletion_protection_missing,
+    ["cloud", "database", "azure", "recovery"],
+)
+register(
+    "cloud.database.azure.customer_managed_key.missing",
+    "operational_safety",
+    "MEDIUM",
+    "Azure database customer-managed key missing",
+    "Detects Azure managed databases without customer-managed key evidence.",
+    azure_database_customer_managed_key_missing,
+    ["cloud", "database", "azure", "encryption"],
+)
+register(
     "cloud.database.gcp.public_ip.enabled",
     "operational_safety",
     "CRITICAL",
@@ -1010,6 +1278,15 @@ register(
     "Detects GCP Cloud SQL instances without regional high availability.",
     gcp_sql_ha_disabled,
     ["cloud", "database", "gcp", "ha"],
+)
+register(
+    "cloud.database.gcp.cmek.missing",
+    "operational_safety",
+    "MEDIUM",
+    "GCP Cloud SQL CMEK missing",
+    "Detects GCP Cloud SQL instances without customer-managed encryption key evidence.",
+    gcp_sql_customer_managed_encryption_missing,
+    ["cloud", "database", "gcp", "encryption"],
 )
 register(
     "cloud.key_vault.azure.public_network_access.enabled",
@@ -1065,6 +1342,15 @@ register(
     gke_master_authorized_networks_missing,
     ["cloud", "gcp", "gke", "control-plane"],
 )
+register(
+    "cloud.kubernetes.gcp.regional_resiliency.missing",
+    "resiliency",
+    "HIGH",
+    "GKE regional resiliency missing",
+    "Detects GKE clusters without regional or multi-zone resiliency evidence.",
+    gke_regional_resiliency_missing,
+    ["cloud", "gcp", "gke", "resiliency"],
+)
 
 register(
     "cloud.compute.ec2.detailed_monitoring.disabled",
@@ -1085,6 +1371,15 @@ register(
     ["cloud", "compute", "autoscaling"],
 )
 register(
+    "cloud.compute.azure.vmss.scale_headroom.insufficient",
+    "scalability",
+    "HIGH",
+    "Azure VM scale set headroom insufficient",
+    "Detects Azure VM scale sets without scale-out headroom.",
+    azure_vm_scale_set_headroom_insufficient,
+    ["cloud", "azure", "compute", "autoscaling"],
+)
+register(
     "cloud.quota.headroom.insufficient",
     "scalability",
     "CRITICAL",
@@ -1092,6 +1387,24 @@ register(
     "Detects declared cloud quota profiles that cannot satisfy requested capacity plus buffer.",
     quota_headroom_insufficient,
     ["cloud", "quota", "capacity"],
+)
+register(
+    "cloud.quota.azure.headroom.insufficient",
+    "scalability",
+    "CRITICAL",
+    "Azure quota headroom insufficient",
+    "Detects Azure quota profiles that cannot satisfy requested capacity plus buffer.",
+    azure_quota_headroom_insufficient,
+    ["cloud", "azure", "quota", "capacity"],
+)
+register(
+    "cloud.quota.gcp.headroom.insufficient",
+    "scalability",
+    "CRITICAL",
+    "GCP quota headroom insufficient",
+    "Detects GCP quota profiles that cannot satisfy requested capacity plus buffer.",
+    gcp_quota_headroom_insufficient,
+    ["cloud", "gcp", "quota", "capacity"],
 )
 register(
     "cloud.database.rds.multi_az.disabled",

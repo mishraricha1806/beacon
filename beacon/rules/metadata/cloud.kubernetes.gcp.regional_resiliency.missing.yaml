@@ -1,0 +1,9 @@
+rule_id: cloud.kubernetes.gcp.regional_resiliency.missing
+title: GKE regional resiliency missing
+description: Detects GKE clusters without regional or multi-zone resiliency evidence.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+version: "1.0"
+tags: [cloud, gcp, gke, resiliency]
+recommendation: Use a regional GKE cluster or multiple node locations for production workloads, or document an approved exception.

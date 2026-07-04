@@ -17,6 +17,7 @@ cloud_inventory:
         id: /subscriptions/example/resourceGroups/claims/providers/Microsoft.DBforPostgreSQL/flexibleServers/claims-postgres
         public_network_access_enabled: true
         backup_retention_days: 3
+        deletion_protection_enabled: false
         high_availability:
           - mode: Disabled
     - type: azurerm_key_vault
@@ -27,3 +28,15 @@ cloud_inventory:
         purge_protection_enabled: false
         network_acls:
           - default_action: Allow
+    - type: azurerm_linux_virtual_machine_scale_set
+      name: claims-api-vmss
+      config:
+        instances: 4
+        max_capacity: 4
+    - type: cloud_quota_profile
+      name: azure-compute-quota
+      config:
+        provider: azure
+        quota_limit: 10
+        required_capacity: 9
+        reserved_buffer: 2

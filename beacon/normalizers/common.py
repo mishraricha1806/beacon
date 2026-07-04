@@ -25,6 +25,8 @@ CLOUD_RESOURCE_TYPES = {
     "azurerm_postgresql_flexible_server",
     "azurerm_key_vault",
     "azurerm_private_endpoint",
+    "azurerm_linux_virtual_machine_scale_set",
+    "azurerm_windows_virtual_machine_scale_set",
     "google_compute_firewall",
     "google_container_cluster",
     "google_sql_database_instance",

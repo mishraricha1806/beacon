@@ -39,5 +39,13 @@ cloud_inventory:
     - type: google_container_cluster
       name: claims-gke
       config:
+        location: us-central1-a
         private_cluster_config:
           - enable_private_nodes: false
+    - type: cloud_quota_profile
+      name: gcp-compute-quota
+      config:
+        provider: gcp
+        quota_limit: 20
+        required_capacity: 18
+        reserved_buffer: 4
