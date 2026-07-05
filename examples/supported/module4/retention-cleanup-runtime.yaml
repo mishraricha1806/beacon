@@ -1,0 +1,17 @@
+kafka_runtime:
+  broker_count: 3
+  partition_count: 180
+  replication_factor: 3
+  broker_disk_usage_percent: 87
+  disk_growth_percent_7d: 28
+  retention_bytes_configured: false
+  cleanup_policy_configured: false
+  avg_message_size_increased: true
+  producer_rate_increased: true
+  consumer_lag_increasing: true
+  topic_growth:
+    - topic: payload-archive-complete
+      retention_ms: -1
+      retention_bytes:
+      avg_message_size_bytes: 3145728
+      growth_gb_7d: 420

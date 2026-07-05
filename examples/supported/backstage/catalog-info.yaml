@@ -1,0 +1,20 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: checkout
+  description: Customer checkout API and event flow.
+  annotations:
+    beacon.io/criticality: critical
+    beacon.io/business-impact: Checkout failure blocks payment capture and order confirmation.
+    beacon.io/aliases: checkout-api,checkout-consumer,payments/checkout-api
+spec:
+  type: service
+  lifecycle: production
+  owner: group:team-checkout
+  system: commerce
+  dependsOn:
+    - component:default/payments
+    - component:default/orders-db
+  dependencyOf:
+    - component:default/mobile-checkout
+    - component:default/order-confirmation

@@ -192,6 +192,121 @@ def check_all_domain_flow_diagnostics_json():
     print("module3 all-domain JSON contract ok")
 
 
+def check_backstage_and_service_matching_contract():
+    command = [
+        sys.executable,
+        "-m",
+        "beacon.cli",
+        "diagnose",
+        "all",
+        "--static-path",
+        "examples/supported/backstage",
+        "--flow",
+        "examples/supported/flow/scenarios/downstream-db-bottleneck.yaml",
+        "--context",
+        "examples/supported/intelligence/context.yaml",
+        "--no-html",
+        "--no-open-report",
+        "--output",
+        "json",
+    ]
+    result = subprocess.run(
+        command,
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(result.stdout)
+    rankings = payload["diagnostic_summary"]["flow_bottleneck_rankings"]
+
+    require(rankings, "Backstage/service matching diagnosis did not emit flow rankings")
+    ranking = rankings[0]
+    require(
+        ranking["owner"] == "team-checkout",
+        "Backstage catalog owner was not imported into flow ranking",
+    )
+    require(
+        ranking["criticality"] == "critical",
+        "Backstage catalog criticality was not imported into flow ranking",
+    )
+    require(
+        ranking["business_impact"],
+        "Backstage catalog business impact was not imported into flow ranking",
+    )
+    require(
+        ranking["affected_services"],
+        "Backstage dependencyOf blast radius was not imported into flow ranking",
+    )
+
+    print("module3 backstage service matching ok")
+
+
+def check_service_matching_pattern_contract():
+    findings = [
+        {
+            "rule_id": "topology.service.blast_radius.high",
+            "domain": "topology",
+            "category": "resiliency",
+            "severity": "HIGH",
+            "title": "Claims platform has high blast radius",
+            "impact": "Claims platform affects downstream claim services.",
+            "recommendation": "Review dependencies and runbooks.",
+            "file": "catalog-info.yaml",
+            "evidence": {
+                "service": "claims-platform",
+                "owner": "team-claims",
+                "criticality": "high",
+                "dependents": ["claims-api", "claims-reporting"],
+                "dependent_count": 2,
+            },
+            "tags": [],
+        },
+        {
+            "rule_id": "flow.runtime.downstream_db_bottleneck",
+            "domain": "flow",
+            "category": "runtime_stability",
+            "severity": "HIGH",
+            "title": "Claims consumer has downstream DB bottleneck",
+            "impact": "Claims consumer is slowed by downstream database latency.",
+            "recommendation": "Inspect database latency before scaling Kafka.",
+            "file": "flow.yaml",
+            "evidence": {
+                "flow": "claims-route-consumer",
+                "kafka_broker_unhealthy": False,
+                "db_latency_ms": 1400,
+            },
+            "tags": [],
+        },
+    ]
+    summary = build_diagnostic_summary(
+        findings,
+        intelligence_context={
+            "service_matching": {
+                "patterns": {
+                    "claims-*-consumer": "claims-platform",
+                }
+            }
+        },
+    )
+    ranking = summary["flow_bottleneck_rankings"][0]
+
+    require(
+        ranking["owner"] == "team-claims",
+        "Service matching pattern did not import canonical owner",
+    )
+    require(
+        ranking["criticality"] == "high",
+        "Service matching pattern did not import canonical criticality",
+    )
+    require(
+        ranking["affected_services"] == ["claims-api", "claims-reporting"],
+        "Service matching pattern did not import canonical blast radius",
+    )
+
+    print("module3 service matching pattern ok")
+
+
 def check_deployment_window_contract():
     findings = analyze_deployment_events_file(
         ROOT / "examples" / "supported" / "deployments" / "events.yaml"
@@ -230,6 +345,8 @@ def main():
         check_cascading_latency()
         check_deployment_window_contract()
         check_all_domain_flow_diagnostics_json()
+        check_backstage_and_service_matching_contract()
+        check_service_matching_pattern_contract()
     except AssertionError as error:
         return fail(str(error))
 

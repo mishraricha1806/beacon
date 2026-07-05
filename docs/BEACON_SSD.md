@@ -248,6 +248,7 @@ Beacon detects:
 - unmanaged cloud resources
 - missing owner/application tags
 - unknown blast radius
+- unknown-after-apply Terraform values that reduce pre-release correlation confidence
 - unmanaged public exposure
 - unmanaged data or search infrastructure
 - resources that should be imported, deleted, tagged, quarantined, or reviewed
@@ -258,6 +259,19 @@ Business value:
 Improves cloud estate hygiene and prevents hidden unmanaged infrastructure from
 becoming a production, security, cost, or recovery risk.
 ```
+
+Important readiness rule:
+
+```text
+Pre-apply scans are intent-based.
+Post-apply scans are evidence-confirmed.
+```
+
+If Terraform plan values such as endpoints, subnet IDs, broker addresses,
+resource IDs, DNS names, or service URLs are unknown until apply, Beacon must
+not invent strong dependency edges. It should mark those correlations as low
+confidence and recommend stable mapping keys such as tags, Kubernetes labels,
+Kafka topic names, Backstage refs, Terraform state, or live snapshots.
 
 Important distinction:
 
@@ -490,8 +504,10 @@ Current implementation direction:
 - deterministic ranked decisions are generated from grouped findings
 - each decision carries a target domain, safety level, confidence, evidence, and
   "do not do" guidance
-- the first supported path is readiness-driven decision ranking, with deeper
-  runtime and flow playbooks expanding over time
+- readiness, runtime, and flow-derived decision ranking are supported
+- flow bottleneck rankings can now become operational decisions with source
+  findings, evidence required, and anti-actions such as "do not scale Kafka
+  before validating downstream database pressure"
 
 ### Use Case 11: What Should We Scale First?
 

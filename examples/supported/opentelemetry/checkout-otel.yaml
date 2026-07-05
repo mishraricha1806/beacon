@@ -1,20 +1,16 @@
 opentelemetry:
   flow:
     name: checkout
-    components:
-      api:
-        type: api
-        signals:
-          unhealthy: true
-      consumer:
-        type: consumer
-        depends_on: [kafka]
-        signals:
-          unhealthy: true
-      database:
-        type: database
-        signals:
-          unhealthy: true
+    owner: team-checkout
+    criticality: critical
+    business_impact: Checkout completion, payment capture, and order confirmation are at risk.
+    affected_services:
+      - payments
+      - orders
+      - fulfillment
+    blast_radius:
+      user_impact: Customers may not be able to complete checkout.
+      revenue_impact: Payment capture can be delayed or fail.
 
   spans:
     - trace_id: t1
@@ -50,6 +46,15 @@ opentelemetry:
       attributes:
         db.system: postgres
         db.name: orders-db
+    - trace_id: t1
+      service: checkout-consumer
+      name: consume checkout.events
+      duration_ms: 1700
+      status: OK
+      attributes:
+        messaging.system: kafka
+        messaging.operation: receive
+        messaging.destination.name: checkout.events
     - trace_id: t2
       service: orders-db
       name: SELECT orders

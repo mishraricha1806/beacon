@@ -200,9 +200,21 @@ def emit_readiness_report(findings, html, open_report, output, readiness_summary
     return readiness_summary
 
 
-def emit_diagnostics(findings, html=True, open_report=True, output="terminal", policy_path=None):
+def emit_diagnostics(
+    findings,
+    html=True,
+    open_report=True,
+    output="terminal",
+    policy_path=None,
+    environment=None,
+    intelligence_context=None,
+):
     findings = apply_runtime_policy(findings, policy_path=policy_path)
-    diagnostic_summary = build_diagnostic_summary(findings)
+    diagnostic_summary = build_diagnostic_summary(
+        findings,
+        environment=environment,
+        intelligence_context=intelligence_context,
+    )
     print_report(
         findings,
         html=html,
@@ -1067,6 +1079,14 @@ def diagnose_all(
     kubernetes_namespace: str = typer.Option(None),
     kubernetes_context: str = typer.Option(None),
     kubernetes_kubeconfig: str = typer.Option(None),
+    environment: str = typer.Option(
+        None, "--environment", help="Diagnostic environment profile: dev, test, staging, prod."
+    ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for service matching and deterministic interpretation.",
+    ),
     html: bool = typer.Option(True),
     open_report: bool = typer.Option(True),
     output: str = typer.Option("terminal"),
@@ -1103,7 +1123,15 @@ def diagnose_all(
         kubernetes_kubeconfig=kubernetes_kubeconfig,
     )
 
-    emit_diagnostics(findings, html=html, open_report=open_report, output=output)
+    intelligence_context = load_intelligence_context(context_path)
+    emit_diagnostics(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        environment=environment,
+        intelligence_context=intelligence_context,
+    )
 
 
 @readiness_app.callback()

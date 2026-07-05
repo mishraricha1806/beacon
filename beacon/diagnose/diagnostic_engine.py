@@ -2,7 +2,10 @@ from collections import Counter, defaultdict
 
 from beacon.correlations.root_cause import correlate_findings
 from beacon.decisions.decision_engine import DecisionEngine
-from beacon.diagnose.flow_ranker import build_flow_bottleneck_rankings
+from beacon.diagnose.flow_ranker import (
+    build_flow_bottleneck_rankings,
+    build_flow_impact_summaries,
+)
 from beacon.readiness.interpretation import SEVERITY_ORDER, sort_findings
 
 MATERIAL_SEVERITIES = {"ERROR", "CRITICAL", "HIGH", "MEDIUM"}
@@ -336,15 +339,21 @@ DIAGNOSTIC_USE_CASES = [
 ]
 
 
-def build_diagnostic_summary(findings):
+def build_diagnostic_summary(findings, environment=None, intelligence_context=None):
     sorted_items = sort_findings(findings)
     material = [
         finding for finding in sorted_items if finding.get("severity") in MATERIAL_SEVERITIES
     ]
     hypotheses = correlate_findings(sorted_items, limit=5)
+    flow_rankings = build_flow_bottleneck_rankings(
+        sorted_items,
+        intelligence_context=intelligence_context,
+    )
+    diagnostic_environment = environment or infer_diagnostic_environment(sorted_items)
 
     summary = {
         "diagnostic_status": diagnostic_status(sorted_items, hypotheses),
+        "diagnostic_environment": diagnostic_environment or "unknown",
         "severity_counts": severity_counts(sorted_items),
         "primary_hypothesis": hypotheses[0] if hypotheses else None,
         "root_cause_hypotheses": hypotheses,
@@ -355,8 +364,11 @@ def build_diagnostic_summary(findings):
         "telemetry_gaps": telemetry_gaps(sorted_items, hypotheses),
         "diagnostic_playbooks": diagnostic_playbooks(sorted_items, hypotheses),
         "consumer_group_diagnoses": consumer_group_diagnoses(sorted_items, hypotheses),
-        "flow_bottleneck_rankings": build_flow_bottleneck_rankings(sorted_items),
-        "deployment_window_analyses": deployment_window_analyses(sorted_items),
+        "flow_bottleneck_rankings": flow_rankings,
+        "flow_impact_summaries": build_flow_impact_summaries(flow_rankings),
+        "deployment_window_analyses": deployment_window_analyses(
+            sorted_items, environment=diagnostic_environment
+        ),
         "scope": diagnostic_scope(sorted_items),
     }
 
@@ -758,6 +770,18 @@ def affected_domains(findings):
     ]
 
 
+def infer_diagnostic_environment(findings):
+    for finding in findings:
+        evidence = finding.get("evidence") or {}
+        environment = evidence.get("environment")
+        if environment:
+            return str(environment)
+        latest_deployment = evidence.get("latest_deployment") or {}
+        if latest_deployment.get("environment"):
+            return str(latest_deployment["environment"])
+    return None
+
+
 def first_actions(material_findings, hypotheses):
     actions = []
 
@@ -943,7 +967,7 @@ def kafka_consumer_group_scope(findings):
     return None
 
 
-def deployment_window_analyses(findings):
+def deployment_window_analyses(findings, environment=None):
     by_service = defaultdict(list)
 
     for finding in findings:
@@ -959,12 +983,21 @@ def deployment_window_analyses(findings):
         deployed_at = None
         version = None
         namespace = None
+        service_environment = environment
+        service_criticality = None
 
         for finding in service_findings:
             evidence = finding.get("evidence") or {}
             deployed_at = deployed_at or evidence.get("deployed_at")
             version = version or evidence.get("version")
             namespace = namespace or evidence.get("namespace")
+            service_environment = evidence.get("environment") or service_environment
+            service_criticality = evidence.get("criticality") or service_criticality
+            tuning = tune_deployment_window_severity(
+                finding,
+                environment=service_environment,
+                criticality=service_criticality,
+            )
             metrics.append(
                 {
                     "metric": evidence.get("metric"),
@@ -973,6 +1006,10 @@ def deployment_window_analyses(findings):
                     "delta": evidence.get("delta"),
                     "ratio": evidence.get("ratio"),
                     "severity": finding.get("severity"),
+                    "tuned_severity": tuning["severity"],
+                    "tuning_reason": tuning["reason"],
+                    "environment": tuning["environment"],
+                    "criticality": tuning["criticality"],
                     "rule_id": finding.get("rule_id"),
                     "title": finding.get("title"),
                 }
@@ -983,6 +1020,8 @@ def deployment_window_analyses(findings):
                 "service": service,
                 "version": version,
                 "namespace": namespace,
+                "environment": service_environment or "unknown",
+                "criticality": service_criticality or "unknown",
                 "deployed_at": deployed_at,
                 "metric_count": len(metrics),
                 "metrics": sorted(metrics, key=lambda item: item["metric"] or ""),
@@ -990,6 +1029,129 @@ def deployment_window_analyses(findings):
         )
 
     return analyses
+
+
+def tune_deployment_window_severity(finding, environment=None, criticality=None):
+    evidence = finding.get("evidence") or {}
+    base = finding.get("severity") or "INFO"
+    resolved_environment = normalize_diagnostic_environment(
+        environment or evidence.get("environment")
+    )
+    resolved_criticality = normalize_service_criticality(
+        criticality or evidence.get("criticality")
+    )
+    metric = evidence.get("metric")
+    after = evidence.get("after")
+    ratio = evidence.get("ratio")
+    delta = evidence.get("delta")
+
+    if base not in {"CRITICAL", "HIGH", "MEDIUM"}:
+        return {
+            "severity": base,
+            "environment": resolved_environment or "unknown",
+            "criticality": resolved_criticality or "unknown",
+            "reason": "No tuning applied to non-material deployment window signal.",
+        }
+
+    if is_strict_runtime_context(resolved_environment, resolved_criticality) and is_severe_window(
+        metric, after, ratio, delta
+    ):
+        return {
+            "severity": "CRITICAL",
+            "environment": resolved_environment or "unknown",
+            "criticality": resolved_criticality or "unknown",
+            "reason": (
+                "Escalated because a strict production or critical-service profile "
+                "has a severe before/after regression window."
+            ),
+        }
+
+    if is_relaxed_runtime_context(resolved_environment, resolved_criticality) and not is_extreme_window(
+        metric, after, ratio, delta
+    ):
+        return {
+            "severity": "MEDIUM" if base == "HIGH" else base,
+            "environment": resolved_environment or "unknown",
+            "criticality": resolved_criticality or "unknown",
+            "reason": (
+                "Reduced for non-production or low-criticality context; keep as a "
+                "review signal unless the regression becomes extreme."
+            ),
+        }
+
+    return {
+        "severity": base,
+        "environment": resolved_environment or "unknown",
+        "criticality": resolved_criticality or "unknown",
+        "reason": "Original severity retained for this environment and service tier.",
+    }
+
+
+def normalize_diagnostic_environment(environment):
+    if not environment:
+        return None
+    value = str(environment).strip().lower().replace("_", "-")
+    aliases = {
+        "production": "prod",
+        "prd": "prod",
+        "nonproduction": "nonprod",
+        "non-production": "nonprod",
+        "stage": "staging",
+    }
+    return aliases.get(value, value)
+
+
+def normalize_service_criticality(criticality):
+    if not criticality:
+        return None
+    return str(criticality).strip().lower().replace("_", "-")
+
+
+def is_strict_runtime_context(environment, criticality):
+    return environment in {"prod", "mission-critical"} or criticality in {
+        "critical",
+        "high",
+        "tier-0",
+        "tier0",
+        "tier-1",
+        "tier1",
+    }
+
+
+def is_relaxed_runtime_context(environment, criticality):
+    return environment in {"dev", "test", "sandbox", "nonprod"} or criticality in {
+        "low",
+        "internal",
+        "tier-3",
+        "tier3",
+    }
+
+
+def is_severe_window(metric, after, ratio, delta):
+    if metric == "api_latency_p95_ms":
+        return numeric_at_least(after, 1500) or numeric_at_least(ratio, 3)
+    if metric == "api_error_rate_percent":
+        return numeric_at_least(after, 5) or numeric_at_least(delta, 3)
+    if metric == "kafka_consumer_lag":
+        return numeric_at_least(after, 50000) or numeric_at_least(ratio, 3)
+    return numeric_at_least(ratio, 3)
+
+
+def is_extreme_window(metric, after, ratio, delta):
+    if metric == "api_latency_p95_ms":
+        return numeric_at_least(after, 5000) or numeric_at_least(ratio, 8)
+    if metric == "api_error_rate_percent":
+        return numeric_at_least(after, 20) or numeric_at_least(delta, 10)
+    if metric == "kafka_consumer_lag":
+        return numeric_at_least(after, 500000) or numeric_at_least(ratio, 10)
+    return numeric_at_least(ratio, 10)
+
+
+def numeric_at_least(value, threshold):
+    try:
+        return float(value) >= threshold
+    except (TypeError, ValueError):
+        return False
 
 
 def consumer_group_diagnoses(findings, hypotheses):

@@ -1,5 +1,15 @@
 flow_runtime:
   name: checkout
+  owner: team-checkout
+  criticality: critical
+  business_impact: Checkout completion, payment capture, and order confirmation are at risk.
+  affected_services:
+    - payments
+    - orders
+    - fulfillment
+  blast_radius:
+    user_impact: Customers may not be able to complete checkout.
+    revenue_impact: Payment capture can be delayed or fail.
   signals:
     kafka_consumer_lag_increasing: true
     kafka_broker_unhealthy: false

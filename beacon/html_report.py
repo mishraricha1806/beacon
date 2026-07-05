@@ -1,5 +1,6 @@
 from jinja2 import Template
 import os
+import re
 import webbrowser
 from beacon.engine import metadata_registry as rules_registry
 
@@ -213,6 +214,119 @@ HTML_TEMPLATE = """
             background: #0b1220;
         }
 
+        .flow-path {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            margin: 16px 0;
+        }
+
+        .flow-node {
+            border: 1px solid #334155;
+            background: #0b1220;
+            border-radius: 10px;
+            padding: 10px 12px;
+            min-width: 120px;
+        }
+
+        .flow-node.bottleneck {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.18);
+        }
+
+        .flow-node-title {
+            color: #f8fafc;
+            font-weight: 800;
+            font-size: 13px;
+        }
+
+        .flow-node-meta {
+            color: #94a3b8;
+            font-size: 12px;
+            margin-top: 4px;
+        }
+
+        .flow-arrow {
+            color: #64748b;
+            font-weight: 800;
+        }
+
+        .flow-evidence-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 12px 0 18px;
+        }
+
+        .flow-evidence-card {
+            background: #0b1220;
+            border: 1px solid #1f2937;
+            border-radius: 10px;
+            padding: 12px;
+        }
+
+        .flow-evidence-card h4 {
+            margin: 0 0 8px;
+            color: #f8fafc;
+            font-size: 13px;
+        }
+
+        .source-findings {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid #1f2937;
+        }
+
+        .source-findings a {
+            color: #93c5fd;
+            text-decoration: none;
+        }
+
+        .source-findings a:hover {
+            text-decoration: underline;
+        }
+
+        .decision-grid-report {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .decision-card-report {
+            border: 1px solid #1f2937;
+            border-left: 5px solid #38bdf8;
+            background: #0b1220;
+            border-radius: 10px;
+            padding: 14px;
+        }
+
+        .decision-card-report h3 {
+            margin: 0 0 8px;
+            color: #f8fafc;
+            font-size: 16px;
+        }
+
+        .decision-card-report .decision-action {
+            color: #cbd5e1;
+            margin: 8px 0;
+        }
+
+        .decision-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 8px 0;
+        }
+
+        .decision-chip-row span {
+            border: 1px solid #334155;
+            border-radius: 999px;
+            color: #94a3b8;
+            padding: 4px 8px;
+            font-size: 12px;
+        }
+
         .incident-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -220,7 +334,7 @@ HTML_TEMPLATE = """
         }
 
         @media (max-width: 860px) {
-            .incident-grid, .gate-grid {
+            .incident-grid, .gate-grid, .flow-evidence-grid, .decision-grid-report {
                 grid-template-columns: 1fr;
             }
         }
@@ -370,6 +484,48 @@ HTML_TEMPLATE = """
         {% endif %}
         <p class="muted">Scoring model: {{ readiness_summary.score_formula }}</p>
     </div>
+
+    {% if readiness_summary.operational_decisions %}
+    <div class="card section">
+        <h2>Operational Decisions</h2>
+        <div class="decision-grid-report">
+            {% for decision in readiness_summary.operational_decisions[:5] %}
+            <div class="decision-card-report">
+                <h3>#{{ decision.rank }} · {{ decision.decision_label or decision.target }}</h3>
+                <div class="decision-chip-row">
+                    <span>{{ decision.disposition }}</span>
+                    <span>{{ decision.safety }}</span>
+                    <span>{{ decision.confidence }}</span>
+                    <span>{{ decision.decision_type }}</span>
+                </div>
+                <p class="decision-action"><strong>Action:</strong> {{ decision.action }}</p>
+                {% if decision.why %}
+                <p class="text-block"><strong>Why:</strong> {{ decision.why }}</p>
+                {% endif %}
+                {% if decision.evidence_required %}
+                <strong>Evidence Required</strong>
+                <ul>
+                    {% for item in decision.evidence_required[:4] %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if decision.do_not_do %}
+                <strong>Do Not Do</strong>
+                <ul>
+                    {% for item in decision.do_not_do[:3] %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if decision.source_rule_ids %}
+                <p class="muted"><strong>Source Rules:</strong> {{ decision.source_rule_ids | join(', ') }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     {% if readiness_summary.distributed_system_readiness %}
     <div class="card section">
@@ -724,6 +880,46 @@ HTML_TEMPLATE = """
         </ul>
         {% endif %}
 
+        {% if diagnostic_summary.operational_decisions %}
+        <h3>Runtime Operational Decisions</h3>
+        <div class="decision-grid-report">
+            {% for decision in diagnostic_summary.operational_decisions[:5] %}
+            <div class="decision-card-report">
+                <h3>#{{ decision.rank }} · {{ decision.decision_label or decision.target }}</h3>
+                <div class="decision-chip-row">
+                    <span>{{ decision.disposition }}</span>
+                    <span>{{ decision.safety }}</span>
+                    <span>{{ decision.confidence }}</span>
+                    <span>{{ decision.decision_type }}</span>
+                </div>
+                <p class="decision-action"><strong>Action:</strong> {{ decision.action }}</p>
+                {% if decision.why %}
+                <p class="text-block"><strong>Why:</strong> {{ decision.why }}</p>
+                {% endif %}
+                {% if decision.evidence_required %}
+                <strong>Evidence Required</strong>
+                <ul>
+                    {% for item in decision.evidence_required[:4] %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if decision.do_not_do %}
+                <strong>Do Not Do</strong>
+                <ul>
+                    {% for item in decision.do_not_do[:3] %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% if decision.source_rule_ids %}
+                <p class="muted"><strong>Source Rules:</strong> {{ decision.source_rule_ids | join(', ') }}</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
         {% if diagnostic_summary.diagnostic_playbooks %}
         <h3>Matched Diagnostic Playbooks</h3>
         <table>
@@ -783,7 +979,94 @@ HTML_TEMPLATE = """
             <strong>Flow:</strong> {{ ranking.flow }}
             · <strong>Top Bottleneck:</strong> {{ ranking.top_bottleneck }}
             · <strong>Confidence:</strong> {{ ranking.top_confidence }}
+            · <strong>Priority:</strong> {{ ranking.incident_priority or '-' }}
+            · <strong>Owner:</strong> {{ ranking.owner or 'unknown' }}
+            · <strong>Criticality:</strong> {{ ranking.criticality or 'unknown' }}
         </p>
+        {% if ranking.business_impact or ranking.affected_services %}
+        <p class="text-block">
+            {% if ranking.business_impact %}
+            <strong>Business Impact:</strong> {{ ranking.business_impact }}
+            {% endif %}
+            {% if ranking.affected_services %}
+            · <strong>Blast Radius:</strong> {{ ranking.affected_services | join(', ') }}
+            {% endif %}
+        </p>
+        {% endif %}
+        {% if ranking.flow_path %}
+        <div class="flow-path" aria-label="Flow path">
+            {% for node in ranking.flow_path %}
+            <div class="flow-node {% if node.is_bottleneck %}bottleneck{% endif %}">
+                <div class="flow-node-title">{{ node.label }}</div>
+                <div class="flow-node-meta">
+                    {{ node.status }} · {{ node.confidence }}
+                    {% if node.is_bottleneck %} · bottleneck{% endif %}
+                </div>
+            </div>
+            {% if not loop.last %}
+            <div class="flow-arrow">→</div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <h4>Flow Path Evidence</h4>
+        {% for node in ranking.flow_path %}
+        <div class="flow-evidence-grid">
+            <div class="flow-evidence-card">
+                <h4>{{ node.label }}{% if node.is_bottleneck %} · Bottleneck{% endif %}</h4>
+                <p class="muted">{{ node.status }} · {{ node.confidence }}</p>
+                {% if node.source_findings %}
+                <div class="source-findings">
+                    <h4>Source Findings</h4>
+                    <ul>
+                        {% for source in node.source_findings %}
+                        <li>
+                            {% if source.anchor %}
+                            <a href="#{{ source.anchor }}">{{ source.severity }} · {{ source.rule_id }}</a>
+                            {% else %}
+                            {{ source.severity }} · {{ source.rule_id }}
+                            {% endif %}
+                            {% if source.file %}
+                            <br><span class="muted">{{ source.file }}</span>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            <div class="flow-evidence-card">
+                <h4>Evidence Used</h4>
+                <ul>
+                    {% for item in node.evidence_used %}
+                    <li>{{ item }}</li>
+                    {% else %}
+                    <li>No direct evidence attached to this node.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="flow-evidence-card">
+                <h4>Evidence Missing</h4>
+                <ul>
+                    {% for item in node.evidence_missing %}
+                    <li>{{ item }}</li>
+                    {% else %}
+                    <li>No missing evidence listed.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="flow-evidence-card">
+                <h4>Inspect Next</h4>
+                <ul>
+                    {% for item in node.inspect_next %}
+                    <li>{{ item }}</li>
+                    {% else %}
+                    <li>No next inspection guidance listed.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
         <table>
             <tr>
                 <th>Rank</th>
@@ -823,6 +1106,8 @@ HTML_TEMPLATE = """
                 <th>Delta</th>
                 <th>Ratio</th>
                 <th>Severity</th>
+                <th>Tuned Severity</th>
+                <th>Tuning Reason</th>
             </tr>
             {% for metric in analysis.metrics %}
             <tr>
@@ -832,6 +1117,8 @@ HTML_TEMPLATE = """
                 <td>{{ metric.delta }}</td>
                 <td>{{ metric.ratio }}</td>
                 <td>{{ metric.severity }}</td>
+                <td>{{ metric.tuned_severity }}</td>
+                <td>{{ metric.tuning_reason }}</td>
             </tr>
             {% endfor %}
         </table>
@@ -872,7 +1159,7 @@ HTML_TEMPLATE = """
 
         {% if findings %}
             {% for finding in findings %}
-            <div class="finding {{ finding.severity }}">
+            <div class="finding {{ finding.severity }}" id="{{ finding.anchor }}">
                 <div class="severity {{ finding.severity }}">{{ finding.severity }}</div>
                 <div class="finding-title">{{ finding.title }}</div>
                 {% if finding.rule_id %}
@@ -939,6 +1226,7 @@ def generate_html_report(
     enriched = []
     for f in findings:
         nf = dict(f)
+        nf["anchor"] = finding_anchor_id(nf)
         rid = nf.get("rule_id")
         if rid:
             meta = rules_registry.get(rid) or {}
@@ -963,3 +1251,16 @@ def generate_html_report(
 
     if open_report:
         webbrowser.open(f"file://{os.path.abspath(output_path)}")
+
+
+def finding_anchor_id(finding):
+    base = "|".join(
+        str(value or "")
+        for value in (
+            finding.get("rule_id"),
+            finding.get("title"),
+            finding.get("file"),
+        )
+    )
+    slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", base).strip("-").lower()
+    return f"finding-{slug or 'unknown'}"

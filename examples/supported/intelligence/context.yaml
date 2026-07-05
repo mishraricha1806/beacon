@@ -31,9 +31,17 @@ rule_overrides:
     severity: INFO
     reason: Missing offsets are treated as observational unless an owning team declares the group active.
 
+service_matching:
+  aliases:
+    checkout:
+      - claim-intake-edge
+      - member-enrollment-flow
+      - commerce-checkout-runtime
+  patterns:
+    claims-*-consumer: claims-platform
+
 knowledge_documents:
   - title: Kafka production standard
     path: docs/internal/kafka-production-standard.md
   - title: Event schema compatibility standard
     path: docs/internal/schema-compatibility.md
-

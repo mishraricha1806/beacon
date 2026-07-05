@@ -106,6 +106,7 @@ def normalize_deployment_events(data):
             {
                 "service": event.get("service") or event.get("name") or "unknown",
                 "environment": event.get("environment"),
+                "criticality": event.get("criticality") or event.get("tier"),
                 "version": event.get("version"),
                 "deployed_at": event.get("deployed_at")
                 or event.get("timestamp")
@@ -425,6 +426,8 @@ def deployment_window_finding(
             "version": event.get("version"),
             "deployed_at": event.get("deployed_at"),
             "namespace": event.get("namespace"),
+            "environment": event.get("environment"),
+            "criticality": event.get("criticality"),
             "metric": metric,
             "before": before_value,
             "after": after_value,

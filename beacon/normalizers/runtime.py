@@ -121,6 +121,11 @@ def normalize_flow_runtime(data, source):
 
     flow_name = data.get("name", "unknown-flow")
     signals = data.get("signals", {})
+    owner = data.get("owner") or data.get("team")
+    criticality = data.get("criticality") or data.get("tier")
+    business_impact = data.get("business_impact")
+    blast_radius = data.get("blast_radius", {})
+    affected_services = data.get("affected_services") or data.get("services") or []
 
     resources = [
         Resource(
@@ -132,6 +137,11 @@ def normalize_flow_runtime(data, source):
                 "name": flow_name,
                 "signals": signals,
                 "components": data.get("components", {}),
+                "owner": owner,
+                "criticality": criticality,
+                "business_impact": business_impact,
+                "blast_radius": blast_radius,
+                "affected_services": affected_services,
             },
         )
     ]
@@ -151,6 +161,11 @@ def normalize_flow_runtime(data, source):
                     "component_type": component.get("type"),
                     "signals": component.get("signals", {}),
                     "depends_on": component.get("depends_on", []) or [],
+                    "owner": component.get("owner") or owner,
+                    "criticality": component.get("criticality") or criticality,
+                    "business_impact": component.get("business_impact") or business_impact,
+                    "blast_radius": component.get("blast_radius") or blast_radius,
+                    "affected_services": component.get("affected_services") or affected_services,
                 },
             )
         )

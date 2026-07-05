@@ -32,3 +32,38 @@ def test_mixed_runtime_sections_are_normalized_by_domain_modules():
     assert "flow_runtime" in resource_types
     assert "api_runtime_service" in resource_types
     assert "database_runtime_instance" in resource_types
+
+
+def test_backstage_catalog_component_normalizes_to_topology_service():
+    from beacon.engine.normalizer import normalize_yaml_document
+
+    resources = normalize_yaml_document(
+        {
+            "apiVersion": "backstage.io/v1alpha1",
+            "kind": "Component",
+            "metadata": {
+                "name": "checkout",
+                "annotations": {
+                    "beacon.io/criticality": "critical",
+                    "beacon.io/business-impact": "Checkout failure blocks payment capture.",
+                    "beacon.io/aliases": "checkout-api,checkout-consumer",
+                },
+            },
+            "spec": {
+                "type": "service",
+                "owner": "group:team-checkout",
+                "dependsOn": ["component:default/payments"],
+            },
+        },
+        "catalog-info.yaml",
+    )
+
+    assert len(resources) == 1
+    resource = resources[0]
+    assert resource.type == "topology_service"
+    assert resource.name == "checkout"
+    assert resource.attributes["owner"] == "team-checkout"
+    assert resource.attributes["criticality"] == "critical"
+    assert resource.attributes["aliases"] == ["checkout-api", "checkout-consumer"]
+    assert resource.attributes["depends_on"] == ["payments"]
+    assert resource.attributes["backstage_entity_ref"] == "component:default/checkout"

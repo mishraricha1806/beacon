@@ -1,0 +1,18 @@
+kafka_runtime:
+  broker_count: 3
+  partition_count: 240
+  replication_factor: 3
+  broker_disk_usage_percent: 71
+  producer_error_rate_percent: 8
+  produce_throttle_time_ms: 240
+  fetch_throttle_time_ms: 180
+  request_latency_p95_ms: 720
+  request_queue_utilization_percent: 88
+  network_io_utilization_percent: 91
+  top_clients:
+    - client_id: checkout-bulk-loader
+      produce_rate_mb_per_sec: 85
+      throttle_time_ms: 240
+    - client_id: claims-replay-worker
+      fetch_rate_mb_per_sec: 60
+      throttle_time_ms: 180

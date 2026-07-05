@@ -825,12 +825,25 @@ HTML = """<!doctype html>
           const evidenceRequired = renderPlainNestedList('Evidence required', decision.evidence_required || []);
           const doNotDo = renderPlainNestedList('Do not do', decision.do_not_do || []);
           const sources = renderPlainNestedList('Source rules', decision.source_rule_ids || []);
+          const sourceFindings = renderPlainNestedList(
+            'Source findings',
+            (decision.source_findings || []).map((source) =>
+              (source.severity ? source.severity + ' ' : '') +
+              (source.rule_id || source.title || '') +
+              (source.file ? ' (' + source.file + ')' : '')
+            )
+          );
+          const label = decision.decision_label || decision.target || 'Operational Decision';
+          const action = decision.action ?
+            '<div class="hint"><strong>Action:</strong> ' + escapeHtml(decision.action || '') + '</div>' :
+            '';
           return '<div class="decision-card">' +
-            '<div class="decision-head"><strong>' + escapeHtml(decision.action || 'Operational decision') + '</strong>' +
+            '<div class="decision-head"><strong>' + escapeHtml(label) + '</strong>' +
             '<span class="decision-rank">#' + escapeHtml(rank || '-') + '</span></div>' +
             '<div class="decision-meta">' + meta + '</div>' +
+            action +
             why +
-            '<ul>' + evidenceRequired + doNotDo + sources + '</ul>' +
+            '<ul>' + evidenceRequired + doNotDo + sources + sourceFindings + '</ul>' +
             '</div>';
         }).join('') +
         '</div>';
@@ -987,7 +1000,8 @@ HTML = """<!doctype html>
             escapeHtml(metric.metric || '') +
             ': ' + escapeHtml(metric.before ?? '-') +
             ' -> ' + escapeHtml(metric.after ?? '-') +
-            ' (' + escapeHtml(metric.severity || '') + ')'
+            ' (' + escapeHtml(metric.tuned_severity || metric.severity || '') + ')' +
+            (metric.tuning_reason ? ' - ' + escapeHtml(metric.tuning_reason || '') : '')
           ).join('; ');
           return '<li>' + escapeHtml(analysis.service || '') +
             ' · ' + escapeHtml(analysis.version || '-') +
@@ -1003,6 +1017,7 @@ HTML = """<!doctype html>
       }
       return '<li><strong>Flow bottleneck ranking:</strong><ul>' +
         items.slice(0, 3).map((ranking) => {
+          const path = renderFlowPath(ranking.flow_path || []);
           const components = (ranking.components || []).slice(0, 4).map((component) =>
             '#' + escapeHtml(component.rank || '') +
             ' ' + escapeHtml(component.component || '') +
@@ -1012,9 +1027,60 @@ HTML = """<!doctype html>
           return '<li>' + escapeHtml(ranking.flow || '') +
             ' · top: ' + escapeHtml(ranking.top_bottleneck || '') +
             ' · ' + escapeHtml(ranking.top_confidence || '') +
+            ' · priority ' + escapeHtml(ranking.incident_priority || '-') +
+            ' · owner ' + escapeHtml(ranking.owner || 'unknown') +
+            ' · criticality ' + escapeHtml(ranking.criticality || 'unknown') +
+            (ranking.business_impact ? '<br><span class="hint">Impact: ' + escapeHtml(ranking.business_impact || '') + '</span>' : '') +
+            ((ranking.affected_services || []).length ? '<br><span class="hint">Blast radius: ' + (ranking.affected_services || []).map(escapeHtml).join(', ') + '</span>' : '') +
+            path +
             '<br><span class="hint">' + components + '</span></li>';
         }).join('') +
         '</ul></li>';
+    }
+
+    function renderFlowPath(nodes) {
+      if (!nodes.length) {
+        return '';
+      }
+      const evidence = renderFlowEvidencePanels(nodes);
+      return '<div class="hint"><strong>Path:</strong> ' + nodes.slice(0, 8).map((node) => {
+        const marker = node.is_bottleneck ? ' [bottleneck]' : '';
+        return escapeHtml(node.label || node.component || '') + marker;
+      }).join(' -> ') + '</div>' + evidence;
+    }
+
+    function renderFlowEvidencePanels(nodes) {
+      return nodes.slice(0, 6).map((node) => {
+        const used = renderInlineEvidenceList('Evidence used', node.evidence_used || []);
+        const missing = renderInlineEvidenceList('Evidence missing', node.evidence_missing || []);
+        const inspect = renderInlineEvidenceList('Inspect next', node.inspect_next || []);
+        const sources = renderInlineSourceFindings(node.source_findings || []);
+        const marker = node.is_bottleneck ? ' [bottleneck]' : '';
+        return '<div class="hint"><strong>Node evidence:</strong> ' +
+          escapeHtml(node.label || node.component || '') + marker +
+          sources + used + missing + inspect +
+          '</div>';
+      }).join('');
+    }
+
+    function renderInlineSourceFindings(items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<br><strong>Source findings:</strong> ' +
+        items.slice(0, 3).map((item) =>
+          escapeHtml(item.severity || '') + ' ' +
+          escapeHtml(item.rule_id || item.title || '') +
+          (item.file ? ' (' + escapeHtml(item.file || '') + ')' : '')
+        ).join('; ');
+    }
+
+    function renderInlineEvidenceList(label, items) {
+      if (!items.length) {
+        return '';
+      }
+      return '<br><strong>' + escapeHtml(label) + ':</strong> ' +
+        items.slice(0, 3).map(escapeHtml).join('; ');
     }
 
     function renderConsumerGroupDiagnoses(items) {
@@ -1544,7 +1610,11 @@ def run_beacon_check(fields, files, force_kafka=False, request_id="local"):
         "score_status": readiness_summary["score_status"],
         "readiness_summary": readiness_summary,
         "diagnostic_summary": (
-            build_diagnostic_summary(displayed_findings)
+            build_diagnostic_summary(
+                displayed_findings,
+                environment=value_or_none(fields.get("environment")),
+                intelligence_context=intelligence_context,
+            )
             if has_runtime_diagnostic_signal(displayed_findings)
             else None
         ),

@@ -132,6 +132,32 @@ class DecisionEngine:
         },
         {
             "match": {
+                "deployment.window.kafka_lag_regression",
+                "deployment.window.api_latency_regression",
+                "deployment.window.error_rate_regression",
+                "api.runtime.deployment_correlated_degradation",
+                "kafka.history.deployment_correlated_lag",
+            },
+            "action": "Choose rollback investigation before capacity scaling for the changed service",
+            "target": "rollback_decision",
+            "safety": "CAUTION",
+            "decision_type": "incident_action",
+            "priority": 101,
+            "why": "Before/after evidence points to a regression after deployment, so rollback evaluation is a safer first decision than infrastructure scaling.",
+            "evidence_required": [
+                "changed service and version",
+                "deployment timestamp",
+                "before/after metric deltas",
+                "blast radius of rollback",
+                "known feature flags or config changes",
+            ],
+            "do_not_do": [
+                "Do not mask a release regression by scaling infrastructure first.",
+                "Do not continue rollout while the changed service is still correlated with worsening signals.",
+            ],
+        },
+        {
+            "match": {
                 "flow.runtime.cascading_latency",
                 "api.runtime.latency_p95.high",
             },
@@ -224,6 +250,55 @@ class DecisionEngine:
             "do_not_do": [
                 "Do not keep rolling consumer deployments while the group is already rebalancing.",
                 "Do not add consumers until membership stability and partition assignment are understood.",
+            ],
+        },
+        {
+            "match": {
+                "kafka.runtime.producer_throttle.high",
+                "kafka.runtime.fetch_throttle.high",
+                "kafka.runtime.producer_error_rate.high",
+            },
+            "action": "Identify throttled or noisy Kafka clients before expanding broker capacity",
+            "target": "kafka_client_pressure",
+            "safety": "SAFE",
+            "decision_type": "capacity_action",
+            "priority": 91,
+            "why": "Producer/fetch throttling or producer error rate points to client pressure, quota behavior, or request saturation that broker expansion alone may not fix.",
+            "evidence_required": [
+                "top producers and consumers by throughput",
+                "producer/fetch throttle time",
+                "producer error classes",
+                "client quota configuration",
+                "request queue and network saturation",
+            ],
+            "do_not_do": [
+                "Do not remove quotas during an incident without identifying the noisy client.",
+                "Do not expand brokers before checking whether client behavior or quotas are the pressure source.",
+            ],
+        },
+        {
+            "match": {
+                "kafka.topic.retention_ms.unbounded",
+                "kafka.topic.retention_bytes.missing",
+                "kafka.runtime.retention_bytes.missing_under_pressure",
+                "kafka.runtime.message_size.increased_under_pressure",
+            },
+            "action": "Fix retention and payload policy before buying more Kafka storage",
+            "target": "kafka_retention_cleanup",
+            "safety": "SAFE",
+            "decision_type": "capacity_action",
+            "priority": 91,
+            "why": "Retention gaps and payload growth create repeatable storage pressure; adding storage without fixing policy only delays the next saturation event.",
+            "evidence_required": [
+                "topic retention.ms and retention.bytes",
+                "payload-size trend",
+                "topic growth by producer",
+                "replay and compliance retention requirement",
+                "broker disk time-to-full",
+            ],
+            "do_not_do": [
+                "Do not treat storage expansion as the long-term fix for unbounded retention.",
+                "Do not lower retention below replay or compliance requirements just to clear disk pressure.",
             ],
         },
         {
@@ -740,6 +815,7 @@ class DecisionEngine:
                 {
                     "rank": 0,
                     "priority_score": priority_score,
+                    "decision_label": DecisionEngine.decision_label(template["target"]),
                     "action": template["action"],
                     "target": template["target"],
                     "safety": template["safety"],
@@ -758,11 +834,19 @@ class DecisionEngine:
                 }
             )
 
+        for decision in DecisionEngine.flow_ranking_decisions(summary or {}):
+            key = (decision["action"], decision["target"])
+            if key in seen:
+                continue
+            seen.add(key)
+            decisions.append(decision)
+
         if not decisions and summary and summary.get("production_decision") == "READY":
             decisions.append(
                 {
                     "rank": 1,
                     "priority_score": 0,
+                    "decision_label": "Release Approval",
                     "action": "Proceed with standard release approval and monitoring",
                     "target": "release",
                     "safety": "SAFE",
@@ -792,16 +876,221 @@ class DecisionEngine:
         return decisions[:max_decisions]
 
     @staticmethod
+    def flow_ranking_decisions(summary: Dict) -> List[Dict]:
+        """Create operational decisions from ranked flow bottleneck evidence."""
+        decisions = []
+        for ranking in (summary.get("flow_bottleneck_rankings") or [])[:3]:
+            top_node = DecisionEngine.top_flow_path_node(ranking)
+            if not top_node:
+                continue
+            source_findings = top_node.get("source_findings") or []
+            target = DecisionEngine.flow_decision_target(top_node)
+            decisions.append(
+                {
+                    "rank": 0,
+                    "priority_score": DecisionEngine.flow_decision_priority(ranking, top_node),
+                    "decision_label": DecisionEngine.decision_label(target),
+                    "action": DecisionEngine.flow_decision_action(ranking, top_node),
+                    "target": target,
+                    "safety": DecisionEngine.flow_decision_safety(target),
+                    "decision_type": "incident_action",
+                    "disposition": "investigate_before_action",
+                    "severity": DecisionEngine.highest_source_severity(source_findings),
+                    "confidence": ranking.get("top_confidence") or top_node.get("confidence"),
+                    "why": DecisionEngine.flow_decision_why(ranking, top_node),
+                    "evidence": {
+                        "flow": ranking.get("flow"),
+                        "top_bottleneck": ranking.get("top_bottleneck"),
+                        "incident_priority": ranking.get("incident_priority"),
+                        "owner": ranking.get("owner"),
+                        "criticality": ranking.get("criticality"),
+                        "business_impact": ranking.get("business_impact"),
+                        "node": {
+                            "component": top_node.get("component"),
+                            "component_type": top_node.get("component_type"),
+                            "status": top_node.get("status"),
+                            "confidence": top_node.get("confidence"),
+                        },
+                    },
+                    "evidence_required": top_node.get("evidence_missing") or [],
+                    "do_not_do": DecisionEngine.flow_decision_do_not_do(target),
+                    "source_rule_ids": [
+                        source.get("rule_id") for source in source_findings if source.get("rule_id")
+                    ],
+                    "source_titles": [
+                        source.get("title") for source in source_findings if source.get("title")
+                    ],
+                    "source_findings": source_findings,
+                }
+            )
+        return decisions
+
+    @staticmethod
+    def top_flow_path_node(ranking: Dict) -> Optional[Dict]:
+        nodes = ranking.get("flow_path") or []
+        for node in nodes:
+            if node.get("is_bottleneck"):
+                return node
+        return nodes[0] if nodes else None
+
+    @staticmethod
+    def flow_decision_target(node: Dict) -> str:
+        component_type = str(node.get("component_type") or node.get("component") or "").lower()
+        if component_type in {"database", "storage", "deployment", "api"}:
+            return component_type
+        if component_type in {"consumer", "kafka", "producer"}:
+            return f"kafka_{component_type}"
+        return "flow"
+
+    @staticmethod
+    def flow_decision_priority(ranking: Dict, node: Dict) -> int:
+        priority = 87
+        if ranking.get("incident_priority") == "P1":
+            priority += 28
+        elif ranking.get("incident_priority") == "P2":
+            priority += 18
+        if (ranking.get("top_confidence") or node.get("confidence")) == "HIGH":
+            priority += 15
+        if str(ranking.get("criticality") or "").lower() in {"critical", "tier-0", "tier0"}:
+            priority += 10
+        return priority
+
+    @staticmethod
+    def flow_decision_action(ranking: Dict, node: Dict) -> str:
+        target = DecisionEngine.flow_decision_target(node)
+        flow = ranking.get("flow") or "the affected flow"
+        actions = {
+            "database": f"Inspect database pool, slow queries, locks, and I/O before scaling upstream services for {flow}",
+            "api": f"Reduce API timeout and retry amplification before adding capacity for {flow}",
+            "deployment": f"Pause rollout and evaluate rollback before scaling infrastructure for {flow}",
+            "storage": f"Create storage headroom only after identifying the growth or I/O driver for {flow}",
+            "kafka_consumer": f"Inspect consumer processing latency, group stability, and downstream calls before scaling Kafka for {flow}",
+            "kafka_kafka": f"Inspect Kafka broker pressure, partition health, and producer behavior before changing consumers for {flow}",
+            "kafka_producer": f"Inspect producer rate, payload size, partitioning, and throttling before scaling downstream consumers for {flow}",
+        }
+        return actions.get(
+            target,
+            f"Investigate the ranked bottleneck before broad scaling or rollback for {flow}",
+        )
+
+    @staticmethod
+    def flow_decision_safety(target: str) -> str:
+        if target in {"deployment", "storage"}:
+            return "CAUTION"
+        return "SAFE"
+
+    @staticmethod
+    def flow_decision_why(ranking: Dict, node: Dict) -> str:
+        label = node.get("label") or node.get("component") or "a component"
+        flow = ranking.get("flow") or "this flow"
+        confidence = ranking.get("top_confidence") or node.get("confidence") or "UNKNOWN"
+        impact = ranking.get("business_impact")
+        why = (
+            f"Beacon ranked {label} as the likely bottleneck for {flow} with "
+            f"{confidence} confidence using flow-path evidence."
+        )
+        if impact:
+            why += f" Business impact: {impact}"
+        return why
+
+    @staticmethod
+    def flow_decision_do_not_do(target: str) -> List[str]:
+        common = [
+            "Do not scale every tier blindly before validating the ranked bottleneck.",
+            "Do not ignore missing evidence; collect it before making risky changes.",
+        ]
+        by_target = {
+            "database": [
+                "Do not scale Kafka first when database pressure is the stronger signal.",
+                "Do not increase retries before validating database saturation.",
+            ],
+            "api": [
+                "Do not increase retry counts or timeouts while downstream latency is rising.",
+                "Do not scale only the API tier if queueing and downstream pressure are already visible.",
+            ],
+            "deployment": [
+                "Do not keep rolling forward until the deployment regression is ruled out.",
+                "Do not mask a bad deploy with broad infrastructure scaling first.",
+            ],
+            "storage": [
+                "Do not add storage as the only fix without finding the growth driver.",
+                "Do not shorten retention while consumers still need replay headroom.",
+            ],
+            "kafka_consumer": [
+                "Do not add consumers until processing latency and rebalance stability are understood.",
+                "Do not blame brokers before checking consumer and downstream latency.",
+            ],
+            "kafka_kafka": [
+                "Do not change consumer topology before checking broker pressure and partition health.",
+                "Do not remove throttles without identifying the noisy client.",
+            ],
+            "kafka_producer": [
+                "Do not scale consumers before checking producer partitioning and payload growth.",
+                "Do not ignore producer error or throttle evidence.",
+            ],
+        }
+        return by_target.get(target, common)
+
+    @staticmethod
+    def highest_source_severity(source_findings: List[Dict]) -> str:
+        order = {"ERROR": 0, "CRITICAL": 1, "HIGH": 2, "MEDIUM": 3, "LOW": 4, "INFO": 5}
+        severities = [
+            source.get("severity") for source in source_findings if source.get("severity") in order
+        ]
+        if not severities:
+            return "INFO"
+        return sorted(severities, key=lambda severity: order[severity])[0]
+
+    @staticmethod
     def match_decision_template(finding: Dict) -> Optional[Dict]:
         rule_id = finding.get("rule_id", "")
+        matches = []
 
         for template in DecisionEngine.OPERATIONAL_DECISION_TEMPLATES:
             if rule_id in template.get("match", set()):
-                return template
+                matches.append(template)
             if any(rule_id.startswith(prefix) for prefix in template.get("match_prefix", ())):
-                return template
+                matches.append(template)
 
-        return None
+        if not matches:
+            return None
+        return max(matches, key=lambda template: template.get("priority", 0))
+
+    @staticmethod
+    def decision_label(target: str) -> str:
+        labels = {
+            "analysis": "Analysis Blocked",
+            "capacity": "Capacity Headroom",
+            "cicd": "Deployment Guardrails",
+            "database": "Downstream Database Bottleneck",
+            "database_recovery": "Database Recovery Readiness",
+            "deployment": "Deployment Regression",
+            "flow": "Retry Cascade",
+            "iac_coverage": "Unmanaged Resource Governance",
+            "kafka": "Kafka Survivability",
+            "kafka_capacity": "Kafka Capacity Protection",
+            "kafka_client_pressure": "Kafka Client Pressure",
+            "kafka_consumer": "Kafka Consumer Bottleneck",
+            "kafka_consumers": "Kafka Consumer Stability",
+            "kafka_kafka": "Kafka Broker Pressure",
+            "kafka_partitioning": "Hot Partition / Key Skew",
+            "kafka_producer": "Kafka Producer Pressure",
+            "kafka_replay": "Kafka Replay Readiness",
+            "kafka_retention_cleanup": "Retention Cleanup",
+            "kafka_storage": "Kafka Storage Pressure",
+            "kubernetes": "Kubernetes Workload Safety",
+            "kubernetes_runtime": "Kubernetes Runtime Health",
+            "kubernetes_security": "Kubernetes Security Posture",
+            "monitoring": "Monitor Only",
+            "rollback_decision": "Rollback vs Scale",
+            "schema_registry": "Schema Compatibility",
+            "security": "Public Exposure Blocker",
+            "storage": "Storage Capacity Pressure",
+        }
+        return labels.get(
+            target,
+            str(target or "Operational Decision").replace("_", " ").title(),
+        )
 
     @staticmethod
     def decision_confidence(finding: Dict, template: Dict, summary: Dict) -> str:

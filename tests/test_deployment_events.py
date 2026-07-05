@@ -92,6 +92,58 @@ deployment_events:
     assert latency["evidence"]["ratio"] > 2
 
 
+def test_deployment_window_severity_tunes_by_environment_and_criticality(tmp_path):
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+
+    path = tmp_path / "deployment-events.yaml"
+    path.write_text("""
+deployment_events:
+  - service: checkout-api
+    environment: prod
+    criticality: critical
+    version: v1.42.1
+    deployed_at: "2026-06-03T10:20:00Z"
+    window_before:
+      api_latency_p95_ms: 220
+      api_error_rate_percent: 0.3
+    window_after:
+      api_latency_p95_ms: 1600
+      api_error_rate_percent: 8
+  - service: reporting-worker
+    environment: dev
+    criticality: low
+    version: v0.9.0
+    deployed_at: "2026-06-03T10:25:00Z"
+    window_before:
+      api_latency_p95_ms: 600
+    window_after:
+      api_latency_p95_ms: 1300
+""")
+
+    findings = analyze_deployment_events_file(path)
+    summary = build_diagnostic_summary(findings)
+    analyses = {item["service"]: item for item in summary["deployment_window_analyses"]}
+
+    checkout_latency = next(
+        metric
+        for metric in analyses["checkout-api"]["metrics"]
+        if metric["metric"] == "api_latency_p95_ms"
+    )
+    reporting_latency = analyses["reporting-worker"]["metrics"][0]
+
+    assert checkout_latency["severity"] == "HIGH"
+    assert checkout_latency["tuned_severity"] == "CRITICAL"
+    assert checkout_latency["environment"] == "prod"
+    assert checkout_latency["criticality"] == "critical"
+    assert "Escalated" in checkout_latency["tuning_reason"]
+
+    assert reporting_latency["severity"] == "HIGH"
+    assert reporting_latency["tuned_severity"] == "MEDIUM"
+    assert reporting_latency["environment"] == "dev"
+    assert reporting_latency["criticality"] == "low"
+    assert "Reduced" in reporting_latency["tuning_reason"]
+
+
 def test_deployment_events_match_related_service_over_latest_unrelated_event(tmp_path):
     path = tmp_path / "deployment-events.yaml"
     path.write_text("""

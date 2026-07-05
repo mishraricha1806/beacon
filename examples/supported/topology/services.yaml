@@ -1,7 +1,9 @@
 topology:
   services:
     - name: auth
+      owner: team-platform
       criticality: critical
+      business_impact: Authentication outage blocks customer checkout and payment flows.
       instances: 1
     - name: payments
       owner: team-payments

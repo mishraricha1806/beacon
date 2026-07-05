@@ -8,6 +8,7 @@ def test_release_check_all_fast_path_passes():
             sys.executable,
             "scripts/release_check_all.py",
             "--skip-pytest",
+            "--skip-ui",
             "--skip-diff-check",
         ],
         check=True,
@@ -16,6 +17,8 @@ def test_release_check_all_fast_path_passes():
     )
 
     assert "Module 1 release gate" in result.stdout
+    assert "UI smoke gate" not in result.stdout
     assert "Module 2 diagnostic gate" in result.stdout
     assert "Module 3 flow gate" in result.stdout
+    assert "Module 4 decision gate" in result.stdout
     assert "All Beacon release checks passed" in result.stdout

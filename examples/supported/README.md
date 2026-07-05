@@ -71,6 +71,21 @@ The Module 2 diagnostic gate also verifies live-like Kafka incident scenarios
 for rebalance storms, quota/throttling pressure, schema or poison-message risk,
 and hot partition diagnosis.
 
+Run Module 4 operational decision examples:
+
+```bash
+python3 -m beacon.cli diagnose deployment-events examples/supported/module4/rollback-vs-scale-deployment.yaml --no-html --no-open-report
+python3 -m beacon.cli diagnose kafka-runtime examples/supported/module4/kafka-client-pressure-runtime.yaml --no-html --no-open-report
+python3 -m beacon.cli diagnose kafka-runtime examples/supported/module4/retention-cleanup-runtime.yaml --no-html --no-open-report
+python3 -m beacon.cli readiness static examples/supported/module4/kubernetes-security-readiness.yaml --environment prod --no-html --no-open-report
+python3 scripts/module4_decision_check.py
+```
+
+These examples show Beacon choosing rollback investigation before capacity
+scaling, throttled/noisy Kafka client investigation before broker expansion,
+retention/payload cleanup before Kafka storage expansion, and Kubernetes
+privilege/secret/network-isolation remediation before production rollout.
+
 Supported example groups:
 
 * `terraform/` - Terraform HCL, plan JSON, and state JSON
@@ -80,6 +95,8 @@ Supported example groups:
 * `cicd/` - GitHub Actions deployment workflow risk
 * `cloud/` - Cloud inventory snapshot risk
 * `topology/` - Service topology and blast-radius input
+* `backstage/` - Backstage `catalog-info.yaml` ownership and dependency input
+* `module4/` - Operational decision examples for rollback, Kafka client pressure, retention cleanup, and Kubernetes security rollout blocking
 * `runtime/` - API, database, storage, and flow runtime snapshots
 * `prometheus/` - Prometheus query mapping into runtime snapshots, including Kafka JMX exporter signals
 * `opentelemetry/` - OpenTelemetry span and metric export mapping into runtime snapshots

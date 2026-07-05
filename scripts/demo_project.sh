@@ -106,10 +106,61 @@ section "6. End-to-end operational intelligence bundle"
   --no-open-report \
   --output json > "$DEMO_DIR/end-to-end-diagnostics.json"
 
-section "7. Release confidence gates"
+section "7. Module 4: operational decisions - rollback before scale"
+"$PYTHON_BIN" -m beacon.cli diagnose deployment-events \
+  examples/supported/module4/rollback-vs-scale-deployment.yaml \
+  --no-html \
+  --no-open-report
+
+"$PYTHON_BIN" -m beacon.cli diagnose deployment-events \
+  examples/supported/module4/rollback-vs-scale-deployment.yaml \
+  --no-html \
+  --no-open-report \
+  --output json > "$DEMO_DIR/module4-rollback-before-scale.json"
+
+section "8. Module 4: operational decisions - Kafka client pressure before broker expansion"
+"$PYTHON_BIN" -m beacon.cli diagnose kafka-runtime \
+  examples/supported/module4/kafka-client-pressure-runtime.yaml \
+  --no-html \
+  --no-open-report
+
+"$PYTHON_BIN" -m beacon.cli diagnose kafka-runtime \
+  examples/supported/module4/kafka-client-pressure-runtime.yaml \
+  --no-html \
+  --no-open-report \
+  --output json > "$DEMO_DIR/module4-kafka-client-pressure.json"
+
+section "9. Module 4: operational decisions - retention cleanup before storage expansion"
+"$PYTHON_BIN" -m beacon.cli diagnose kafka-runtime \
+  examples/supported/module4/retention-cleanup-runtime.yaml \
+  --no-html \
+  --no-open-report
+
+"$PYTHON_BIN" -m beacon.cli diagnose kafka-runtime \
+  examples/supported/module4/retention-cleanup-runtime.yaml \
+  --no-html \
+  --no-open-report \
+  --output json > "$DEMO_DIR/module4-retention-cleanup.json"
+
+section "10. Module 4: operational decisions - Kubernetes security before rollout"
+"$PYTHON_BIN" -m beacon.cli readiness static \
+  examples/supported/module4/kubernetes-security-readiness.yaml \
+  --environment prod \
+  --no-html \
+  --no-open-report
+
+"$PYTHON_BIN" -m beacon.cli readiness static \
+  examples/supported/module4/kubernetes-security-readiness.yaml \
+  --environment prod \
+  --no-html \
+  --no-open-report \
+  --output json > "$DEMO_DIR/module4-kubernetes-security.json"
+
+section "11. Release confidence gates"
 "$PYTHON_BIN" scripts/module1_release_check.py
 "$PYTHON_BIN" scripts/module2_diagnostic_check.py
 "$PYTHON_BIN" scripts/module3_flow_check.py
+"$PYTHON_BIN" scripts/module4_decision_check.py
 
 section "Demo complete"
 printf "Generated JSON artifacts:\n"

@@ -44,9 +44,12 @@ def high_blast_radius(resource, context):
         "Review redundancy, graceful degradation, dependency timeouts, and incident runbooks for this service.",
         {
             "service": resource.name,
+            "owner": resource.attributes.get("owner"),
             "criticality": resource.attributes.get("criticality"),
+            "business_impact": resource.attributes.get("business_impact"),
             "dependents": dependents,
             "dependent_count": len(dependents),
+            "aliases": resource.attributes.get("aliases", []),
         },
         ["topology", "blast-radius", "resiliency"],
     )
@@ -71,8 +74,12 @@ def single_instance_critical_service(resource, context):
         "Run multiple instances across failure domains or document an approved singleton exception.",
         {
             "service": resource.name,
+            "owner": resource.attributes.get("owner"),
             "criticality": resource.attributes.get("criticality"),
+            "business_impact": resource.attributes.get("business_impact"),
             "instances": instances,
+            "dependents": resource.attributes.get("dependents", []),
+            "aliases": resource.attributes.get("aliases", []),
         },
         ["topology", "availability", "resiliency"],
     )

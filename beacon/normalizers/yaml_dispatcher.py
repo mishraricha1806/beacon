@@ -1,3 +1,4 @@
+from beacon.normalizers.backstage import normalize_backstage_catalog
 from beacon.normalizers.cicd import normalize_cicd_workflow
 from beacon.normalizers.cloud import normalize_cloud_inventory
 from beacon.normalizers.kafka import normalize_kafka_config
@@ -12,6 +13,11 @@ def normalize_yaml_document(data, source):
 
     if "topics" in data or "kafka" in data:
         return normalize_kafka_config(data, source)
+
+    backstage_resources = normalize_backstage_catalog(data, source)
+
+    if backstage_resources:
+        return backstage_resources
 
     if "kind" in data and "apiVersion" in data:
         return normalize_kubernetes_config(data, source)

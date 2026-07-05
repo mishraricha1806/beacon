@@ -25,8 +25,8 @@ scanner / connectors
 Current verified coverage:
 
 ```text
-registered rules: 138
-metadata entries: 284
+registered rules: 145
+metadata entries: 291
 readiness packs: 8
 Kafka pack rules: 90
 ```
@@ -46,7 +46,7 @@ Full pytest suite
 | --- | --- | --- | --- |
 | Module 1: Production Readiness Intelligence | Strong RC foundation | `beacon/readiness/`, `beacon/scanner.py`, `beacon/rules/*_registered_rules.py`, `examples/product-readiness/`, `scripts/module1_release_check.py` | Closest to release. Keep polishing instead of adding broad scope. |
 | Module 2: Runtime Operational Diagnostics | Active and useful, Kafka-first | `beacon/kafka_runtime_connector.py`, `beacon/runtime_advisor.py`, `beacon/diagnose/`, `examples/supported/kafka/scenarios/`, `scripts/module2_diagnostic_check.py` | Good wedge. Needs more real-world evidence quality and live-cluster ergonomics. |
-| Module 3: Flow Intelligence | Early but real | `beacon/flow_runtime.py`, `beacon/diagnose/flow_ranker.py`, `beacon/correlations/root_cause.py`, `scripts/module3_flow_check.py` | Promising differentiator. Needs richer topology and dependency context. |
+| Module 3: Flow Intelligence | Early but real | `beacon/flow_runtime.py`, `beacon/opentelemetry_connector.py`, `beacon/diagnose/flow_ranker.py`, `beacon/correlations/root_cause.py`, `scripts/module3_flow_check.py` | Promising differentiator. Flow rankings now carry owner, criticality, affected services, business impact, blast radius, and incident priority. OpenTelemetry exports can infer API/Kafka/database flow components from spans. Needs richer live topology and service-catalog context. |
 | Module 4: Operational Decision Intelligence | Started and first-class | `beacon/decisions/decision_engine.py`, `beacon/readiness/kafka/readiness_engine.py`, `beacon/readiness/readiness_reporter.py`, JSON formatter, UI renderer | Ranked decisions now include action, target, disposition, safety, confidence, evidence, and "do not do" guidance. Kubernetes, database recovery, IaC review, and monitor/no-urgent-action decisions now have explicit playbooks. |
 | Module 5: Predictive Operational Intelligence | Not implemented | docs only | Correctly deferred. Do not start until Modules 1-3 have user validation. |
 
@@ -191,6 +191,8 @@ Current:
 - example files exist under `examples/iac-coverage/`
 - supports Beacon `resources`, AWS Config `configurationItems`, AWS Resource
   Explorer-style `Resources`, and Steampipe/CloudQuery-style `rows`
+- Terraform plan unknown-after-apply values now produce explicit low-confidence
+  correlation-gap findings instead of fake dependency certainty
 
 Next expansion should support more provider-specific semantics:
 
@@ -203,6 +205,11 @@ network, database, and identity fields
 
 Beacon now has first-class ranked operational decisions in readiness summaries,
 console output, and JSON output.
+Runtime flow bottleneck rankings can also generate operational decisions with
+source-finding provenance, missing evidence, and explicit anti-actions.
+The decision engine now includes explicit playbooks for rollback-before-scale,
+Kafka client throttling before broker expansion, and retention cleanup before
+storage expansion.
 
 Current decision fields include:
 
@@ -218,24 +225,39 @@ Current decision fields include:
 - evidence required
 - do_not_do
 - source rule IDs
+- source findings
 
 Remaining work:
 
 - add more incident-specific templates
-- add more domain-specific decisions beyond the first Kubernetes, cloud database, and IaC coverage playbooks
+- add more domain-specific decisions beyond the first Kubernetes, cloud database, IaC coverage, and flow-bottleneck playbooks
 - add "scale vs rollback vs investigate downstream" examples to demos
 
-### Gap 5: Module 3 Needs More Topology Context
+### Gap 5: Module 3 Needs More Live Topology Context
 
 Flow intelligence exists, but for enterprise usefulness it needs stronger
 service/dependency context.
 
-Needed:
+Implemented:
 
-- richer service topology examples
 - owner/team/criticality propagation
 - business-flow blast-radius mapping
+- incident priority per ranked flow bottleneck
+- HTML/UI display of flow owner, criticality, business impact, and affected services
+- OpenTelemetry span-to-flow component mapping
+- visual flow path panel with bottleneck highlighting
+- evidence-used, evidence-missing, and inspect-next panels for every visible flow path node
+- source-finding provenance and HTML drilldowns for every visible flow path node
+- time-window severity tuning by deployment environment and service criticality
+- service topology and Backstage catalog context import for owner, criticality, business impact, and blast radius
+- richer service-name matching across Backstage refs, namespaces, aliases, dotted names, and common runtime suffixes
+- organization-specific service matching aliases through intelligence context
+- organization-specific glob service matching patterns through intelligence context
+
+Needed:
+
 - deployment window correlation across more domains
+- live topology discovery adapters for service catalogs
 
 ### Gap 6: Predictive Intelligence Should Stay Deferred
 

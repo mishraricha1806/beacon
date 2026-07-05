@@ -1,4 +1,5 @@
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
 console = Console()
@@ -205,27 +206,19 @@ def print_readiness_summary(summary):
         console.print()
 
     if summary.get("operational_decisions"):
-        decisions_table = Table(title="Operational Decisions")
-        decisions_table.add_column("Rank")
-        decisions_table.add_column("Action")
-        decisions_table.add_column("Target")
-        decisions_table.add_column("Disposition")
-        decisions_table.add_column("Safety")
-        decisions_table.add_column("Confidence")
-        decisions_table.add_column("Do Not Do")
-
+        console.print("[bold]Operational Decisions[/bold]")
         for decision in summary["operational_decisions"][:5]:
-            decisions_table.add_row(
-                str(decision.get("rank", "")),
-                decision.get("action", ""),
-                decision.get("target", ""),
-                decision.get("disposition", ""),
-                decision.get("safety", ""),
-                decision.get("confidence", ""),
-                "; ".join(decision.get("do_not_do", [])[:2]),
+            title = (
+                f"#{decision.get('rank', '')} "
+                f"{decision.get('decision_label') or decision.get('target') or 'Decision'}"
             )
-
-        console.print(decisions_table)
+            console.print(
+                Panel(
+                    decision_panel_text(decision),
+                    title=title,
+                    border_style=decision_border_style(decision),
+                )
+            )
         console.print()
 
     if summary.get("grouped_risks"):
@@ -303,3 +296,43 @@ def print_readiness_summary(summary):
     console.print()
 
     console.print(table)
+
+
+def decision_panel_text(decision):
+    lines = [
+        f"[bold]Action:[/bold] {decision.get('action', '')}",
+        (
+            "[bold]Target:[/bold] "
+            f"{decision.get('target', '')} | "
+            f"[bold]Disposition:[/bold] {decision.get('disposition', '')} | "
+            f"[bold]Safety:[/bold] {decision.get('safety', '')} | "
+            f"[bold]Confidence:[/bold] {decision.get('confidence', '')}"
+        ),
+    ]
+
+    if decision.get("why"):
+        lines.append(f"[bold]Why:[/bold] {decision['why']}")
+
+    if decision.get("evidence_required"):
+        lines.append(
+            "[bold]Evidence required:[/bold] "
+            + "; ".join(decision.get("evidence_required", [])[:3])
+        )
+
+    if decision.get("do_not_do"):
+        lines.append("[bold]Do not do:[/bold] " + "; ".join(decision.get("do_not_do", [])[:2]))
+
+    if decision.get("source_rule_ids"):
+        lines.append("[bold]Source rules:[/bold] " + ", ".join(decision["source_rule_ids"][:3]))
+
+    return "\n".join(lines)
+
+
+def decision_border_style(decision):
+    if decision.get("safety") == "CAUTION":
+        return "yellow"
+    if decision.get("decision_type") == "release_blocker":
+        return "red"
+    if decision.get("decision_type") == "monitor":
+        return "green"
+    return "cyan"

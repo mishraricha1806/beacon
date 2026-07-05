@@ -1,6 +1,10 @@
 import yaml
 
-from beacon.intelligence.context import load_intelligence_context
+from beacon.intelligence.context import (
+    load_intelligence_context,
+    service_matching_aliases,
+    service_matching_patterns,
+)
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 
 
@@ -110,3 +114,31 @@ def test_intelligence_context_rule_override_is_deterministic():
         interpreted["severity_adjustment_reason"]
         == "Large payloads are accepted for this isolated archive topic."
     )
+
+
+def test_intelligence_context_exposes_service_matching_aliases():
+    context = {
+        "service_matching": {
+            "aliases": {
+                "checkout": ["claim-intake-edge", "member-enrollment-flow"],
+            }
+        }
+    }
+
+    aliases = service_matching_aliases(context)
+
+    assert aliases["checkout"] == ["claim-intake-edge", "member-enrollment-flow"]
+
+
+def test_intelligence_context_exposes_service_matching_patterns():
+    context = {
+        "service_matching": {
+            "patterns": {
+                "claims-*-consumer": "claims-platform",
+            }
+        }
+    }
+
+    patterns = service_matching_patterns(context)
+
+    assert patterns["claims-*-consumer"] == "claims-platform"

@@ -16,6 +16,7 @@ def test_supported_examples_cover_static_surfaces():
     assert "object_storage.public_access.enabled" in ids
     assert "cloud.database.rds.publicly_accessible" in ids
     assert "cloud.compute.ec2.detailed_monitoring.disabled" in ids
+    assert "terraform.plan.unknown_after_apply.correlation_gap" in ids
 
     findings = scan_path(str(ROOT / "kafka"))
     ids = rule_ids(findings)
@@ -76,6 +77,15 @@ def test_supported_examples_cover_governance_and_topology():
     assert "topology.service.critical_single_instance" in ids
 
 
+def test_supported_examples_cover_backstage_catalog():
+    from beacon.scanner import scan_file
+
+    findings = scan_file(str(ROOT / "backstage" / "catalog-info.yaml"))
+    ids = {finding["rule_id"] for finding in findings}
+
+    assert "topology.service.blast_radius.high" in ids
+
+
 def test_supported_examples_cover_runtime_snapshots():
     from beacon.scanner import scan_file
 
@@ -87,6 +97,27 @@ def test_supported_examples_cover_runtime_snapshots():
     assert "api.runtime.retry_amplification" in ids
     assert "database.runtime.connection_pool.exhaustion" in ids
     assert "storage.runtime.backup_stale" in ids
+
+
+def test_supported_examples_cover_module4_kubernetes_security_decision():
+    from beacon.readiness.kafka.readiness_engine import calculate_readiness
+    from beacon.scanner import scan_path
+
+    findings = scan_path(str(ROOT / "module4" / "kubernetes-security-readiness.yaml"))
+    ids = rule_ids(findings)
+
+    assert "k8s.container.privileged" in ids
+    assert "k8s.workload.network_policy.missing" in ids
+    assert "k8s.secret.inline_material" in ids
+    assert "k8s.admission_webhook.failure_policy.ignore" in ids
+
+    summary = calculate_readiness(findings, environment="prod")
+    decisions = {
+        decision["target"]: decision for decision in summary.get("operational_decisions", [])
+    }
+
+    assert "kubernetes_security" in decisions
+    assert decisions["kubernetes_security"]["decision_label"] == "Kubernetes Security Posture"
 
 
 def test_supported_examples_cover_opentelemetry_export():

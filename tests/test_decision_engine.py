@@ -223,6 +223,125 @@ class TestDecisionEngine:
         assert "retry" in decisions[0]["action"].lower()
         assert any("increase retries" in item for item in decisions[0]["do_not_do"])
 
+    def test_operational_decisions_choose_rollback_before_scaling_on_deployment_regression(self):
+        findings = [
+            finding(
+                "HIGH",
+                "API latency regressed after deployment",
+                "Latency increased after checkout-api v42 deployed.",
+                "Evaluate rollback safety.",
+                "deployments.yaml",
+                rule_id="deployment.window.api_latency_regression",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "rollback_decision"
+        assert decisions[0]["decision_label"] == "Rollback vs Scale"
+        assert "rollback" in decisions[0]["action"].lower()
+        assert "before capacity scaling" in decisions[0]["action"]
+        assert any("scaling infrastructure first" in item for item in decisions[0]["do_not_do"])
+
+    def test_operational_decisions_identify_throttled_clients_before_broker_expansion(self):
+        findings = [
+            finding(
+                "HIGH",
+                "Kafka producer throttle time is high",
+                "Producer throttling is causing publish delay.",
+                "Inspect quotas and top clients.",
+                "runtime.yaml",
+                rule_id="kafka.runtime.producer_throttle.high",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "kafka_client_pressure"
+        assert decisions[0]["decision_label"] == "Kafka Client Pressure"
+        assert "throttled or noisy Kafka clients" in decisions[0]["action"]
+        assert any("remove quotas" in item for item in decisions[0]["do_not_do"])
+        assert any("top producers" in item for item in decisions[0]["evidence_required"])
+
+    def test_operational_decisions_fix_retention_policy_before_storage_expansion(self):
+        findings = [
+            finding(
+                "HIGH",
+                "Kafka topic archive has unbounded retention",
+                "Unbounded retention can consume broker disk.",
+                "Set retention policy.",
+                "topics.yaml",
+                rule_id="kafka.topic.retention_ms.unbounded",
+            )
+        ]
+
+        decisions = DecisionEngine.build_operational_decisions(findings)
+
+        assert decisions[0]["target"] == "kafka_retention_cleanup"
+        assert decisions[0]["decision_label"] == "Retention Cleanup"
+        assert "before buying more Kafka storage" in decisions[0]["action"]
+        assert any("long-term fix" in item for item in decisions[0]["do_not_do"])
+        assert "broker disk time-to-full" in decisions[0]["evidence_required"]
+
+    def test_operational_decisions_use_flow_ranking_source_findings(self):
+        summary = {
+            "flow_bottleneck_rankings": [
+                {
+                    "flow": "checkout",
+                    "top_bottleneck": "database",
+                    "top_confidence": "HIGH",
+                    "incident_priority": "P1",
+                    "owner": "team-checkout",
+                    "criticality": "critical",
+                    "business_impact": "Checkout payment completion can fail.",
+                    "flow_path": [
+                        {
+                            "component": "api",
+                            "component_type": "api",
+                            "label": "api",
+                            "confidence": "MEDIUM",
+                            "status": "possible_bottleneck",
+                            "is_bottleneck": False,
+                            "evidence_missing": ["API latency trend"],
+                            "source_findings": [],
+                        },
+                        {
+                            "component": "database",
+                            "component_type": "database",
+                            "label": "database",
+                            "confidence": "HIGH",
+                            "status": "likely_bottleneck",
+                            "is_bottleneck": True,
+                            "evidence_missing": [
+                                "database connection pool utilization",
+                                "slow query evidence",
+                            ],
+                            "source_findings": [
+                                {
+                                    "rule_id": "flow.runtime.downstream_db_bottleneck",
+                                    "severity": "HIGH",
+                                    "title": "Flow downstream database bottleneck",
+                                    "file": "flow.yaml",
+                                    "anchor": "finding-flow-runtime-downstream-db-bottleneck",
+                                }
+                            ],
+                        },
+                    ],
+                }
+            ]
+        }
+
+        decisions = DecisionEngine.build_operational_decisions([], summary=summary)
+
+        assert decisions[0]["target"] == "database"
+        assert decisions[0]["confidence"] == "HIGH"
+        assert "Inspect database pool" in decisions[0]["action"]
+        assert "Checkout payment completion can fail" in decisions[0]["why"]
+        assert "database connection pool utilization" in decisions[0]["evidence_required"]
+        assert decisions[0]["source_rule_ids"] == ["flow.runtime.downstream_db_bottleneck"]
+        assert decisions[0]["source_findings"][0]["file"] == "flow.yaml"
+        assert any("scale Kafka first" in item for item in decisions[0]["do_not_do"])
+
     def test_operational_decisions_kubernetes_runtime_before_kafka_capacity(self):
         findings = [
             finding(
@@ -283,9 +402,11 @@ class TestDecisionEngine:
         decisions = DecisionEngine.build_operational_decisions(findings)
 
         assert decisions[0]["target"] == "kubernetes_security"
+        assert decisions[0]["decision_label"] == "Kubernetes Security Posture"
         assert decisions[0]["decision_type"] == "release_blocker"
         assert decisions[0]["disposition"] == "fix_before_rollout"
         assert any("inline secrets" in item for item in decisions[0]["do_not_do"])
+        assert "NetworkPolicy coverage" in decisions[0]["evidence_required"]
 
     def test_operational_decisions_database_recovery_blocks_release(self):
         findings = [

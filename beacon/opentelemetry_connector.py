@@ -235,6 +235,7 @@ def build_flow_runtime(flow, spans, metrics):
     signals = dict(flow.get("signals", {}))
     api_services = build_api_runtime(spans)
     databases = build_database_runtime(spans, metrics)
+    components = build_flow_components(flow.get("components", {}), spans)
 
     if api_services:
         signals.setdefault(
@@ -273,9 +274,136 @@ def build_flow_runtime(flow, spans, metrics):
 
     return {
         "name": flow_name,
+        "owner": flow.get("owner") or flow.get("team"),
+        "criticality": flow.get("criticality") or flow.get("tier"),
+        "business_impact": flow.get("business_impact"),
+        "affected_services": flow.get("affected_services") or flow.get("services") or [],
+        "blast_radius": flow.get("blast_radius", {}),
         "signals": signals,
-        "components": flow.get("components", {}),
+        "components": components,
     }
+
+
+def build_flow_components(explicit_components, spans):
+    components = {
+        name: dict(component or {})
+        for name, component in (explicit_components or {}).items()
+        if isinstance(component, dict)
+    }
+    trace_components = {}
+
+    for span in spans:
+        component_name = span_component_name(span)
+        if not component_name:
+            continue
+
+        component_type = span_component_type(span)
+        component = components.setdefault(
+            component_name,
+            {
+                "type": component_type,
+                "signals": {},
+                "depends_on": [],
+            },
+        )
+        component.setdefault("type", component_type)
+        component.setdefault("signals", {})
+        component.setdefault("depends_on", [])
+
+        duration = span_duration_ms(span)
+        if span_is_error(span) or span_is_timeout(span):
+            component["signals"]["unhealthy"] = True
+        if duration is not None and span_component_latency_unhealthy(component_type, duration):
+            component["signals"]["unhealthy"] = True
+        if span_recent_deployment(span):
+            component["signals"]["recent_deployment"] = True
+
+        trace_id = span.get("trace_id")
+        if trace_id:
+            trace_components.setdefault(trace_id, set()).add(component_name)
+
+    add_trace_dependencies(components, trace_components)
+    return components
+
+
+def span_component_name(span):
+    attributes = span_attributes(span)
+    if span_is_database(span):
+        return span_database_name(span)
+    if span_is_kafka(span):
+        return span_kafka_name(span)
+    return span.get("service") or span.get("service_name")
+
+
+def span_component_type(span):
+    if span_is_database(span):
+        return "database"
+    if span_is_kafka(span):
+        kind = str(span.get("kind") or span_attributes(span).get("span.kind") or "").lower()
+        operation = str(span_attributes(span).get("messaging.operation") or "").lower()
+        if "receive" in operation or "consumer" in kind:
+            return "consumer"
+        if "send" in operation or "producer" in kind:
+            return "kafka"
+        return "kafka"
+    return "api"
+
+
+def span_is_kafka(span):
+    attributes = span_attributes(span)
+    system = str(attributes.get("messaging.system") or "").lower()
+    destination = attributes.get("messaging.destination.name") or attributes.get(
+        "messaging.kafka.topic"
+    )
+    return system == "kafka" or bool(destination)
+
+
+def span_kafka_name(span):
+    attributes = span_attributes(span)
+    return (
+        attributes.get("messaging.destination.name")
+        or attributes.get("messaging.kafka.topic")
+        or span.get("service")
+        or "kafka"
+    )
+
+
+def span_component_latency_unhealthy(component_type, duration_ms):
+    if component_type == "database":
+        return duration_ms >= 500
+    if component_type == "api":
+        return duration_ms >= 1000
+    return duration_ms >= 1500
+
+
+def add_trace_dependencies(components, trace_components):
+    for names in trace_components.values():
+        api_names = sorted(
+            name for name in names if components.get(name, {}).get("type") == "api"
+        )
+        kafka_names = sorted(
+            name for name in names if components.get(name, {}).get("type") == "kafka"
+        )
+        consumer_names = sorted(
+            name for name in names if components.get(name, {}).get("type") == "consumer"
+        )
+        database_names = sorted(
+            name for name in names if components.get(name, {}).get("type") == "database"
+        )
+
+        for kafka in kafka_names:
+            add_depends_on(components[kafka], api_names)
+        for consumer in consumer_names:
+            add_depends_on(components[consumer], kafka_names or api_names)
+        for database in database_names:
+            add_depends_on(components[database], consumer_names or api_names)
+
+
+def add_depends_on(component, dependencies):
+    depends_on = component.setdefault("depends_on", [])
+    for dependency in dependencies:
+        if dependency and dependency not in depends_on:
+            depends_on.append(dependency)
 
 
 def span_duration_ms(span):

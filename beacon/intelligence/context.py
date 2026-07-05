@@ -59,8 +59,28 @@ def context_summary(context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         "environment": context_environment(context),
         "rule_overrides": len(context.get("rule_overrides") or {}),
         "topic_patterns": len(context.get("topic_patterns") or {}),
+        "service_matching": len(service_matching_aliases(context))
+        + len(service_matching_patterns(context)),
         "knowledge_documents": len(context.get("knowledge_documents") or []),
     }
+
+
+def service_matching_aliases(context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not context:
+        return {}
+
+    matching = context.get("service_matching") or {}
+    aliases = matching.get("aliases") or {}
+    return aliases if isinstance(aliases, dict) else {}
+
+
+def service_matching_patterns(context: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not context:
+        return {}
+
+    matching = context.get("service_matching") or {}
+    patterns = matching.get("patterns") or {}
+    return patterns if isinstance(patterns, dict) else {}
 
 
 def rule_context_override(

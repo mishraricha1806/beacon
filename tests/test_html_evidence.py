@@ -2,7 +2,7 @@
 
 import os
 
-from beacon.html_report import generate_html_report
+from beacon.html_report import finding_anchor_id, generate_html_report
 
 
 def test_generate_html_includes_rule_id_and_evidence(tmp_path):
@@ -99,16 +99,91 @@ def test_generate_html_includes_release_gate_card():
 
 
 def test_generate_html_includes_flow_bottleneck_ranking():
+    source_finding = {
+        "severity": "HIGH",
+        "title": "Flow downstream database bottleneck",
+        "impact": "Database latency is high while Kafka appears healthy.",
+        "recommendation": "Inspect the downstream database before scaling Kafka.",
+        "file": "examples/supported/runtime/flow-runtime.yaml",
+        "rule_id": "flow.runtime.downstream_db_bottleneck",
+        "evidence": {"flow": "checkout", "db_latency_ms": 900},
+    }
+    source_anchor = finding_anchor_id(source_finding)
     diagnostic_summary = {
         "diagnostic_status": "ROOT_CAUSE_CANDIDATES_FOUND",
         "executive_summary": "Beacon found a flow bottleneck.",
         "primary_hypothesis": None,
         "first_actions": [],
         "diagnostic_playbooks": [],
+        "operational_decisions": [
+            {
+                "rank": 1,
+                "decision_label": "Downstream Database Bottleneck",
+                "action": "Inspect database pool before scaling Kafka.",
+                "target": "database",
+                "disposition": "investigate_before_action",
+                "safety": "SAFE",
+                "confidence": "HIGH",
+                "decision_type": "incident_action",
+                "why": "Beacon ranked database as the likely bottleneck.",
+                "evidence_required": ["database connection pool utilization"],
+                "do_not_do": ["Do not scale Kafka first."],
+                "source_rule_ids": ["flow.runtime.downstream_db_bottleneck"],
+            }
+        ],
         "consumer_group_diagnoses": [],
         "flow_bottleneck_rankings": [
             {
                 "flow": "checkout",
+                "owner": "team-checkout",
+                "criticality": "critical",
+                "business_impact": "Checkout payment completion can fail.",
+                "affected_services": ["payments", "orders"],
+                "incident_priority": "P1",
+                "flow_path": [
+                    {
+                        "component": "api",
+                        "component_type": "api",
+                        "label": "api",
+                        "status": "possible_bottleneck",
+                        "confidence": "MEDIUM",
+                        "is_bottleneck": False,
+                        "evidence_used": ["HIGH: API timeout signal"],
+                        "evidence_missing": [
+                            "API latency and error trend before/after the incident window"
+                        ],
+                        "inspect_next": ["Inspect endpoint latency and retry dashboards first."],
+                        "source_findings": [
+                            {
+                                "severity": "HIGH",
+                                "rule_id": "api.runtime.timeout_rate.high",
+                                "title": "API timeout signal",
+                                "file": "examples/supported/runtime/flow-runtime.yaml",
+                                "anchor": "finding-api-runtime-timeout-rate-high",
+                            }
+                        ],
+                    },
+                    {
+                        "component": "database",
+                        "component_type": "database",
+                        "label": "database",
+                        "status": "likely_bottleneck",
+                        "confidence": "HIGH",
+                        "is_bottleneck": True,
+                        "evidence_used": ["HIGH: Flow downstream database bottleneck"],
+                        "evidence_missing": ["database connection pool utilization"],
+                        "inspect_next": ["Inspect connection pools and slow queries."],
+                        "source_findings": [
+                            {
+                                "severity": "HIGH",
+                                "rule_id": "flow.runtime.downstream_db_bottleneck",
+                                "title": "Flow downstream database bottleneck",
+                                "file": "examples/supported/runtime/flow-runtime.yaml",
+                                "anchor": source_anchor,
+                            }
+                        ],
+                    },
+                ],
                 "top_bottleneck": "database",
                 "top_confidence": "HIGH",
                 "components": [
@@ -128,7 +203,7 @@ def test_generate_html_includes_flow_bottleneck_ranking():
     }
 
     generate_html_report(
-        [],
+        [source_finding],
         score=0,
         open_report=False,
         diagnostic_summary=diagnostic_summary,
@@ -139,7 +214,23 @@ def test_generate_html_includes_flow_bottleneck_ranking():
         html = f.read()
 
     assert "Flow Bottleneck Ranking" in html
+    assert "Runtime Operational Decisions" in html
+    assert "Downstream Database Bottleneck" in html
+    assert "Inspect database pool before scaling Kafka" in html
+    assert "Do not scale Kafka first" in html
     assert "database" in html
+    assert "team-checkout" in html
+    assert "Checkout payment completion can fail" in html
+    assert "Flow path" in html
+    assert "bottleneck" in html
+    assert "Evidence Used" in html
+    assert "Evidence Missing" in html
+    assert "Inspect Next" in html
+    assert "Source Findings" in html
+    assert f'href="#{source_anchor}"' in html
+    assert f'id="{source_anchor}"' in html
+    assert "API timeout signal" in html
+    assert "database connection pool utilization" in html
 
 
 def test_generate_html_includes_deployment_before_after_window():

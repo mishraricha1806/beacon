@@ -1,0 +1,20 @@
+deployment_events:
+  - service: checkout-api
+    environment: prod
+    criticality: critical
+    version: v2.8.4
+    deployed_at: "2026-06-03T10:20:00Z"
+    commit: 8f41c2a
+    namespace: checkout
+    changed_components:
+      - api
+      - timeout-policy
+      - database-client
+    window_before:
+      api_latency_p95_ms: 240
+      api_error_rate_percent: 0.4
+      kafka_consumer_lag: 18000
+    window_after:
+      api_latency_p95_ms: 1850
+      api_error_rate_percent: 9.5
+      kafka_consumer_lag: 165000

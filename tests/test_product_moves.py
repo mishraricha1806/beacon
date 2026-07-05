@@ -2247,6 +2247,51 @@ def test_terraform_plan_json_is_scanned(tmp_path):
     assert any(finding["rule_id"] == "object_storage.public_access.enabled" for finding in findings)
 
 
+def test_terraform_plan_unknown_after_apply_values_lower_correlation_confidence(tmp_path):
+    import json
+
+    from beacon.scanner import scan_file
+
+    plan = {
+        "format_version": "1.2",
+        "resource_changes": [
+            {
+                "type": "aws_msk_cluster",
+                "name": "orders_stream",
+                "change": {
+                    "after": {
+                        "cluster_name": "orders-stream",
+                        "number_of_broker_nodes": 3,
+                    },
+                    "after_unknown": {
+                        "bootstrap_brokers_tls": True,
+                        "arn": True,
+                        "broker_node_group_info": {
+                            "client_subnets": [True, True],
+                            "security_groups": [True],
+                        },
+                    },
+                },
+            }
+        ],
+    }
+    plan_path = tmp_path / "tfplan.json"
+    plan_path.write_text(json.dumps(plan))
+
+    findings = scan_file(str(plan_path))
+    finding = next(
+        item
+        for item in findings
+        if item["rule_id"] == "terraform.plan.unknown_after_apply.correlation_gap"
+    )
+
+    assert finding["severity"] == "MEDIUM"
+    assert finding["evidence"]["correlation_confidence"] == "LOW"
+    assert finding["evidence"]["readiness_model"] == "intent_based_until_apply"
+    assert "bootstrap_brokers_tls" in finding["evidence"]["correlation_sensitive_unknown_paths"]
+    assert "broker_node_group_info.client_subnets[0]" in finding["evidence"]["unknown_paths"]
+
+
 def test_terraform_state_json_is_scanned(tmp_path):
     import json
 
@@ -2909,7 +2954,9 @@ def test_topology_blast_radius_is_scanned(tmp_path):
 topology:
   services:
     - name: auth
+      owner: team-platform
       criticality: critical
+      business_impact: Authentication outage blocks customer checkout.
       instances: 1
     - name: payments
       owner: team-payments
@@ -2920,6 +2967,7 @@ topology:
     - name: profile
       owner: team-profile
       depends_on: [auth]
+    - name: legacy-worker
 """
     path = tmp_path / "topology.yaml"
     path.write_text(topology)
@@ -2929,6 +2977,15 @@ topology:
 
     assert "topology.service.blast_radius.high" in rule_ids
     assert "topology.service.critical_single_instance" in rule_ids
+    blast_radius = next(
+        finding
+        for finding in findings
+        if finding["rule_id"] == "topology.service.blast_radius.high"
+    )
+    assert blast_radius["evidence"]["owner"] == "team-platform"
+    assert blast_radius["evidence"]["business_impact"] == (
+        "Authentication outage blocks customer checkout."
+    )
     assert "topology.service.owner.missing" in rule_ids
 
 
@@ -2938,6 +2995,14 @@ def test_flow_runtime_snapshot_is_scanned(tmp_path):
     flow = """
 flow_runtime:
   name: checkout
+  owner: team-checkout
+  criticality: critical
+  business_impact: Checkout payment completion can fail.
+  affected_services:
+    - payments
+    - orders
+  blast_radius:
+    user_impact: Customers cannot complete checkout.
   signals:
     kafka_consumer_lag_increasing: true
     kafka_broker_unhealthy: false
@@ -2966,6 +3031,14 @@ flow_runtime:
     assert "flow.runtime.deployment_correlated_degradation" in rule_ids
     assert "flow.runtime.cascading_latency" in rule_ids
     assert "flow.runtime.component_unhealthy" in rule_ids
+    bottleneck = next(
+        finding
+        for finding in findings
+        if finding["rule_id"] == "flow.runtime.downstream_db_bottleneck"
+    )
+    assert bottleneck["evidence"]["owner"] == "team-checkout"
+    assert bottleneck["evidence"]["criticality"] == "critical"
+    assert bottleneck["evidence"]["affected_services"] == ["payments", "orders"]
 
 
 def test_diagnose_flow_uses_runtime_snapshot(monkeypatch, tmp_path):

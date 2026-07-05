@@ -1,5 +1,6 @@
 """Compatibility facade for domain-specific normalizers."""
 
+from beacon.normalizers.backstage import normalize_backstage_catalog
 from beacon.normalizers.cicd import (
     is_deploy_like_job,
     normalize_cicd_workflow,
@@ -43,6 +44,7 @@ __all__ = [
     "iter_terraform_module_resources",
     "iter_terraform_value_resources",
     "normalize_api_runtime",
+    "normalize_backstage_catalog",
     "normalize_cicd_workflow",
     "normalize_cloud_inventory",
     "normalize_database_runtime",

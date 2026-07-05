@@ -13,6 +13,10 @@ def build_flow_finding(
     evidence,
     tags=None,
 ):
+    evidence = {
+        **flow_context_evidence(resource),
+        **(evidence or {}),
+    }
     return Finding(
         rule_id=rule_id,
         domain="flow",
@@ -25,6 +29,21 @@ def build_flow_finding(
         evidence=evidence,
         tags=tags or [],
     )
+
+
+def flow_context_evidence(resource):
+    evidence = {}
+    for key in (
+        "owner",
+        "criticality",
+        "business_impact",
+        "blast_radius",
+        "affected_services",
+    ):
+        value = resource.attributes.get(key)
+        if value not in (None, "", [], {}):
+            evidence[key] = value
+    return evidence
 
 
 def downstream_database_bottleneck(resource, context):

@@ -5,7 +5,6 @@ import sys
 import time
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -37,6 +36,11 @@ def main():
         help="Skip the full pytest suite. Useful only for focused local debugging.",
     )
     parser.add_argument(
+        "--skip-ui",
+        action="store_true",
+        help="Skip UI smoke checks. Useful in restricted sandboxes that cannot bind localhost.",
+    )
+    parser.add_argument(
         "--skip-diff-check",
         action="store_true",
         help="Skip git diff --check. Useful outside a git checkout.",
@@ -48,12 +52,18 @@ def main():
     if args.require_helm:
         module1.append("--require-helm")
 
-    steps = [
-        ("Module 1 release gate", module1),
-        ("UI smoke gate", [python, "scripts/ui_smoke_check.py"]),
-        ("Module 2 diagnostic gate", [python, "scripts/module2_diagnostic_check.py"]),
-        ("Module 3 flow gate", [python, "scripts/module3_flow_check.py"]),
-    ]
+    steps = [("Module 1 release gate", module1)]
+
+    if not args.skip_ui:
+        steps.append(("UI smoke gate", [python, "scripts/ui_smoke_check.py"]))
+
+    steps.extend(
+        [
+            ("Module 2 diagnostic gate", [python, "scripts/module2_diagnostic_check.py"]),
+            ("Module 3 flow gate", [python, "scripts/module3_flow_check.py"]),
+            ("Module 4 decision gate", [python, "scripts/module4_decision_check.py"]),
+        ]
+    )
 
     if not args.skip_pytest:
         steps.append(("Full pytest suite", [python, "-m", "pytest", "-q"]))

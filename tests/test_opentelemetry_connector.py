@@ -98,3 +98,76 @@ def test_opentelemetry_json_export_is_supported(tmp_path):
     assert "opentelemetry.runtime.read_only_mode" in rule_ids
     assert "api.runtime.latency_p95.high" in rule_ids
     assert "api.runtime.error_rate.high" in rule_ids
+
+
+def test_opentelemetry_spans_infer_flow_components_and_business_context(tmp_path):
+    from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
+    from beacon.opentelemetry_connector import analyze_opentelemetry_file
+
+    path = tmp_path / "otel-flow.yaml"
+    path.write_text("""
+opentelemetry:
+  flow:
+    name: checkout
+    owner: team-checkout
+    criticality: critical
+    business_impact: Checkout completion is at risk.
+    affected_services:
+      - payments
+      - orders
+    blast_radius:
+      user_impact: Customers cannot complete checkout.
+  spans:
+    - trace_id: t1
+      service: checkout-api
+      name: POST /checkout
+      duration_ms: 1500
+      status: ERROR
+      attributes:
+        http.status_code: 503
+        error.type: timeout
+    - trace_id: t1
+      service: checkout-consumer
+      name: consume checkout.events
+      duration_ms: 1700
+      status: OK
+      attributes:
+        messaging.system: kafka
+        messaging.operation: receive
+        messaging.destination.name: checkout.events
+    - trace_id: t1
+      service: orders-db
+      name: SELECT orders
+      duration_ms: 900
+      status: OK
+      attributes:
+        db.system: postgres
+        db.name: orders-db
+  metrics:
+    - name: kafka.consumer_lag_increasing
+      value: 1
+    - name: kafka.broker_unhealthy
+      value: 0
+    - name: consumer.retry_rate_percent
+      value: 8
+""")
+
+    findings = analyze_opentelemetry_file(str(path))
+    rule_ids = {finding["rule_id"] for finding in findings}
+    component_findings = [
+        finding for finding in findings if finding["rule_id"] == "flow.runtime.component_unhealthy"
+    ]
+    summary = build_diagnostic_summary(findings)
+    ranking = summary["flow_bottleneck_rankings"][0]
+
+    assert "flow.runtime.downstream_db_bottleneck" in rule_ids
+    assert len(component_findings) >= 2
+    assert {finding["evidence"]["component"] for finding in component_findings} >= {
+        "checkout-api",
+        "orders-db",
+    }
+    assert ranking["flow"] == "checkout"
+    assert ranking["owner"] == "team-checkout"
+    assert ranking["criticality"] == "critical"
+    assert ranking["incident_priority"] == "P1"
+    assert ranking["affected_services"] == ["payments", "orders"]

@@ -29,6 +29,8 @@ def normalize_topology(data, source):
                 attributes={
                     "owner": service.get("owner"),
                     "criticality": service.get("criticality"),
+                    "business_impact": service.get("business_impact"),
+                    "aliases": service.get("aliases", []) or [],
                     "instances": service.get("instances"),
                     "depends_on": service.get("depends_on", []) or [],
                     "dependents": dependents_by_service.get(name, []),
