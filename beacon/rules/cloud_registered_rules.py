@@ -42,6 +42,45 @@ def build_cloud_finding(
     )
 
 
+def terraform_unknown_after_apply_correlation_gap(resource, context):
+    if resource.attributes.get("provider_resource_type") != "terraform_unknown_after_apply":
+        return None
+
+    sensitive_paths = resource.attributes.get("correlation_sensitive_unknown_paths") or []
+
+    if not sensitive_paths:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "terraform.plan.unknown_after_apply.correlation_gap",
+        "operational_safety",
+        "MEDIUM",
+        f"Terraform plan for '{resource.name}' has unknown values needed for correlation",
+        (
+            "Some dependency identifiers are unknown until apply, so Beacon cannot "
+            "strongly correlate this planned resource with live Kubernetes, Kafka, "
+            "cloud, or topology evidence yet."
+        ),
+        (
+            "Use stable correlation keys such as service labels, tags, topic names, "
+            "Backstage refs, or rerun Beacon after apply with Terraform state and "
+            "live snapshots."
+        ),
+        {
+            "resource": resource.name,
+            "source_resource_type": resource.attributes.get("source_resource_type"),
+            "source_resource_name": resource.attributes.get("source_resource_name"),
+            "unknown_paths": resource.attributes.get("unknown_paths") or [],
+            "correlation_sensitive_unknown_paths": sensitive_paths,
+            "correlation_confidence": "LOW",
+            "readiness_model": "intent_based_until_apply",
+            "recommended_follow_up": "post_apply_state_or_live_snapshot_verification",
+        },
+        ["terraform", "plan", "unknown-after-apply", "correlation"],
+    )
+
+
 def security_group_open_ingress(resource, context):
     resource_type = resource.attributes.get("provider_resource_type")
     config = resource.attributes.get("config", {})
@@ -1150,6 +1189,15 @@ def register(rule_id, category, severity, title, description, evaluator, tags):
     )
 
 
+register(
+    "terraform.plan.unknown_after_apply.correlation_gap",
+    "operational_safety",
+    "MEDIUM",
+    "Terraform unknown-after-apply correlation gap",
+    "Detects Terraform plan values that remain unknown until apply and reduce dependency-correlation confidence.",
+    terraform_unknown_after_apply_correlation_gap,
+    ["terraform", "plan", "unknown-after-apply", "correlation"],
+)
 register(
     "cloud.network.security_group.open_ingress",
     "operational_safety",

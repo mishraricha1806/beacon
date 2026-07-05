@@ -20,6 +20,12 @@
         "after": {
           "publicly_accessible": true,
           "backup_retention_period": 0
+        },
+        "after_unknown": {
+          "endpoint": true,
+          "address": true,
+          "id": true,
+          "subnet_group_name": true
         }
       }
     }

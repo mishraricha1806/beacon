@@ -1,0 +1,9 @@
+rule_id: terraform.plan.unknown_after_apply.correlation_gap
+title: Terraform unknown-after-apply correlation gap
+description: |
+  Detects Terraform plan values that remain unknown until apply and reduce dependency-correlation confidence.
+severity_default: MEDIUM
+category: operational_safety
+author: beacon.rules
+recommendation: Use stable tags, labels, service catalog refs, topic names, or rerun Beacon after apply with Terraform state and live snapshots.
+version: "1.0"

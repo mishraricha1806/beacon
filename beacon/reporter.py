@@ -6,6 +6,7 @@ from rich.table import Table
 from beacon.html_report import generate_html_report
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.readiness.interpretation import interpret_findings, sort_findings
+from beacon.readiness.readiness_reporter import decision_border_style, decision_panel_text
 from beacon.scoring import calculate_score
 
 console = Console()
@@ -162,25 +163,21 @@ def print_diagnostic_summary(summary):
         console.print(table)
 
     if summary.get("operational_decisions"):
-        table = Table(title="Operational Decisions")
-        table.add_column("Rank")
-        table.add_column("Action")
-        table.add_column("Target")
-        table.add_column("Disposition")
-        table.add_column("Safety")
-        table.add_column("Confidence")
-        table.add_column("Do Not Do")
+        from rich.panel import Panel
+
+        console.print("[bold]Operational Decisions[/bold]")
         for decision in summary["operational_decisions"][:5]:
-            table.add_row(
-                str(decision.get("rank", "")),
-                decision.get("action", ""),
-                decision.get("target", ""),
-                decision.get("disposition", ""),
-                decision.get("safety", ""),
-                decision.get("confidence", ""),
-                "; ".join(decision.get("do_not_do") or []),
+            title = (
+                f"#{decision.get('rank', '')} "
+                f"{decision.get('decision_label') or decision.get('target') or 'Decision'}"
             )
-        console.print(table)
+            console.print(
+                Panel(
+                    decision_panel_text(decision),
+                    title=title,
+                    border_style=decision_border_style(decision),
+                )
+            )
 
     console.print("[bold]First Actions:[/bold]")
     for action in summary.get("first_actions", [])[:5]:

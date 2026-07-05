@@ -34,6 +34,7 @@ def normalize_terraform_json(data, source):
                 source,
             )
         )
+        resources.extend(build_unknown_after_apply_resource(item, source))
 
     return resources
 
@@ -87,12 +88,112 @@ def build_infra_resources(resource_type, name, config, source):
     return resources
 
 
+CORRELATION_SENSITIVE_TOKENS = {
+    "address",
+    "arn",
+    "bootstrap",
+    "broker",
+    "cidr",
+    "dns",
+    "endpoint",
+    "host",
+    "hostname",
+    "id",
+    "ip",
+    "listener",
+    "name",
+    "private_ip",
+    "self_link",
+    "service",
+    "subnet",
+    "url",
+    "vpc",
+}
+
+
+def build_unknown_after_apply_resource(item, source):
+    unknown_paths = flatten_unknown_paths(item.get("after_unknown") or {})
+
+    if not unknown_paths:
+        return []
+
+    sensitive_paths = [
+        path for path in unknown_paths if is_correlation_sensitive_unknown_path(path)
+    ]
+
+    if not sensitive_paths:
+        return []
+
+    resource_type = item.get("type")
+    name = item.get("name", "unknown-resource")
+
+    return [
+        Resource(
+            type="cloud_resource",
+            name=f"{resource_type}.{name}",
+            domain="cloud",
+            source=source,
+            attributes={
+                "provider_resource_type": "terraform_unknown_after_apply",
+                "source_resource_type": resource_type,
+                "source_resource_name": name,
+                "unknown_paths": unknown_paths,
+                "correlation_sensitive_unknown_paths": sensitive_paths,
+                "config": item.get("values", {}),
+            },
+        )
+    ]
+
+
+def flatten_unknown_paths(value, prefix=""):
+    paths = []
+
+    if value is True:
+        return [prefix] if prefix else ["<root>"]
+
+    if isinstance(value, dict):
+        for key, child in value.items():
+            child_prefix = f"{prefix}.{key}" if prefix else str(key)
+            paths.extend(flatten_unknown_paths(child, child_prefix))
+        return paths
+
+    if isinstance(value, list):
+        for index, child in enumerate(value):
+            child_prefix = f"{prefix}[{index}]" if prefix else f"[{index}]"
+            paths.extend(flatten_unknown_paths(child, child_prefix))
+        return paths
+
+    return paths
+
+
+def is_correlation_sensitive_unknown_path(path):
+    normalized = str(path).lower().replace("-", "_")
+    tokens = {
+        token
+        for segment in normalized.replace("[", ".").replace("]", "").split(".")
+        for token in segment.split("_")
+        if token
+    }
+    return bool(tokens & CORRELATION_SENSITIVE_TOKENS) or any(
+        marker in normalized
+        for marker in (
+            "endpoint",
+            "bootstrap",
+            "subnet",
+            "security_group",
+            "private_dns",
+            "connection",
+        )
+    )
+
+
 def iter_terraform_json_resources(data):
     if not isinstance(data, dict):
         return
 
     for change in data.get("resource_changes", []):
-        after = change.get("change", {}).get("after")
+        change_payload = change.get("change", {})
+        after = change_payload.get("after")
 
         if after is None:
             continue
@@ -101,6 +202,7 @@ def iter_terraform_json_resources(data):
             "type": change.get("type"),
             "name": change.get("name"),
             "values": after,
+            "after_unknown": change_payload.get("after_unknown", {}),
         }
 
     planned_values = data.get("planned_values", {})
