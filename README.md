@@ -1,8 +1,9 @@
 # Beacon
 
-Production-readiness intelligence for distributed systems.
+Local production-readiness checks for distributed systems.
 
-Beacon helps engineering teams answer one practical question before release:
+Beacon scans infrastructure/configuration inputs and reports release risks
+before deployment. The first question is practical:
 
 ```text
 Is this system production ready?
@@ -11,38 +12,58 @@ Is this system production ready?
 New here? Start with the
 [`5-minute quickstart`](QUICKSTART_5_MINUTES.md).
 
-It scans infrastructure configuration, runtime snapshots, and operational
-signals, then produces a deterministic readiness decision, ranked risks,
-root-cause hypotheses, and ranked operational decisions.
+Current stable focus:
 
-The full product spec and long-term company blueprint live in
-[`docs/BEACON_SSD.md`](docs/BEACON_SSD.md).
+- static production-readiness scans
+- Kafka, Kubernetes, Terraform, cloud/IAM/storage, Helm-rendered manifests, and
+  CI/CD checks
+- JSON and HTML reports
+- inspectable readiness packs
+- local Docker/CLI/UI usage
 
-Beacon is not a dashboard, log store, or generic observability platform. Its
-core product principle is:
+Experimental areas:
+
+- Kafka runtime diagnostics
+- flow and deployment correlation
+- ranked operational decisions
+
+Beacon is read-only. It does not mutate infrastructure, consume Kafka messages,
+alter Kafka topics, update consumer offsets, or change Kubernetes resources.
+Known limitations are documented in [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md).
+
+## Example Output
+
+Beacon output is intended to be explicit about what it knows and what it cannot
+prove yet:
 
 ```text
-Deterministic intelligence first. AI explanation second.
+Decision: NOT READY
+Score: 42/100
+
+Top risks:
+- HIGH: Kafka topic has replication factor 1
+- HIGH: Kubernetes workload is missing readiness/liveness probes
+- MEDIUM: Terraform plan contains unknown-after-apply endpoint values
+
+Recommended action:
+- Fix critical/high release blockers before production rollout.
+- Re-run after apply with Terraform state or live snapshots for stronger
+  dependency correlation.
 ```
-
-## Architecture At A Glance
-
-![Beacon production-readiness and operational intelligence architecture](docs/assets/beacon-operational-intelligence.svg)
-
-Beacon reads infrastructure configs, runtime snapshots, and flow signals, then
-turns them into deterministic readiness decisions, root-cause hypotheses,
-ranked operational actions, and evidence-backed reports.
 
 ## What Beacon Does
 
-Beacon currently focuses on four release modules:
+Beacon currently has these supported surfaces:
 
-| Module | Status | Purpose |
+| Area | Status | Notes |
 | --- | --- | --- |
-| Module 1 | Stable/RC | Production readiness scan before release |
-| Module 2 | Active | Kafka-first runtime diagnostics |
-| Module 3 | Active | Flow intelligence across API, Kafka, consumers, databases, storage, Kubernetes, and deployments |
-| Module 4 | Started | Ranked operational decisions: what to fix first, what not to do, and why |
+| Production readiness scan | Stable/RC | Main supported path |
+| Kafka static readiness | Stable/RC | Topics, brokers, producers, consumers, ACLs, Schema Registry examples |
+| Kubernetes manifest readiness | Stable/RC | Probes, resources, PDBs, security context, admission/RBAC patterns |
+| Terraform/cloud readiness | Stable/RC | HCL, plan/state JSON, cloud inventory, IAM, storage, database/network posture |
+| IaC coverage | Preview | Compares inventory exports with Terraform state and ownership metadata |
+| Runtime diagnostics | Experimental | Kafka-first snapshots and live/read-only inputs |
+| Flow correlation | Experimental | API -> Kafka -> consumer -> database style snapshot correlation |
 
 Beacon can evaluate:
 
@@ -55,13 +76,20 @@ Beacon can evaluate:
 - Prometheus collector configs and OpenTelemetry exports
 - Cross-system flow degradation and deployment-triggered regression signals
 
+## Architecture At A Glance
+
+![Beacon production-readiness and operational intelligence architecture](docs/assets/beacon-operational-intelligence.svg)
+
+Beacon normalizes inputs into resources, runs registered rules, groups findings,
+scores readiness, and produces reports. Rules and packs are inspectable.
+
 ## Operational Reasoning Flow
 
 ![Beacon operational reasoning flow](docs/assets/beacon-operational-reasoning.svg)
 
 Beacon is designed to connect scattered infrastructure signals into one
-readiness and operations answer: what is risky, why it matters, what evidence
-supports it, and what engineers should do first.
+readiness answer: what is risky, why it matters, what evidence supports it, and
+what engineers should inspect or fix first.
 
 High-impact readiness use cases now covered include:
 
@@ -915,22 +943,22 @@ This lets users run Beacon quickly without receiving the source code.
 
 ## Deeper Documentation
 
+- [Documentation Index](docs/README.md)
+- [Limitations](docs/LIMITATIONS.md)
+- [Architecture](docs/ARCHITECTURE.md)
 - [Module 1 Release](docs/MODULE_1_RELEASE.md)
 - [Module 2 Runtime Diagnostics](docs/MODULE_2_RUNTIME_DIAGNOSTICS.md)
 - [Module 3 Flow Intelligence](docs/MODULE_3_FLOW_INTELLIGENCE.md)
-- [Project Demo](docs/PROJECT_DEMO.md)
-- [Demo And Usage Guide](docs/BEACON_DEMO_AND_USAGE_GUIDE.md)
 - [Project Local Config](docs/PROJECT_LOCAL_CONFIG.md)
-- [Packaging Release](docs/PACKAGING_RELEASE.md)
-- [Public Distribution](docs/PUBLIC_DISTRIBUTION.md)
 - [Kafka Release](docs/KAFKA_RELEASE.md)
-- [Community Discussion Prompts](docs/COMMUNITY_DISCUSSIONS.md)
+- [IaC Coverage Readiness](docs/IAC_COVERAGE_READINESS.md)
+- [Beacon vs OPA/Sentinel](docs/BEACON_VS_OPA_SENTINEL.md)
 
 ## Product Philosophy
 
-Observability tools show signals.
+Beacon is not an observability backend. It does not store logs or metrics.
 
-Beacon explains production readiness and operational risk:
+The goal is a local, inspectable readiness report:
 
 ```text
 What is unsafe?

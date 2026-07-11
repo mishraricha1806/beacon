@@ -149,12 +149,15 @@ def test_cloud_production_pack_rules_resolve_human_readable_metadata():
     assert "cloud.database.azure.public_network_access.enabled" in rule_ids
     assert "cloud.key_vault.azure.public_network_access.enabled" in rule_ids
     assert "cloud.network.azure.private_endpoint.missing" in rule_ids
+    assert "cloud.region.azure.resiliency.missing" in rule_ids
     assert "cloud.compute.azure.vmss.scale_headroom.insufficient" in rule_ids
     assert "cloud.quota.azure.headroom.insufficient" in rule_ids
     assert "cloud.database.gcp.public_ip.enabled" in rule_ids
+    assert "cloud.network.gcp.private_connectivity.missing" in rule_ids
     assert "cloud.network.gcp.firewall.open_ingress" in rule_ids
     assert "cloud.kubernetes.gcp.private_nodes.disabled" in rule_ids
     assert "cloud.kubernetes.gcp.regional_resiliency.missing" in rule_ids
+    assert "cloud.region.gcp.dependency_concentration" in rule_ids
     assert "cloud.quota.gcp.headroom.insufficient" in rule_ids
     assert "iam.permissions.wildcard" in rule_ids
     assert "object_storage.versioning.missing" in rule_ids
@@ -176,6 +179,7 @@ def test_cloud_azure_pack_rules_resolve_human_readable_metadata():
     assert "cloud.key_vault.azure.public_network_access.enabled" in rule_ids
     assert "cloud.key_vault.azure.purge_protection.disabled" in rule_ids
     assert "cloud.network.azure.private_endpoint.missing" in rule_ids
+    assert "cloud.region.azure.resiliency.missing" in rule_ids
     assert "cloud.compute.azure.vmss.scale_headroom.insufficient" in rule_ids
     assert "cloud.quota.azure.headroom.insufficient" in rule_ids
     assert "object_storage.encryption.missing" in rule_ids
@@ -195,10 +199,12 @@ def test_cloud_gcp_pack_rules_resolve_human_readable_metadata():
     assert "cloud.database.gcp.deletion_protection.disabled" in rule_ids
     assert "cloud.database.gcp.ha.disabled" in rule_ids
     assert "cloud.database.gcp.cmek.missing" in rule_ids
+    assert "cloud.network.gcp.private_connectivity.missing" in rule_ids
     assert "cloud.network.gcp.firewall.open_ingress" in rule_ids
     assert "cloud.kubernetes.gcp.private_nodes.disabled" in rule_ids
     assert "cloud.kubernetes.gcp.master_authorized_networks.missing" in rule_ids
     assert "cloud.kubernetes.gcp.regional_resiliency.missing" in rule_ids
+    assert "cloud.region.gcp.dependency_concentration" in rule_ids
     assert "cloud.quota.gcp.headroom.insufficient" in rule_ids
     assert "object_storage.labels_or_tags.missing" in rule_ids
     assert "gcp.storage.uniform_bucket_access.disabled" in rule_ids

@@ -21,6 +21,7 @@ provider_coverage:
     - Azure PostgreSQL/MySQL/MSSQL customer-managed key evidence
     - Azure Key Vault public network and purge-protection posture
     - Azure private endpoint evidence for sensitive managed services
+    - Azure production regional concentration posture
     - Azure VM scale set scale-out headroom
     - Azure quota headroom posture
     - Azure Storage Account public blob access posture
@@ -28,7 +29,7 @@ provider_coverage:
     - Azure Storage Account ownership/tag metadata
     - Azure RBAC Owner, Contributor, and User Access Administrator assignments
   planned:
-    - deeper Azure subscription regional resiliency posture
+    - deeper Azure subscription cross-region failover topology evidence
 use_cases:
   - Are Azure managed databases exposed to public networks?
   - Can Azure managed databases recover through backup and HA posture?
@@ -37,6 +38,7 @@ use_cases:
   - Are Owner, Contributor, or User Access Administrator grants too broad?
   - Is ownership metadata missing from production storage accounts?
   - Can Azure compute scale during rollout or traffic spikes?
+  - Are production Azure resources concentrated in one region?
 non_goals:
   - Claiming complete Azure coverage in the first preview
   - Replacing Azure Policy, Defender for Cloud, Sentinel, OPA, or Terraform
@@ -58,6 +60,8 @@ rules:
     intent: Azure Key Vault permanent deletion recovery risk.
   - rule_id: cloud.network.azure.private_endpoint.missing
     intent: Sensitive Azure managed service private endpoint posture risk.
+  - rule_id: cloud.region.azure.resiliency.missing
+    intent: Azure production resource regional concentration risk.
   - rule_id: cloud.compute.azure.vmss.scale_headroom.insufficient
     intent: Azure VM scale set scale-out headroom risk.
   - rule_id: cloud.quota.azure.headroom.insufficient

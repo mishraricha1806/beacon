@@ -57,6 +57,7 @@ def test_supported_examples_cover_governance_and_topology():
     assert "cloud.key_vault.azure.public_network_access.enabled" in ids
     assert "cloud.key_vault.azure.purge_protection.disabled" in ids
     assert "cloud.network.azure.private_endpoint.missing" in ids
+    assert "cloud.region.azure.resiliency.missing" in ids
     assert "cloud.compute.azure.vmss.scale_headroom.insufficient" in ids
     assert "cloud.quota.azure.headroom.insufficient" in ids
     assert "cloud.database.gcp.public_ip.enabled" in ids
@@ -64,10 +65,12 @@ def test_supported_examples_cover_governance_and_topology():
     assert "cloud.database.gcp.deletion_protection.disabled" in ids
     assert "cloud.database.gcp.ha.disabled" in ids
     assert "cloud.database.gcp.cmek.missing" in ids
+    assert "cloud.network.gcp.private_connectivity.missing" in ids
     assert "cloud.network.gcp.firewall.open_ingress" in ids
     assert "cloud.kubernetes.gcp.private_nodes.disabled" in ids
     assert "cloud.kubernetes.gcp.master_authorized_networks.missing" in ids
     assert "cloud.kubernetes.gcp.regional_resiliency.missing" in ids
+    assert "cloud.region.gcp.dependency_concentration" in ids
     assert "cloud.quota.gcp.headroom.insufficient" in ids
 
     findings = scan_path(str(ROOT / "topology"))

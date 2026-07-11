@@ -20,25 +20,28 @@ provider_coverage:
     - Cloud SQL deletion protection posture
     - Cloud SQL regional high-availability posture
     - Cloud SQL customer-managed encryption key evidence
+    - Cloud SQL private connectivity evidence
     - GCP firewall public ingress posture
     - GKE private-node and control-plane access posture
     - GKE regional or multi-zone resiliency posture
+    - GCP production dependency regional concentration posture
     - GCP project quota headroom posture
     - Google Cloud Storage bucket versioning posture
     - Google Cloud Storage uniform bucket-level access posture
     - Google Cloud Storage ownership/label metadata
     - GCP project IAM Owner, Editor, and admin role blast-radius checks
   planned:
-    - deeper VPC private connectivity posture
-    - deeper project quota and regional resiliency posture
+    - deeper cross-region failover topology and approved exception mapping
 use_cases:
   - Are GCP Cloud SQL instances publicly reachable?
   - Can GCP Cloud SQL recover through backup, deletion protection, and HA posture?
+  - Do Cloud SQL dependencies have private connectivity evidence?
   - Can this GCP storage estate safely go to production?
   - Can buckets recover from accidental overwrite or delete?
   - Are object-level ACLs still enabled through disabled uniform access?
   - Are Owner, Editor, or broad admin roles attached at project scope?
   - Can GKE and project quota absorb rollout or traffic-spike capacity?
+  - Are GCP production dependencies concentrated in one region?
 non_goals:
   - Claiming complete GCP coverage in the first preview
   - Replacing Organization Policy, Security Command Center, OPA, or Terraform
@@ -54,6 +57,8 @@ rules:
     intent: GCP Cloud SQL regional high-availability posture risk.
   - rule_id: cloud.database.gcp.cmek.missing
     intent: GCP Cloud SQL customer-managed encryption posture risk.
+  - rule_id: cloud.network.gcp.private_connectivity.missing
+    intent: GCP Cloud SQL private connectivity posture risk.
   - rule_id: cloud.network.gcp.firewall.open_ingress
     intent: GCP firewall public ingress risk.
   - rule_id: cloud.kubernetes.gcp.private_nodes.disabled
@@ -62,6 +67,8 @@ rules:
     intent: GKE control-plane access restriction risk.
   - rule_id: cloud.kubernetes.gcp.regional_resiliency.missing
     intent: GKE regional or multi-zone resiliency risk.
+  - rule_id: cloud.region.gcp.dependency_concentration
+    intent: GCP production dependency regional concentration risk.
   - rule_id: cloud.quota.gcp.headroom.insufficient
     intent: GCP quota capacity headroom risk.
   - rule_id: object_storage.versioning.missing

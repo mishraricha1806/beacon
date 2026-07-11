@@ -3,6 +3,9 @@ cloud_inventory:
     - type: azurerm_storage_account
       name: claimsarchive
       config:
+        id: /subscriptions/example/resourceGroups/claims/providers/Microsoft.Storage/storageAccounts/claimsarchive
+        location: eastus
+        environment: prod
         allow_blob_public_access: true
         infrastructure_encryption_enabled: false
     - type: azurerm_role_assignment
@@ -15,6 +18,8 @@ cloud_inventory:
       name: claims-postgres
       config:
         id: /subscriptions/example/resourceGroups/claims/providers/Microsoft.DBforPostgreSQL/flexibleServers/claims-postgres
+        location: eastus
+        environment: prod
         public_network_access_enabled: true
         backup_retention_days: 3
         deletion_protection_enabled: false
@@ -24,6 +29,8 @@ cloud_inventory:
       name: claims-vault
       config:
         id: /subscriptions/example/resourceGroups/claims/providers/Microsoft.KeyVault/vaults/claims-vault
+        location: eastus
+        environment: prod
         public_network_access_enabled: true
         purge_protection_enabled: false
         network_acls:
@@ -31,6 +38,9 @@ cloud_inventory:
     - type: azurerm_linux_virtual_machine_scale_set
       name: claims-api-vmss
       config:
+        id: /subscriptions/example/resourceGroups/claims/providers/Microsoft.Compute/virtualMachineScaleSets/claims-api-vmss
+        location: eastus
+        environment: prod
         instances: 4
         max_capacity: 4
     - type: cloud_quota_profile

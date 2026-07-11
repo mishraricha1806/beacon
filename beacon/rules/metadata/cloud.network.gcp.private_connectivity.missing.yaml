@@ -1,0 +1,10 @@
+rule_id: cloud.network.gcp.private_connectivity.missing
+title: GCP private connectivity missing
+description: |
+  Detects Cloud SQL instances without private_network or Private Service Connect evidence.
+severity_default: HIGH
+category: operational_safety
+author: beacon.rules
+recommendation: Configure private_network, Private Service Connect, or document an approved private-connectivity exception before production rollout.
+version: "1.0"
+tags: [cloud, gcp, network, private-connectivity]

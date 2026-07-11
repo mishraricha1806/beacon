@@ -91,5 +91,4 @@ scripts/build_macos_pkg.py
 scripts/package.sh
 docs/PACKAGING_RELEASE.md
 docs/PUBLIC_DISTRIBUTION.md
-docs/MACOS_INSTALLER.md
 ```

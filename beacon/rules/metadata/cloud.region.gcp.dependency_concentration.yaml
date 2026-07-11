@@ -1,0 +1,10 @@
+rule_id: cloud.region.gcp.dependency_concentration
+title: GCP regional dependency concentration
+description: |
+  Detects production GCP dependency sets concentrated in one region.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Distribute critical dependencies across approved regions or document a single-region exception with failover, backup, and recovery validation.
+version: "1.0"
+tags: [cloud, gcp, resiliency, multi-region]

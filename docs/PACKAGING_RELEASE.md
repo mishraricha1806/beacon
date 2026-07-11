@@ -94,8 +94,10 @@ sudo installer -pkg beacon-<version>-macos.pkg -target /
 beacon --help
 ```
 
-See [MACOS_INSTALLER.md](MACOS_INSTALLER.md) for verification and uninstall
-commands.
+For Docker-first distribution, prefer the public image flow in
+[PUBLIC_DISTRIBUTION.md](PUBLIC_DISTRIBUTION.md). Native macOS installer
+artifacts require Apple signing/notarization before they are friendly for
+external users.
 
 ## Release Gate
 

@@ -42,6 +42,6 @@ service_matching:
 
 knowledge_documents:
   - title: Kafka production standard
-    path: docs/internal/kafka-production-standard.md
+    path: docs/reference/kafka-production-standard.md
   - title: Event schema compatibility standard
-    path: docs/internal/schema-compatibility.md
+    path: docs/reference/schema-compatibility.md

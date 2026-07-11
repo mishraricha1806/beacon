@@ -51,7 +51,7 @@ rule_overrides:
 
 knowledge_documents:
   - title: Kafka production standard
-    path: docs/internal/kafka-production-standard.md
+    path: docs/reference/kafka-production-standard.md
 ```
 
 Use it from CLI:
@@ -65,4 +65,3 @@ python3 -m beacon.cli readiness kafka \
 ```
 
 Use it from the UI by uploading the context YAML/JSON in the **Intelligence context** field.
-

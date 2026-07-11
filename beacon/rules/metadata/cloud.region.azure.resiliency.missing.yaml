@@ -1,0 +1,10 @@
+rule_id: cloud.region.azure.resiliency.missing
+title: Azure regional resiliency missing
+description: |
+  Detects production Azure resource sets concentrated in a single region.
+severity_default: HIGH
+category: resiliency
+author: beacon.rules
+recommendation: Distribute critical production resources across approved paired or secondary regions, or document an explicit single-region exception with recovery runbooks.
+version: "1.0"
+tags: [cloud, azure, resiliency, multi-region]

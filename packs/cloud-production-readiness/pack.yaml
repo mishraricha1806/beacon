@@ -26,12 +26,10 @@ non_goals:
 provider_coverage:
   current:
     - AWS-backed Terraform and cloud inventory signals
-    - Azure managed database, VM scale set, quota, storage, and RBAC readiness signals
-    - GCP Cloud SQL, GKE, quota, Cloud Storage, and IAM readiness signals
+    - Azure managed database, regional concentration, VM scale set, quota, storage, and RBAC readiness signals
+    - GCP Cloud SQL private connectivity, regional dependency concentration, GKE, quota, Cloud Storage, and IAM readiness signals
     - provider-neutral object storage, identity, network, database, and quota readiness concepts
   planned:
-    - deeper Azure regional resiliency readiness
-    - deeper GCP private connectivity readiness
     - provider-specific evidence mapping for equivalent cross-cloud controls
 rules:
   - rule_id: cloud.network.security_group.open_ingress
@@ -60,6 +58,8 @@ rules:
     intent: Azure Key Vault permanent deletion recovery risk.
   - rule_id: cloud.network.azure.private_endpoint.missing
     intent: Sensitive Azure managed service private endpoint posture risk.
+  - rule_id: cloud.region.azure.resiliency.missing
+    intent: Azure production resource regional concentration risk.
   - rule_id: cloud.compute.azure.vmss.scale_headroom.insufficient
     intent: Azure VM scale set scale-out headroom risk.
   - rule_id: cloud.quota.azure.headroom.insufficient
@@ -74,6 +74,8 @@ rules:
     intent: GCP Cloud SQL regional high-availability posture risk.
   - rule_id: cloud.database.gcp.cmek.missing
     intent: GCP Cloud SQL customer-managed encryption posture risk.
+  - rule_id: cloud.network.gcp.private_connectivity.missing
+    intent: GCP Cloud SQL private connectivity posture risk.
   - rule_id: cloud.network.gcp.firewall.open_ingress
     intent: GCP firewall public ingress risk.
   - rule_id: cloud.kubernetes.gcp.private_nodes.disabled
@@ -82,6 +84,8 @@ rules:
     intent: GKE control-plane access restriction risk.
   - rule_id: cloud.kubernetes.gcp.regional_resiliency.missing
     intent: GKE regional or multi-zone resiliency risk.
+  - rule_id: cloud.region.gcp.dependency_concentration
+    intent: GCP production dependency regional concentration risk.
   - rule_id: cloud.quota.gcp.headroom.insufficient
     intent: GCP quota and capacity planning risk.
   - rule_id: cloud.compute.ec2.detailed_monitoring.disabled

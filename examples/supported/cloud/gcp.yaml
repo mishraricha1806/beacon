@@ -4,7 +4,8 @@ cloud_inventory:
       name: claim-exports
       config:
         name: claim-exports
-        location: US
+        location: us-central1
+        environment: prod
         uniform_bucket_level_access: false
     - type: google_project_iam_binding
       name: platform-owner
@@ -16,6 +17,8 @@ cloud_inventory:
     - type: google_sql_database_instance
       name: claims-sql
       config:
+        region: us-central1
+        environment: prod
         deletion_protection: false
         settings:
           - availability_type: ZONAL
@@ -29,6 +32,8 @@ cloud_inventory:
     - type: google_compute_firewall
       name: public-api
       config:
+        region: us-central1
+        environment: prod
         direction: INGRESS
         source_ranges:
           - 0.0.0.0/0
@@ -39,6 +44,8 @@ cloud_inventory:
     - type: google_container_cluster
       name: claims-gke
       config:
+        region: us-central1
+        environment: prod
         location: us-central1-a
         private_cluster_config:
           - enable_private_nodes: false

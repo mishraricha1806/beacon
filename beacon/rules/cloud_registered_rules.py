@@ -548,6 +548,44 @@ def gcp_sql_customer_managed_encryption_missing(resource, context):
     )
 
 
+def gcp_sql_private_connectivity_missing(resource, context):
+    resource_type = resource.attributes.get("provider_resource_type")
+    config = resource.attributes.get("config", {})
+
+    if resource_type != "google_sql_database_instance":
+        return None
+
+    ip_config = cloud_sql_ip_configuration(config)
+    if (
+        ip_config.get("private_network")
+        or ip_config.get("allocated_ip_range")
+        or first_block(ip_config.get("psc_config")).get("psc_enabled") is True
+    ):
+        return None
+
+    if config.get("private_connectivity_not_required") is True:
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.network.gcp.private_connectivity.missing",
+        "operational_safety",
+        "HIGH",
+        f"GCP Cloud SQL instance '{resource.name}' lacks private connectivity evidence",
+        "Cloud SQL instances without private connectivity evidence may depend on public IP paths, authorized networks, or unclear service access during production incidents.",
+        "Configure private_network, Private Service Connect, or document an approved private-connectivity exception before production rollout.",
+        {
+            "resource_name": resource.name,
+            "resource_type": resource_type,
+            "private_network": ip_config.get("private_network"),
+            "allocated_ip_range": ip_config.get("allocated_ip_range"),
+            "psc_config": first_block(ip_config.get("psc_config")),
+            "ipv4_enabled": ip_config.get("ipv4_enabled"),
+        },
+        ["cloud", "gcp", "network", "private-connectivity"],
+    )
+
+
 def azure_key_vault_public_network_access_enabled(resource, context):
     resource_type = resource.attributes.get("provider_resource_type")
     config = resource.attributes.get("config", {})
@@ -759,6 +797,130 @@ def gke_regional_resiliency_missing(resource, context):
     )
 
 
+def azure_regional_resiliency_missing(resource, context):
+    resources = [
+        item
+        for item in context.get("resources", [])
+        if item.type == "cloud_resource"
+        and str(item.attributes.get("provider_resource_type") or "").startswith("azurerm_")
+        and item.attributes.get("provider_resource_type") != "azurerm_private_endpoint"
+    ]
+
+    if not resources:
+        return None
+
+    anchor = min(resources, key=lambda item: (item.source, item.name))
+    if resource.name != anchor.name or resource.source != anchor.source:
+        return None
+
+    prod_resources = [
+        item for item in resources if is_prod_like_cloud_config(item.attributes.get("config", {}))
+    ]
+
+    if len(prod_resources) < 2:
+        return None
+
+    locations = {
+        normalized_location(item.attributes.get("config", {}))
+        for item in prod_resources
+        if normalized_location(item.attributes.get("config", {}))
+    }
+
+    if len(locations) != 1:
+        return None
+
+    subscriptions = {
+        azure_subscription_id(item.attributes.get("config", {}))
+        for item in prod_resources
+        if azure_subscription_id(item.attributes.get("config", {}))
+    }
+    resource_groups = {
+        azure_resource_group(item.attributes.get("config", {}))
+        for item in prod_resources
+        if azure_resource_group(item.attributes.get("config", {}))
+    }
+
+    return build_cloud_finding(
+        resource,
+        "cloud.region.azure.resiliency.missing",
+        "resiliency",
+        "HIGH",
+        "Azure production resources are concentrated in one region",
+        "Production Azure resources concentrated in one region have weaker disaster tolerance and can make regional outages or resource-group failures harder to survive.",
+        "Distribute critical production resources across approved paired/secondary regions, or document an explicit single-region exception with recovery runbooks.",
+        {
+            "locations": sorted(locations),
+            "subscriptions": sorted(subscriptions),
+            "resource_groups": sorted(resource_groups),
+            "prod_resource_count": len(prod_resources),
+        },
+        ["cloud", "azure", "resiliency", "multi-region"],
+    )
+
+
+def gcp_regional_dependency_concentration(resource, context):
+    resources = [
+        item
+        for item in context.get("resources", [])
+        if item.type in {"cloud_resource", "object_storage_bucket"}
+        and str(item.attributes.get("provider_resource_type") or "").startswith("google_")
+    ]
+
+    if not resources:
+        return None
+
+    cloud_anchors = [item for item in resources if item.type == "cloud_resource"]
+    if not cloud_anchors:
+        return None
+
+    anchor = min(cloud_anchors, key=lambda item: (item.source, item.name))
+    if resource.name != anchor.name or resource.source != anchor.source:
+        return None
+
+    prod_resources = [
+        item for item in resources if is_prod_like_cloud_config(item.attributes.get("config", {}))
+    ]
+
+    if len(prod_resources) < 3:
+        return None
+
+    regions = {
+        normalized_gcp_region(item.attributes.get("config", {}))
+        for item in prod_resources
+        if normalized_gcp_region(item.attributes.get("config", {}))
+    }
+
+    if len(regions) != 1:
+        return None
+
+    resource_types = sorted(
+        {
+            item.attributes.get("provider_resource_type")
+            for item in prod_resources
+            if item.attributes.get("provider_resource_type")
+        }
+    )
+
+    if not {"google_sql_database_instance", "google_container_cluster"} & set(resource_types):
+        return None
+
+    return build_cloud_finding(
+        resource,
+        "cloud.region.gcp.dependency_concentration",
+        "resiliency",
+        "HIGH",
+        "GCP production dependencies are concentrated in one region",
+        "Cloud SQL, GKE, storage, or network dependencies concentrated in one GCP region can turn a regional incident into a broad service outage.",
+        "Distribute critical dependencies across approved regions or document a single-region exception with failover, backup, and recovery validation.",
+        {
+            "regions": sorted(regions),
+            "resource_types": resource_types,
+            "prod_resource_count": len(prod_resources),
+        },
+        ["cloud", "gcp", "resiliency", "multi-region"],
+    )
+
+
 def azure_vm_scale_set_headroom_insufficient(resource, context):
     resource_type = resource.attributes.get("provider_resource_type")
     config = resource.attributes.get("config", {})
@@ -905,6 +1067,66 @@ def first_present(config, *keys):
         if key in config:
             return config.get(key)
     return None
+
+
+def is_prod_like_cloud_config(config):
+    tags = config.get("tags") or config.get("labels") or {}
+    markers = {
+        config.get("environment"),
+        config.get("env"),
+        tags.get("environment") if isinstance(tags, dict) else None,
+        tags.get("env") if isinstance(tags, dict) else None,
+    }
+    return any(str(value or "").lower() in {"prod", "production"} for value in markers)
+
+
+def normalized_location(config):
+    value = first_present(config, "location", "region")
+    return str(value).lower() if value else None
+
+
+def normalized_gcp_region(config):
+    value = first_present(config, "region", "location")
+    if not value:
+        return None
+
+    location = str(value).lower()
+    pieces = location.split("-")
+    if len(pieces) >= 3 and len(pieces[-1]) == 1 and pieces[-1].isalpha():
+        return "-".join(pieces[:-1])
+    return location
+
+
+def azure_subscription_id(config):
+    explicit = first_present(config, "subscription_id", "subscription")
+    if explicit:
+        return str(explicit)
+
+    resource_id = str(config.get("id") or "")
+    marker = "/subscriptions/"
+    lowered = resource_id.lower()
+    if marker not in lowered:
+        return None
+
+    start = lowered.index(marker) + len(marker)
+    remainder = resource_id[start:]
+    return remainder.split("/")[0] if remainder else None
+
+
+def azure_resource_group(config):
+    explicit = first_present(config, "resource_group_name", "resource_group")
+    if explicit:
+        return str(explicit)
+
+    resource_id = str(config.get("id") or "")
+    marker = "/resourcegroups/"
+    lowered = resource_id.lower()
+    if marker not in lowered:
+        return None
+
+    start = lowered.index(marker) + len(marker)
+    remainder = resource_id[start:]
+    return remainder.split("/")[0] if remainder else None
 
 
 def as_number(value):
@@ -1337,6 +1559,15 @@ register(
     ["cloud", "database", "gcp", "encryption"],
 )
 register(
+    "cloud.network.gcp.private_connectivity.missing",
+    "operational_safety",
+    "HIGH",
+    "GCP private connectivity missing",
+    "Detects Cloud SQL instances without private_network or Private Service Connect evidence.",
+    gcp_sql_private_connectivity_missing,
+    ["cloud", "gcp", "network", "private-connectivity"],
+)
+register(
     "cloud.key_vault.azure.public_network_access.enabled",
     "operational_safety",
     "CRITICAL",
@@ -1398,6 +1629,24 @@ register(
     "Detects GKE clusters without regional or multi-zone resiliency evidence.",
     gke_regional_resiliency_missing,
     ["cloud", "gcp", "gke", "resiliency"],
+)
+register(
+    "cloud.region.azure.resiliency.missing",
+    "resiliency",
+    "HIGH",
+    "Azure regional resiliency missing",
+    "Detects production Azure resource sets concentrated in a single region.",
+    azure_regional_resiliency_missing,
+    ["cloud", "azure", "resiliency", "multi-region"],
+)
+register(
+    "cloud.region.gcp.dependency_concentration",
+    "resiliency",
+    "HIGH",
+    "GCP regional dependency concentration",
+    "Detects production GCP dependency sets concentrated in one region.",
+    gcp_regional_dependency_concentration,
+    ["cloud", "gcp", "resiliency", "multi-region"],
 )
 
 register(
