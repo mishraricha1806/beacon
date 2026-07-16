@@ -21,6 +21,7 @@ LABEL description="Beacon - Production-readiness intelligence for distributed sy
 WORKDIR /workspace
 
 COPY --from=builder /src/dist-binaries/beacon-linux /usr/local/bin/beacon
+COPY examples ./examples
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates \

@@ -243,32 +243,32 @@ http://127.0.0.1:8777/
 
 ## How Docker Examples Work
 
-The published Beacon image contains the Beacon binary, not this source tree.
-To test examples, run commands from a folder that contains an `examples/`
-directory and mount that folder into the container:
+The published Beacon image contains the Beacon binary and a safe example set
+under `/workspace/examples`. You can try Beacon without cloning the source repo:
+
+```bash
+docker run --rm \
+  ghcr.io/mishraricha1806/beacon:latest readiness static \
+  /workspace/examples/bad-infra \
+  --environment prod \
+  --no-html \
+  --no-open-report
+```
+
+When scanning your own project, mount it separately:
 
 ```bash
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
-  ghcr.io/mishraricha1806/beacon:latest --help
+  ghcr.io/mishraricha1806/beacon:latest readiness static \
+  /workspace/project \
+  --environment prod \
+  --no-html \
+  --no-open-report
 ```
 
-All example commands below assume your current directory contains:
-
-```text
-examples/
-```
-
-Check before running examples:
-
-```bash
-ls examples/bad-infra
-```
-
-If that command fails, you are in the wrong folder. Move into the Beacon source
-repo or the public distribution repo that contains the safe example files.
-
-If your examples live somewhere else, mount that folder explicitly:
+All built-in example commands below use `/workspace/examples/...`. If your
+examples live somewhere else, mount that folder explicitly:
 
 ```bash
 docker run --rm \
@@ -280,11 +280,11 @@ docker run --rm \
   --no-open-report
 ```
 
-Do not run the example commands from an empty folder such as `debug/` unless you
-also mount the real examples directory. Otherwise Beacon will correctly report:
+If Beacon reports a missing path, it means the path you passed does not exist
+inside the container:
 
 ```text
-Path does not exist: /workspace/project/examples/...
+Path does not exist: /workspace/examples/...
 ```
 
 ## Use Case 0: IaC Coverage Readiness
@@ -310,9 +310,9 @@ CLI test:
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness iac-coverage \
-  --cloud-inventory /workspace/project/examples/iac-coverage/aws-inventory.json \
-  --terraform-state /workspace/project/examples/iac-coverage/terraform-state.json \
-  --owners /workspace/project/examples/iac-coverage/owners.yaml \
+  --cloud-inventory /workspace/examples/iac-coverage/aws-inventory.json \
+  --terraform-state /workspace/examples/iac-coverage/terraform-state.json \
+  --owners /workspace/examples/iac-coverage/owners.yaml \
   --environment prod \
   --no-html \
   --no-open-report
@@ -392,7 +392,7 @@ What Beacon checks:
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness static \
-  /workspace/project/examples/bad-infra \
+  /workspace/examples/bad-infra \
   --environment prod \
   --no-html \
   --no-open-report
@@ -404,7 +404,7 @@ JSON output:
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness static \
-  /workspace/project/examples/bad-infra \
+  /workspace/examples/bad-infra \
   --environment prod \
   --output json \
   --no-html \
@@ -469,7 +469,7 @@ What Beacon checks:
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness static \
-  /workspace/project/examples/demo-black-friday \
+  /workspace/examples/demo-black-friday \
   --environment prod \
   --no-html \
   --no-open-report
@@ -481,7 +481,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest diagnose snapshot \
-  /workspace/project/examples/demo-black-friday/runtime-snapshot.yaml \
+  /workspace/examples/demo-black-friday/runtime-snapshot.yaml \
   --no-html \
   --no-open-report
 ```
@@ -492,8 +492,8 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness all \
-  --static-path /workspace/project/examples/demo-black-friday \
-  --snapshot /workspace/project/examples/demo-black-friday/runtime-snapshot.yaml \
+  --static-path /workspace/examples/demo-black-friday \
+  --snapshot /workspace/examples/demo-black-friday/runtime-snapshot.yaml \
   --environment prod \
   --no-html \
   --no-open-report
@@ -549,7 +549,7 @@ connections.
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest diagnose kafka-runtime \
-  /workspace/project/examples/runtime/kafka-runtime.yaml \
+  /workspace/examples/runtime/kafka-runtime.yaml \
   --no-html \
   --no-open-report
 ```
@@ -560,7 +560,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest diagnose snapshot \
-  /workspace/project/examples/supported/runtime/platform-runtime.yaml \
+  /workspace/examples/supported/runtime/platform-runtime.yaml \
   --no-html \
   --no-open-report
 ```
@@ -571,7 +571,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest diagnose flow \
-  /workspace/project/examples/supported/runtime/flow-runtime.yaml \
+  /workspace/examples/supported/runtime/flow-runtime.yaml \
   --no-html \
   --no-open-report
 ```
@@ -660,7 +660,7 @@ shows how Beacon handles unreachable read-only collectors in a release gate.
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness static \
-  /workspace/project/examples/supported \
+  /workspace/examples/supported \
   --environment prod \
   --no-html \
   --no-open-report
@@ -672,11 +672,11 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness all \
-  --static-path /workspace/project/examples/supported \
-  --snapshot /workspace/project/examples/supported/runtime/all-runtime.yaml \
-  --deployment-events /workspace/project/examples/supported/deployments/events.yaml \
-  --opentelemetry /workspace/project/examples/supported/opentelemetry/checkout-otel.yaml \
-  --schema-registry /workspace/project/examples/supported/kafka/schema-registry.yaml \
+  --static-path /workspace/examples/supported \
+  --snapshot /workspace/examples/supported/runtime/all-runtime.yaml \
+  --deployment-events /workspace/examples/supported/deployments/events.yaml \
+  --opentelemetry /workspace/examples/supported/opentelemetry/checkout-otel.yaml \
+  --schema-registry /workspace/examples/supported/kafka/schema-registry.yaml \
   --environment prod \
   --no-html \
   --no-open-report
@@ -688,11 +688,11 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest diagnose all \
-  --static-path /workspace/project/examples/supported \
-  --snapshot /workspace/project/examples/supported/runtime/all-runtime.yaml \
-  --deployment-events /workspace/project/examples/supported/deployments/events.yaml \
-  --opentelemetry /workspace/project/examples/supported/opentelemetry/checkout-otel.yaml \
-  --schema-registry /workspace/project/examples/supported/kafka/schema-registry.yaml \
+  --static-path /workspace/examples/supported \
+  --snapshot /workspace/examples/supported/runtime/all-runtime.yaml \
+  --deployment-events /workspace/examples/supported/deployments/events.yaml \
+  --opentelemetry /workspace/examples/supported/opentelemetry/checkout-otel.yaml \
+  --schema-registry /workspace/examples/supported/kafka/schema-registry.yaml \
   --no-html \
   --no-open-report
 ```
@@ -707,7 +707,7 @@ Run each supported domain independently when you want to isolate behavior.
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness static \
-  /workspace/project/examples/supported/kubernetes \
+  /workspace/examples/supported/kubernetes \
   --environment prod \
   --no-html \
   --no-open-report
@@ -719,7 +719,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness static \
-  /workspace/project/examples/supported/terraform \
+  /workspace/examples/supported/terraform \
   --environment prod \
   --no-html \
   --no-open-report
@@ -731,7 +731,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness kafka-acls \
-  /workspace/project/examples/supported/kafka/acls.yaml \
+  /workspace/examples/supported/kafka/acls.yaml \
   --environment prod \
   --no-html \
   --no-open-report
@@ -743,7 +743,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness kafka-history \
-  /workspace/project/examples/supported/kafka/history.yaml \
+  /workspace/examples/supported/kafka/history.yaml \
   --environment prod \
   --no-html \
   --no-open-report
@@ -755,7 +755,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness schema-registry \
-  /workspace/project/examples/supported/kafka/schema-registry.yaml \
+  /workspace/examples/supported/kafka/schema-registry.yaml \
   --environment prod \
   --no-html \
   --no-open-report
@@ -767,7 +767,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness prometheus \
-  /workspace/project/examples/supported/prometheus/platform-prometheus.yaml \
+  /workspace/examples/supported/prometheus/platform-prometheus.yaml \
   --environment prod \
   --no-html \
   --no-open-report
@@ -779,7 +779,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness opentelemetry \
-  /workspace/project/examples/supported/opentelemetry/checkout-otel.yaml \
+  /workspace/examples/supported/opentelemetry/checkout-otel.yaml \
   --environment prod \
   --no-html \
   --no-open-report
@@ -791,7 +791,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest diagnose flow \
-  /workspace/project/examples/supported/flow/scenarios/downstream-db-bottleneck.yaml \
+  /workspace/examples/supported/flow/scenarios/downstream-db-bottleneck.yaml \
   --no-html \
   --no-open-report
 ```
@@ -802,7 +802,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest diagnose flow \
-  /workspace/project/examples/supported/flow/scenarios/deployment-triggered-degradation.yaml \
+  /workspace/examples/supported/flow/scenarios/deployment-triggered-degradation.yaml \
   --no-html \
   --no-open-report
 ```
@@ -813,7 +813,7 @@ docker run --rm \
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest diagnose flow \
-  /workspace/project/examples/supported/flow/scenarios/cascading-latency.yaml \
+  /workspace/examples/supported/flow/scenarios/cascading-latency.yaml \
   --no-html \
   --no-open-report
 ```
