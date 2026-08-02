@@ -1,4 +1,10 @@
-from beacon.packs import get_pack, list_packs, pack_rules_with_metadata, validate_pack
+from beacon.packs import (
+    get_pack,
+    list_packs,
+    pack_rules_with_metadata,
+    pack_summary,
+    validate_pack,
+)
 
 
 def test_kafka_readiness_pack_is_discoverable_and_metadata_backed():
@@ -259,3 +265,34 @@ def test_pack_catalog_lists_readiness_packs():
     assert packs["iac-coverage-readiness"]["status"] == "preview"
     assert "distributed-system-production-readiness" in packs
     assert packs["distributed-system-production-readiness"]["status"] == "preview"
+
+
+def test_pack_summary_exposes_reviewable_coverage_counts():
+    pack = get_pack("distributed-system-production-readiness")
+    summary = pack_summary(pack)
+
+    assert summary["pack_id"] == "distributed-system-production-readiness"
+    assert summary["metadata_backed"] is True
+    assert summary["missing_metadata"] == []
+    assert summary["rule_count"] >= 40
+    assert summary["release_gate_rules"] > 0
+    assert summary["advisory_rules"] >= 0
+    assert summary["severity_counts"]["CRITICAL"] > 0
+    assert summary["severity_counts"]["HIGH"] > 0
+    assert summary["category_counts"]["resiliency"] > 0
+    assert summary["domain_counts"]["kafka"] > 0
+    assert summary["domain_counts"]["k8s"] > 0
+
+
+def test_pack_summary_marks_missing_metadata_as_not_fully_backed():
+    summary = pack_summary(
+        {
+            "id": "custom-review-pack",
+            "rules": [{"rule_id": "custom.rule.not_registered"}],
+        }
+    )
+
+    assert summary["pack_id"] == "custom-review-pack"
+    assert summary["metadata_backed"] is False
+    assert summary["missing_metadata"] == ["custom.rule.not_registered"]
+    assert summary["rule_count"] == 1

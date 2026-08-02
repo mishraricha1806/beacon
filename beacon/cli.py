@@ -30,7 +30,13 @@ from beacon.iac_coverage import analyze_iac_coverage
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.readiness.comparison import compare_release_evidence
 from beacon.engine import metadata_registry as rules_registry
-from beacon.packs import get_pack, list_packs, pack_rules_with_metadata, validate_pack
+from beacon.packs import (
+    get_pack,
+    list_packs,
+    pack_rules_with_metadata,
+    pack_summary,
+    validate_pack,
+)
 from rich.table import Table
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.intelligence.context import load_intelligence_context
@@ -685,15 +691,17 @@ def list_readiness_packs(output: str = typer.Option("terminal", help="Output: te
     table.add_column("Name")
     table.add_column("Status")
     table.add_column("Rules")
+    table.add_column("Gate")
     table.add_column("Summary")
 
     for pack_id, pack in sorted(packs.items()):
-        validation = validate_pack(pack)
+        summary = pack_summary(pack)
         table.add_row(
             pack_id,
             str(pack.get("name") or ""),
             str(pack.get("status") or ""),
-            str(validation["rule_count"]),
+            str(summary["rule_count"]),
+            str(summary["release_gate_rules"]),
             str(pack.get("summary") or "").strip(),
         )
 
@@ -713,9 +721,12 @@ def show_readiness_pack(
         raise typer.BadParameter(f"Unknown readiness pack '{pack_id}'.")
 
     validation = validate_pack(pack)
+    summary = pack_summary(pack)
 
     if output == "json":
-        typer.echo(json.dumps({"pack": pack, "validation": validation}, indent=2))
+        typer.echo(
+            json.dumps({"pack": pack, "validation": validation, "summary": summary}, indent=2)
+        )
         return
 
     from rich.console import Console
@@ -725,6 +736,8 @@ def show_readiness_pack(
     console.print(str(pack.get("summary") or "").strip())
     console.print(f"Status: {pack.get('status') or 'unknown'}")
     console.print(f"Rules: {validation['rule_count']}")
+    console.print(f"Release-gate rules: {summary['release_gate_rules']}")
+    console.print(f"Advisory/context rules: {summary['advisory_rules']}")
 
     if validation["missing_metadata"]:
         console.print("[bold red]Missing rule metadata:[/bold red]")
@@ -732,6 +745,16 @@ def show_readiness_pack(
             console.print(f"- {rule_id}")
     else:
         console.print("[green]All pack rules have Beacon metadata.[/green]")
+
+    if summary["severity_counts"]:
+        console.print("\n[bold]Severity Coverage[/bold]")
+        for severity, count in summary["severity_counts"].items():
+            console.print(f"- {severity}: {count}")
+
+    if summary["category_counts"]:
+        console.print("\n[bold]Category Coverage[/bold]")
+        for category, count in summary["category_counts"].items():
+            console.print(f"- {category}: {count}")
 
     use_cases = pack.get("use_cases") or []
     if use_cases:

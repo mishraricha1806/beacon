@@ -110,6 +110,44 @@ def pack_rules_with_metadata(pack):
     return rows
 
 
+def pack_summary(pack):
+    """Return review-friendly coverage and release-gate summary for a pack."""
+    rows = pack_rules_with_metadata(pack)
+    severity_counts = {}
+    category_counts = {}
+    domain_counts = {}
+    release_gate_count = 0
+    advisory_count = 0
+
+    for row in rows:
+        severity = row.get("severity_default") or "UNKNOWN"
+        category = row.get("category") or "uncategorized"
+        rule_id = row.get("rule_id") or ""
+        domain = rule_id.split(".", 1)[0] if "." in rule_id else "unknown"
+
+        severity_counts[severity] = severity_counts.get(severity, 0) + 1
+        category_counts[category] = category_counts.get(category, 0) + 1
+        domain_counts[domain] = domain_counts.get(domain, 0) + 1
+
+        if severity in {"CRITICAL", "ERROR", "HIGH"}:
+            release_gate_count += 1
+        else:
+            advisory_count += 1
+
+    validation = validate_pack(pack)
+    return {
+        "pack_id": pack.get("id"),
+        "rule_count": validation["rule_count"],
+        "metadata_backed": not validation["missing_metadata"],
+        "missing_metadata": validation["missing_metadata"],
+        "release_gate_rules": release_gate_count,
+        "advisory_rules": advisory_count,
+        "severity_counts": dict(sorted(severity_counts.items())),
+        "category_counts": dict(sorted(category_counts.items())),
+        "domain_counts": dict(sorted(domain_counts.items())),
+    }
+
+
 def validate_pack(pack):
     metadata = metadata_registry.list_rules()
     rule_ids = pack_rule_ids(pack)

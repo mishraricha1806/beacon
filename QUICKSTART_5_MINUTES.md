@@ -57,19 +57,19 @@ http://127.0.0.1:8777/
 
 ## 3. Run A CLI Readiness Scan
 
-Run this from a folder that contains the Beacon example files:
+The published image includes the Beacon example files, so this command works
+without cloning the source repository:
 
 ```bash
 docker run --rm \
-  -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness static \
-  /workspace/project/examples/product-readiness/distributed-infra-risk \
+  /workspace/examples/product-readiness/distributed-infra-risk \
   --environment prod \
   --no-html \
   --no-open-report
 ```
 
-If the example path does not exist, mount your examples folder directly:
+To scan a separate set of examples, mount that folder explicitly:
 
 ```bash
 docker run --rm \
@@ -124,11 +124,10 @@ local export files:
 
 ```bash
 docker run --rm \
-  -v "$PWD:/workspace/project:ro" \
   ghcr.io/mishraricha1806/beacon:latest readiness iac-coverage \
-  --cloud-inventory /workspace/project/examples/iac-coverage/aws-inventory.json \
-  --terraform-state /workspace/project/examples/iac-coverage/terraform-state.json \
-  --owners /workspace/project/examples/iac-coverage/owners.yaml \
+  --cloud-inventory /workspace/examples/iac-coverage/aws-inventory.json \
+  --terraform-state /workspace/examples/iac-coverage/terraform-state.json \
+  --owners /workspace/examples/iac-coverage/owners.yaml \
   --environment prod \
   --no-html \
   --no-open-report

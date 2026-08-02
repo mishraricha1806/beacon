@@ -148,6 +148,10 @@ python3 -m beacon.cli packs show distributed-system-production-readiness
 python3 -m beacon.cli packs rules distributed-system-production-readiness
 ```
 
+`packs show` summarizes each pack by severity and readiness category, including
+how many rules are release-gate signals versus advisory/context signals. That
+lets teams review what Beacon is judging before they run it in CI/CD.
+
 See [`packs/`](packs/) for the current Kafka, Kubernetes, cloud, Azure, GCP,
 provider-specific Terraform/AWS, IaC coverage, and distributed-system readiness
 packs.
