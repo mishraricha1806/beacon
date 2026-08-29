@@ -13,6 +13,7 @@ This directory is intentionally small and engineering-focused.
 - [`MODULE_1_DEMO.md`](MODULE_1_DEMO.md) - local production-readiness demo
 - [`PROJECT_LOCAL_CONFIG.md`](PROJECT_LOCAL_CONFIG.md) - `beacon.yaml`, config discovery, local workflow
 - [`CICD_INTEGRATION.md`](CICD_INTEGRATION.md) - CI/CD usage
+- [`TEAM_PILOT_GUIDE.md`](TEAM_PILOT_GUIDE.md) - reusable CI action, evidence governance, and multi-team rollout
 
 ## Readiness Areas
 

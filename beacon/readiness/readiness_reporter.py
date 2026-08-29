@@ -71,6 +71,21 @@ def print_readiness_summary(summary):
     console.print(f"[bold]Production Decision:[/bold] {summary['production_decision']}")
     console.print(f"[bold]Primary Risk Area:[/bold] {summary['primary_risk_area']}\n")
 
+    if summary.get("readiness_evidence_quality"):
+        quality = summary["readiness_evidence_quality"]
+        console.print("[bold]Readiness Evidence Quality:[/bold]")
+        console.print(f"- Status: {quality.get('status')} ({quality.get('score')}/100)")
+        console.print(f"- Reason: {quality.get('reason')}")
+        if quality.get("strengths"):
+            console.print("- Evidence strengths:")
+            for strength in quality["strengths"][:3]:
+                console.print(f"  - {strength}")
+        if quality.get("context_gaps"):
+            console.print("- Context gaps:")
+            for gap in quality["context_gaps"][:3]:
+                console.print(f"  - {gap}")
+        console.print()
+
     if summary.get("release_evidence"):
         evidence = summary["release_evidence"]
         blockers = evidence.get("production_blockers") or {}
@@ -106,6 +121,28 @@ def print_readiness_summary(summary):
             f"major risks: {len(evidence.get('major_risks') or [])}; "
             f"waived findings: {counts.get('waived_findings', 0)}"
         )
+        console.print()
+
+    if summary.get("fix_plan"):
+        fix_table = Table(title="Fix Plan")
+        fix_table.add_column("#")
+        fix_table.add_column("Severity")
+        fix_table.add_column("Disposition")
+        fix_table.add_column("Risk")
+        fix_table.add_column("Action")
+        fix_table.add_column("Validation")
+
+        for item in summary["fix_plan"][:8]:
+            fix_table.add_row(
+                str(item.get("rank", "")),
+                item.get("severity", ""),
+                item.get("disposition", ""),
+                item.get("title", ""),
+                item.get("action", ""),
+                "; ".join(item.get("validation_needed", [])[:2]),
+            )
+
+        console.print(fix_table)
         console.print()
 
     if summary.get("environment_readiness"):
@@ -227,16 +264,21 @@ def print_readiness_summary(summary):
         grouped_table.add_column("Category")
         grouped_table.add_column("Risk")
         grouped_table.add_column("Affected")
-        grouped_table.add_column("Remediation")
+        grouped_table.add_column("Why It Matters")
+        grouped_table.add_column("Evidence")
+        grouped_table.add_column("Fix First")
         grouped_table.add_column("Examples")
 
         for risk in summary["grouped_risks"][:10]:
+            quality = risk.get("evidence_quality") or {}
             grouped_table.add_row(
                 risk["severity"],
                 risk.get("business_category", ""),
                 risk["title"],
                 str(risk.get("affected_count", 0)),
-                risk.get("remediation_command") or risk.get("recommendation", ""),
+                risk.get("why_this_matters", ""),
+                f"{quality.get('status', 'UNKNOWN')} ({quality.get('score', 0)}/100)",
+                risk.get("recommendation", ""),
                 ", ".join(risk.get("examples", [])[:3]),
             )
 

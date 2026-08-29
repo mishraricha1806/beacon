@@ -89,6 +89,9 @@ def calculate_readiness(
         "distributed_system_readiness": None,
         "environment_readiness": None,
         "release_evidence": None,
+        "readiness_evidence_quality": None,
+        "fix_plan": [],
+        "release_review_checklist": [],
         "root_cause_hypotheses": [],
         "operational_decisions": [],
         "kafka_report": None,
@@ -131,6 +134,9 @@ def calculate_readiness(
     summary["environment_readiness"] = build_environment_readiness_model(
         environment_model, summary["distributed_system_readiness"]
     )
+    summary["readiness_evidence_quality"] = build_readiness_evidence_quality(summary)
+    summary["fix_plan"] = build_fix_plan(summary)
+    summary["release_review_checklist"] = build_release_review_checklist(summary)
     summary["kafka_report"] = build_kafka_report(sort_findings(interpreted_findings))
     summary["release_evidence"] = build_release_evidence_pack(summary, interpreted_findings)
     summary["operational_decisions"] = DecisionEngine.build_operational_decisions(
@@ -139,6 +145,179 @@ def calculate_readiness(
         max_decisions=5,
     )
     return summary
+
+
+def build_fix_plan(summary):
+    """Build an ordered remediation plan from grouped readiness risks."""
+    plan = []
+    for index, risk in enumerate(summary.get("grouped_risks") or [], start=1):
+        severity = risk.get("severity")
+        plan.append(
+            {
+                "rank": index,
+                "severity": severity,
+                "title": risk.get("title"),
+                "category": risk.get("business_category") or risk.get("category"),
+                "affected_count": risk.get("affected_count", 0),
+                "disposition": fix_disposition(severity),
+                "safety": fix_safety(severity),
+                "action": risk.get("recommendation"),
+                "command": risk.get("remediation_command"),
+                "why_this_matters": risk.get("why_this_matters"),
+                "evidence_quality": risk.get("evidence_quality") or {},
+                "validation_needed": fix_validation_needed(risk),
+                "examples": risk.get("examples", [])[:5],
+            }
+        )
+    return plan[:8]
+
+
+def build_release_review_checklist(summary):
+    """Expose deterministic human-review checkpoints without auto-approving a release."""
+    blockers_resolved = not (
+        summary.get("error", 0)
+        or summary.get("critical", 0)
+        or summary.get("production_decision") == "NOT READY"
+    )
+    evidence_quality = summary.get("readiness_evidence_quality") or {}
+    evidence_status = evidence_quality.get("status")
+    context = summary.get("intelligence_context") or {}
+    environment_readiness = summary.get("environment_readiness") or {}
+
+    return [
+        {
+            "id": "production_blockers_resolved",
+            "label": "Production blockers resolved",
+            "status": "PASS" if blockers_resolved else "BLOCKED",
+            "automated": True,
+            "evidence": summary.get("top_reasons", [])[:5],
+        },
+        {
+            "id": "fix_plan_reviewed",
+            "label": "Fix plan reviewed",
+            "status": "PASS" if not summary.get("fix_plan") else "NEEDS_REVIEW",
+            "automated": False,
+            "evidence": [item.get("title") for item in summary.get("fix_plan", [])[:5]],
+        },
+        {
+            "id": "evidence_quality_acceptable",
+            "label": "Evidence quality acceptable",
+            "status": "PASS" if evidence_status == "ACTIONABLE" else "NEEDS_REVIEW",
+            "automated": False,
+            "evidence": [evidence_quality.get("reason")],
+        },
+        {
+            "id": "environment_context_loaded",
+            "label": "Environment context loaded",
+            "status": (
+                "PASS"
+                if context.get("loaded") and environment_readiness.get("confidence") != "LOW"
+                else "NEEDS_REVIEW"
+            ),
+            "automated": True,
+            "evidence": (environment_readiness.get("coverage_gaps") or [])[:5],
+        },
+        {
+            "id": "release_approval",
+            "label": "Release approved by accountable owner",
+            "status": "NEEDS_REVIEW",
+            "automated": False,
+            "evidence": [],
+        },
+    ]
+
+
+def fix_disposition(severity):
+    if severity in {"ERROR", "CRITICAL"}:
+        return "fix_before_rollout"
+    if severity == "HIGH":
+        return "review_before_approval"
+    if severity == "MEDIUM":
+        return "fix_or_accept_with_owner"
+    return "track_as_context"
+
+
+def fix_safety(severity):
+    if severity in {"ERROR", "CRITICAL", "HIGH"}:
+        return "REVIEW_REQUIRED"
+    return "LOW_RISK_CHANGE"
+
+
+def fix_validation_needed(risk):
+    validation = ["approved change plan and rollback path before production rollout"]
+    if risk.get("evidence_quality", {}).get("status") != "STRONG":
+        validation.append("additional environment, traffic, owner, or topology evidence")
+    if risk.get("examples"):
+        validation.append("post-change verification for affected example resources")
+    return validation[:3]
+
+
+def build_readiness_evidence_quality(summary):
+    """Summarize how trustworthy the readiness decision is from available evidence."""
+    if summary.get("score_status") == "BLOCKED_BY_ANALYSIS_ERROR":
+        return {
+            "status": "BLOCKED",
+            "score": 0,
+            "reason": "Beacon could not complete one or more collectors or input scans.",
+            "strengths": [],
+            "context_gaps": ["Resolve analysis errors before using this report as a release gate."],
+        }
+
+    grouped = summary.get("grouped_risks") or []
+    qualities = [risk.get("evidence_quality") or {} for risk in grouped]
+    quality_scores = [item.get("score", 0) for item in qualities if item.get("score")]
+    domains = (summary.get("distributed_system_readiness") or {}).get("domains_observed") or []
+
+    score = 55
+    strengths = []
+    context_gaps = []
+
+    if quality_scores:
+        score = round(sum(quality_scores) / len(quality_scores))
+        strengths.append("Grouped root-cause risks include concrete affected-resource examples.")
+
+    if len(domains) >= 3:
+        score += 10
+        strengths.append("Multiple infrastructure domains were observed in the readiness evidence.")
+    elif domains:
+        context_gaps.append(
+            "Only a limited set of infrastructure domains was observed; add more inputs for whole-system readiness."
+        )
+    else:
+        context_gaps.append("No distributed-system domain coverage was inferred from the scan.")
+
+    if not (summary.get("intelligence_context") or {}).get("loaded"):
+        context_gaps.append("No organization intelligence context was loaded.")
+
+    if (summary.get("environment_readiness") or {}).get("confidence") == "LOW":
+        context_gaps.append("No explicit environment model was provided.")
+
+    if grouped and not strengths:
+        strengths.append("Beacon found deterministic readiness signals.")
+
+    score = max(0, min(100, score))
+    if score >= 80:
+        status = "ACTIONABLE"
+    elif score >= 60:
+        status = "REVIEWABLE"
+    else:
+        status = "NEEDS_CONTEXT"
+
+    if not grouped and summary.get("production_decision") == "READY":
+        status = "REVIEWABLE"
+        reason = "No material risks were found, but evidence depth depends on provided inputs."
+    elif grouped:
+        reason = "Beacon based the decision on grouped, deterministic readiness findings."
+    else:
+        reason = "Beacon completed the scan, but limited readiness evidence was available."
+
+    return {
+        "status": status,
+        "score": score,
+        "reason": reason,
+        "strengths": strengths,
+        "context_gaps": context_gaps,
+    }
 
 
 def build_release_gate(summary):

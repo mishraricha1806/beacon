@@ -77,7 +77,7 @@ beacon = "beacon.cli:app"
 include = ["beacon*"]
 
 [tool.setuptools.package-data]
-beacon = ["py.typed"]
+beacon = ["py.typed", "schemas/*.json"]
 
 [tool.black]
 line-length = 100

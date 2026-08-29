@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beacon.dev/schemas/release-evidence-v1.schema.json",
+  "title": "Beacon Release Evidence v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "generated_at",
+    "engine",
+    "decision",
+    "score",
+    "counts",
+    "blocking_risks",
+    "major_risks",
+    "production_blockers"
+  ],
+  "properties": {
+    "schema_version": {"type": "string", "pattern": "^1\\."},
+    "generated_at": {"type": "string", "format": "date-time"},
+    "engine": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {"const": "beacon-readiness"},
+        "version": {"type": "string"}
+      },
+      "additionalProperties": false
+    },
+    "decision": {"enum": ["READY", "READY WITH RISKS", "NOT READY"]},
+    "score": {"type": "number", "minimum": 0, "maximum": 100},
+    "counts": {"type": "object"},
+    "blocking_risks": {"type": "array"},
+    "major_risks": {"type": "array"},
+    "production_blockers": {"type": "object"}
+  },
+  "additionalProperties": true
+}

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from beacon.contracts import RELEASE_EVIDENCE_SCHEMA_VERSION, contract_metadata
 
 BLOCKING_SEVERITIES = {"ERROR", "CRITICAL"}
 MAJOR_SEVERITIES = {"HIGH"}
@@ -12,7 +12,7 @@ def build_release_evidence_pack(summary, findings):
     waived_risks = waived_rows(interpreted)
 
     evidence = {
-        "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        **contract_metadata(RELEASE_EVIDENCE_SCHEMA_VERSION),
         "decision": summary.get("production_decision"),
         "score": summary.get("score"),
         "score_status": summary.get("score_status"),
@@ -38,6 +38,8 @@ def build_release_evidence_pack(summary, findings):
         "waived_risks": waived_risks,
         "top_reasons": summary.get("top_reasons", [])[:5],
         "next_best_actions": summary.get("next_best_actions", [])[:5],
+        "fix_plan": summary.get("fix_plan", [])[:8],
+        "release_review_checklist": summary.get("release_review_checklist", []),
         "coverage": coverage(summary),
     }
     evidence["production_blockers"] = build_production_blockers(summary, evidence)

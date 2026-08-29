@@ -13,6 +13,7 @@ import shutil
 
 import typer
 
+from beacon.contracts import validate_release_evidence
 from beacon.scanner import scan_path
 from beacon.reporter import print_report
 from beacon.runtime_advisor import analyze_runtime_file
@@ -141,7 +142,8 @@ def write_release_evidence(summary, evidence_output=None, config_path=None):
 
 def load_release_evidence(path):
     evidence_path = Path(path).expanduser()
-    return json.loads(evidence_path.read_text(encoding="utf-8"))
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    return validate_release_evidence(payload, allow_legacy=True)
 
 
 def option_value(value):

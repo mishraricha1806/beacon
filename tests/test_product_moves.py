@@ -291,6 +291,14 @@ def test_readiness_groups_repeated_kafka_topic_findings_for_nonprod():
         risk["key"] == "kafka.topic_rf_low" and risk["affected_count"] == 3
         for risk in summary["grouped_risks"]
     )
+    rf_risk = next(risk for risk in summary["grouped_risks"] if risk["key"] == "kafka.topic_rf_low")
+    assert rf_risk["why_this_matters"]
+    assert rf_risk["evidence_quality"]["status"] in {
+        "STRONG",
+        "MODERATE",
+        "NEEDS_CONTEXT",
+    }
+    assert rf_risk["fix_priority"] >= 0
     assert summary["suppressed_duplicate_count"] > 0
 
 
@@ -346,12 +354,106 @@ def test_readiness_uses_weighted_group_scoring_and_business_categories():
         and risk["affected_count"] == 2
         and risk["business_category"] == "Capacity"
         and "kafka-configs" in risk["remediation_command"]
+        and risk["why_this_matters"].startswith("Capacity")
+        and risk["evidence_quality"]["status"] == "STRONG"
         for risk in summary["grouped_risks"]
     )
     assert summary["architect_assessment"]["material_risks"][0]["title"].startswith(
         "Kafka topics allow messages larger than 1MB"
     )
     assert "Raw critical/high" in summary["architect_assessment"]["score_explanation"]
+
+
+def test_readiness_summary_explains_overall_evidence_quality():
+    findings = [
+        {
+            "rule_id": "kafka.topic.max_message_bytes.large",
+            "domain": "kafka",
+            "category": "storage_sustainability",
+            "severity": "HIGH",
+            "title": f"Kafka topic '{topic}' allows messages larger than 1MB",
+            "impact": "Large messages increase broker disk I/O.",
+            "recommendation": "Keep messages small.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": topic},
+            "tags": [],
+        }
+        for topic in ("claims.response", "finance.feedback")
+    ]
+
+    summary = calculate_readiness(findings, environment="prod")
+    quality = summary["readiness_evidence_quality"]
+
+    assert quality["status"] in {"ACTIONABLE", "REVIEWABLE"}
+    assert quality["score"] >= 70
+    assert "grouped" in quality["reason"].lower()
+    assert "No organization intelligence context was loaded." in quality["context_gaps"]
+
+
+def test_readiness_summary_includes_ordered_fix_plan_from_grouped_risks():
+    findings = [
+        {
+            "rule_id": "kafka.topic.retention_ms.unbounded",
+            "domain": "kafka",
+            "category": "storage_sustainability",
+            "severity": "HIGH",
+            "title": "Kafka topic 'archive.complete' has unbounded retention",
+            "impact": "Unbounded retention can cause disk growth.",
+            "recommendation": "Set retention.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "archive.complete"},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.topic.replication_factor.low",
+            "domain": "kafka",
+            "category": "resiliency",
+            "severity": "CRITICAL",
+            "title": "Kafka topic 'payments' has replication factor 1",
+            "impact": "Broker failure can interrupt workflows.",
+            "recommendation": "Use replication_factor=3.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "payments"},
+            "tags": [],
+        },
+    ]
+
+    summary = calculate_readiness(findings, environment="prod")
+    fix_plan = summary["fix_plan"]
+
+    assert fix_plan[0]["severity"] == "CRITICAL"
+    assert fix_plan[0]["disposition"] == "fix_before_rollout"
+    assert fix_plan[0]["safety"] == "REVIEW_REQUIRED"
+    assert fix_plan[0]["evidence_quality"]["status"] in {"MODERATE", "STRONG"}
+    assert "approved change" in fix_plan[0]["validation_needed"][0]
+    assert summary["release_evidence"]["fix_plan"][0]["title"] == fix_plan[0]["title"]
+
+
+def test_readiness_summary_includes_release_review_checklist():
+    findings = [
+        {
+            "rule_id": "kafka.topic.replication_factor.low",
+            "domain": "kafka",
+            "category": "resiliency",
+            "severity": "CRITICAL",
+            "title": "Kafka topic 'payments' has replication factor 1",
+            "impact": "Broker failure can interrupt workflows.",
+            "recommendation": "Use replication_factor=3.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "payments"},
+            "tags": [],
+        }
+    ]
+
+    summary = calculate_readiness(findings, environment="prod")
+    checklist = summary["release_review_checklist"]
+    labels = {item["label"]: item for item in checklist}
+
+    assert labels["Production blockers resolved"]["status"] == "BLOCKED"
+    assert labels["Fix plan reviewed"]["status"] == "NEEDS_REVIEW"
+    assert labels["Evidence quality acceptable"]["status"] in {"PASS", "NEEDS_REVIEW"}
+    assert labels["Environment context loaded"]["status"] == "NEEDS_REVIEW"
+    assert summary["release_evidence"]["release_review_checklist"] == checklist
 
 
 def test_readiness_environment_profile_controls_kafka_ha_severity():
@@ -482,6 +584,8 @@ def test_readiness_summary_includes_release_evidence_pack():
     summary = calculate_readiness(findings, environment="prod")
     evidence = summary["release_evidence"]
 
+    assert evidence["schema_version"] == "1.0.0"
+    assert evidence["engine"]["name"] == "beacon-readiness"
     assert evidence["decision"] == "NOT READY"
     assert evidence["environment"] == "prod"
     assert evidence["domains_covered"] == ["kafka", "kubernetes"]

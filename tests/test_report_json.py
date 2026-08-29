@@ -25,6 +25,9 @@ def test_print_report_json_outputs_valid_json(capsys):
 
     payload = json.loads(out)
 
+    assert payload["schema_version"] == "1.0.0"
+    assert payload["engine"]["name"] == "beacon-readiness"
+    assert payload["generated_at"].endswith("+00:00")
     assert "score" in payload
     assert "findings" in payload
     assert payload["findings"] == findings
