@@ -1,3 +1,6 @@
+import hashlib
+import json
+
 from beacon.contracts import RELEASE_EVIDENCE_SCHEMA_VERSION, contract_metadata
 
 BLOCKING_SEVERITIES = {"ERROR", "CRITICAL"}
@@ -41,6 +44,10 @@ def build_release_evidence_pack(summary, findings):
         "fix_plan": summary.get("fix_plan", [])[:8],
         "release_review_checklist": summary.get("release_review_checklist", []),
         "coverage": coverage(summary),
+        "service_governance": (summary.get("environment_readiness") or {}).get(
+            "service_governance"
+        )
+        or {},
     }
     evidence["production_blockers"] = build_production_blockers(summary, evidence)
     return evidence
@@ -107,6 +114,7 @@ def risk_rows(grouped_risks, findings, severities):
         grouped_titles.add(risk.get("title"))
         rows.append(
             {
+                "fingerprint": risk_fingerprint(risk),
                 "severity": risk.get("severity"),
                 "title": risk.get("title"),
                 "category": risk.get("business_category") or risk.get("category"),
@@ -124,6 +132,7 @@ def risk_rows(grouped_risks, findings, severities):
             continue
         rows.append(
             {
+                "fingerprint": risk_fingerprint(finding),
                 "severity": finding.get("severity"),
                 "title": finding.get("title"),
                 "category": finding.get("business_category") or finding.get("category"),
@@ -134,6 +143,18 @@ def risk_rows(grouped_risks, findings, severities):
             }
         )
     return rows[:10]
+
+
+def risk_fingerprint(risk):
+    """Return a stable group identity without exposing raw evidence values."""
+    identity = {
+        "key": risk.get("key"),
+        "rule_id": risk.get("rule_id"),
+        "title": risk.get("title") if not risk.get("key") else None,
+        "category": risk.get("business_category") or risk.get("category"),
+    }
+    canonical = json.dumps(identity, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def waived_rows(findings):

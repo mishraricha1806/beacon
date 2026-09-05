@@ -35,6 +35,9 @@ jobs:
       - name: Run unit and contract tests
         run: python scripts/release_check_all.py --require-helm
 
+      - name: Validate governed readiness packs
+        run: python -m beacon.cli packs validate
+
       - name: Smoke test runtime readiness JSON
         run: python -m beacon.cli readiness snapshot examples/supported/runtime/all-runtime.yaml --no-html --no-open-report --output json
 

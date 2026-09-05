@@ -1,5 +1,9 @@
+import re
+from pathlib import Path
+
 import pytest
 
+from beacon import __version__
 from beacon.contracts import ContractError, validate_release_evidence
 
 
@@ -35,3 +39,11 @@ def test_unversioned_release_evidence_requires_explicit_legacy_mode():
         validate_release_evidence(payload)
 
     assert validate_release_evidence(payload, allow_legacy=True) is payload
+
+
+def test_runtime_version_matches_package_metadata():
+    pyproject = Path("pyproject.toml").read_text(encoding="utf-8")
+    match = re.search(r'^version = "([^"]+)"$', pyproject, re.MULTILINE)
+
+    assert match
+    assert __version__ == match.group(1)

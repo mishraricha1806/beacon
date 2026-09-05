@@ -38,6 +38,9 @@ jobs:
       - name: Run release checks
         run: python scripts/release_check_all.py --require-helm
 
+      - name: Validate governed readiness packs
+        run: python -m beacon.cli packs validate
+
   build-binaries:
     name: Build Standalone Binaries
     runs-on: ${{ matrix.os }}

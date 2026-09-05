@@ -19,6 +19,8 @@ Choose three to five teams with different operating profiles:
 
 Each team names a service owner and an SRE or platform partner. Avoid using the first pilot as an executive compliance scorecard; the goal is to calibrate evidence, rules, and workflow usability.
 
+Before enabling a gate, record every pilot service in `beacon.yaml` with its tier, owner, and on-call route. Beacon derives a recommended default threshold from the strictest service tier but never overrides an explicit `ci.fail_on`. Review the emitted `service_governance` evidence and resolve missing ownership for tier-0 and tier-1 services before making the check required.
+
 ## Add the reusable CI action
 
 Create `.github/workflows/beacon-readiness.yml` in the service repository:
@@ -45,6 +47,8 @@ jobs:
           scan-path: .
           environment: prod
           fail-on: high
+          # Optional after the first accepted baseline is stored in the repository:
+          # baseline-evidence: .beacon/baseline-release-evidence.json
 
       - name: Preserve Beacon evidence
         if: always()
@@ -69,6 +73,38 @@ Pin the action to an immutable commit SHA for production use. The `@v1` referenc
 ## Evidence and governance contract
 
 The report and release-evidence artifacts declare `schema_version`, `generated_at`, and the Beacon engine version. Consumers must reject unsupported major schema versions and tolerate additive fields within a supported major version.
+
+The reusable action always writes four primary artifacts under `beacon-reports/`, even when the configured gate fails:
+
+- `beacon-report.json` - the complete versioned Beacon report;
+- `beacon-release-evidence.json` - the compact governed release record;
+- `beacon-results.sarif` - SARIF 2.1.0 findings with stable fingerprints and waiver suppressions;
+- `beacon-results.xml` - JUnit results using the configured `fail-on` threshold.
+
+When `baseline-evidence` is provided, it also writes:
+
+- `beacon-comparison.json` - a machine-readable new/resolved risk comparison;
+- `beacon-comparison.md` - a safe Markdown summary suitable for a pull-request or workflow summary.
+
+Accept a new baseline only through normal code review with the service owner. A baseline is historical evidence, not a waiver: existing risks remain visible, and newly introduced blockers still fail according to `fail-on`.
+
+Teams running the CLI directly can produce the same integration files:
+
+```bash
+beacon readiness static . \
+  --environment prod \
+  --no-html \
+  --no-open-report \
+  --output json \
+  --fail-on high \
+  --evidence-output beacon-reports/beacon-release-evidence.json \
+  --sarif-output beacon-reports/beacon-results.sarif \
+  --junit-output beacon-reports/beacon-results.xml
+```
+
+SARIF and JUnit are presentation formats, not independent decision engines. The versioned release-evidence artifact remains the auditable source for Beacon's decision, evidence quality, waivers, and human review checklist.
+
+The action also writes `beacon-pack-validation.json` and fails with an analysis error if a discovered readiness-pack manifest is malformed, incompatible with the running Beacon engine, missing rule metadata or fixtures, or violates its lifecycle policy.
 
 For each gated release, retain:
 

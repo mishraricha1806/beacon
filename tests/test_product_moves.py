@@ -592,6 +592,7 @@ def test_readiness_summary_includes_release_evidence_pack():
     assert evidence["evidence_files"] == ["deployment.yaml", "kafka.yaml"]
     assert evidence["counts"]["waived_findings"] == 1
     assert evidence["blocking_risks"][0]["title"] == "Kafka topics have replication factor 1"
+    assert len(evidence["blocking_risks"][0]["fingerprint"]) == 64
     assert evidence["major_risks"]
     assert evidence["waived_risks"][0]["reason"] == "Retry topic preserves ordering."
     blockers = evidence["production_blockers"]
@@ -862,6 +863,43 @@ def test_readiness_static_writes_release_evidence_file(monkeypatch, tmp_path):
     assert payload["blocking_risks"][0]["title"] == "Kafka topics have replication factor 1"
 
 
+def test_readiness_static_writes_ci_native_artifacts(monkeypatch, tmp_path):
+    from beacon import cli
+
+    raw_findings = [
+        {
+            "rule_id": "k8s.workload.probes.missing",
+            "domain": "kubernetes",
+            "category": "operational_safety",
+            "severity": "HIGH",
+            "title": "Kubernetes workload missing probes",
+            "impact": "Bad pods may receive traffic.",
+            "recommendation": "Add readiness and liveness probes.",
+            "file": "deployment.yaml",
+            "evidence": {"name": "checkout-api"},
+            "tags": [],
+        }
+    ]
+    sarif_path = tmp_path / "beacon.sarif"
+    junit_path = tmp_path / "beacon.xml"
+
+    monkeypatch.setattr(cli, "scan_path", lambda path: raw_findings)
+    monkeypatch.setattr(cli, "print_report", lambda findings, **kwargs: None)
+
+    cli.readiness_static(
+        "infra",
+        html=False,
+        open_report=False,
+        output="json",
+        fail_on=None,
+        sarif_output=str(sarif_path),
+        junit_output=str(junit_path),
+    )
+
+    assert json.loads(sarif_path.read_text(encoding="utf-8"))["version"] == "2.1.0"
+    assert '<testsuite name="Beacon readiness"' in junit_path.read_text(encoding="utf-8")
+
+
 def test_release_evidence_comparison_detects_improved_release():
     before = {
         "decision": "NOT READY",
@@ -910,6 +948,43 @@ def test_release_evidence_comparison_detects_improved_release():
     assert comparison["counts_delta"]["critical"] == -1
 
 
+def test_release_evidence_comparison_prefers_stable_risk_fingerprint():
+    before = {
+        "decision": "NOT READY",
+        "score": 60,
+        "counts": {"critical": 1},
+        "blocking_risks": [
+            {
+                "fingerprint": "risk-123",
+                "severity": "CRITICAL",
+                "title": "Old human-readable title",
+                "category": "Availability",
+            }
+        ],
+        "major_risks": [],
+    }
+    after = {
+        "decision": "NOT READY",
+        "score": 60,
+        "counts": {"critical": 1},
+        "blocking_risks": [
+            {
+                "fingerprint": "risk-123",
+                "severity": "CRITICAL",
+                "title": "Improved human-readable title",
+                "category": "Availability",
+            }
+        ],
+        "major_risks": [],
+    }
+
+    comparison = compare_release_evidence(before, after)
+
+    assert comparison["verdict"] == "UNCHANGED"
+    assert comparison["new_blocking_risks"] == []
+    assert comparison["resolved_blocking_risks"] == []
+
+
 def test_release_evidence_compare_cli_outputs_json(tmp_path, capsys):
     from beacon import cli
 
@@ -954,6 +1029,59 @@ def test_release_evidence_compare_cli_outputs_json(tmp_path, capsys):
     assert payload["verdict"] == "REGRESSED"
     assert payload["score_delta"] == -25
     assert payload["new_blocking_risks"][0]["title"] == "Kubernetes workload missing probes"
+
+
+def test_release_evidence_compare_cli_writes_safe_markdown(tmp_path, capsys):
+    from beacon import cli
+
+    before_path = tmp_path / "before.json"
+    after_path = tmp_path / "after.json"
+    markdown_path = tmp_path / "comparison.md"
+    before_path.write_text(
+        json.dumps(
+            {
+                "decision": "READY",
+                "score": 95,
+                "counts": {"critical": 0},
+                "blocking_risks": [],
+                "major_risks": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    after_path.write_text(
+        json.dumps(
+            {
+                "decision": "NOT READY",
+                "score": 70,
+                "counts": {"critical": 1},
+                "blocking_risks": [
+                    {
+                        "severity": "CRITICAL",
+                        "title": "Unsafe <service> | dependency",
+                        "category": "Availability",
+                        "affected_count": 1,
+                    }
+                ],
+                "major_risks": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cli.compare_evidence(
+        str(before_path),
+        str(after_path),
+        output="markdown",
+        markdown_output=str(markdown_path),
+    )
+    stdout = capsys.readouterr().out
+    markdown = markdown_path.read_text(encoding="utf-8")
+
+    assert stdout == markdown
+    assert "## Beacon readiness comparison" in markdown
+    assert "&lt;service&gt; \\| dependency" in markdown
+    assert "Human approval remains required" in markdown
 
 
 def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatch):

@@ -1,7 +1,8 @@
 """Stable metadata and validation helpers for Beacon's public JSON contracts."""
 
 from datetime import datetime, timezone
-from importlib.metadata import PackageNotFoundError, version
+
+from beacon import __version__
 
 REPORT_SCHEMA_VERSION = "1.0.0"
 RELEASE_EVIDENCE_SCHEMA_VERSION = "1.0.0"
@@ -17,11 +18,7 @@ def utc_timestamp():
 
 
 def engine_metadata():
-    try:
-        engine_version = version("beacon-readiness")
-    except PackageNotFoundError:
-        engine_version = "0+unknown"
-    return {"name": "beacon-readiness", "version": engine_version}
+    return {"name": "beacon-readiness", "version": __version__}
 
 
 def contract_metadata(schema_version):
@@ -50,10 +47,14 @@ def validate_release_evidence(payload, allow_legacy=False):
     try:
         major = int(str(schema_version).split(".", 1)[0])
     except (TypeError, ValueError) as error:
-        raise ContractError("Release evidence schema_version must use semantic versioning.") from error
+        raise ContractError(
+            "Release evidence schema_version must use semantic versioning."
+        ) from error
 
     if major not in SUPPORTED_RELEASE_EVIDENCE_SCHEMA_MAJORS:
-        supported = ", ".join(str(item) for item in sorted(SUPPORTED_RELEASE_EVIDENCE_SCHEMA_MAJORS))
+        supported = ", ".join(
+            str(item) for item in sorted(SUPPORTED_RELEASE_EVIDENCE_SCHEMA_MAJORS)
+        )
         raise ContractError(
             f"Unsupported release-evidence schema major {major}; supported major(s): {supported}."
         )

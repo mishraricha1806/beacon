@@ -183,6 +183,7 @@ def build_release_review_checklist(summary):
     evidence_status = evidence_quality.get("status")
     context = summary.get("intelligence_context") or {}
     environment_readiness = summary.get("environment_readiness") or {}
+    service_governance = environment_readiness.get("service_governance") or {}
 
     return [
         {
@@ -216,6 +217,22 @@ def build_release_review_checklist(summary):
             ),
             "automated": True,
             "evidence": (environment_readiness.get("coverage_gaps") or [])[:5],
+        },
+        {
+            "id": "service_ownership_and_tiering",
+            "label": "Service ownership and tiering",
+            "status": service_governance.get("status") or "NEEDS_REVIEW",
+            "automated": True,
+            "evidence": [
+                value
+                for value in (
+                    service_governance.get("reason"),
+                    f"Recommended CI gate: {service_governance.get('recommended_fail_on')}"
+                    if service_governance.get("recommended_fail_on")
+                    else None,
+                )
+                if value
+            ],
         },
         {
             "id": "release_approval",

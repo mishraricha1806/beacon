@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beacon.dev/schemas/readiness-pack-v1.schema.json",
+  "title": "Beacon Readiness Pack Manifest v1",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "version",
+    "status",
+    "owner",
+    "support_tier",
+    "engine_compatibility",
+    "domains",
+    "non_goals",
+    "fixtures",
+    "deprecation",
+    "rules"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "name": {"type": "string", "minLength": 1},
+    "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+    "status": {"enum": ["preview", "stable", "deprecated"]},
+    "owner": {"type": "string", "minLength": 1},
+    "support_tier": {"enum": ["experimental", "supported", "critical"]},
+    "engine_compatibility": {
+      "type": "object",
+      "required": ["min_version", "max_version_exclusive"],
+      "properties": {
+        "min_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+        "max_version_exclusive": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "domains": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "non_goals": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "fixtures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1},
+          "expected_rule_ids": {"type": "array", "items": {"type": "string"}}
+        },
+        "additionalProperties": false
+      }
+    },
+    "deprecation": {
+      "type": "object",
+      "required": ["notice", "removal_after", "replacement"],
+      "properties": {
+        "notice": {"type": ["string", "null"]},
+        "removal_after": {"type": ["string", "null"]},
+        "replacement": {"type": ["string", "null"]}
+      },
+      "additionalProperties": false
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "oneOf": [
+          {"type": "string"},
+          {
+            "type": "object",
+            "required": ["rule_id"],
+            "properties": {
+              "rule_id": {"type": "string", "minLength": 1},
+              "intent": {"type": "string"}
+            },
+            "additionalProperties": true
+          }
+        ]
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,8 +1,21 @@
+schema_version: 1.0.0
 id: iac-coverage-readiness
 name: IaC Coverage Readiness
 version: 0.1.0
 status: preview
-owner: beacon
+owner: beacon-platform
+support_tier: experimental
+engine_compatibility:
+  min_version: 0.1.0
+  max_version_exclusive: 0.2.0
+fixtures:
+  - path: examples/iac-coverage/aws-inventory.json
+    expected_rule_ids:
+      - iac_coverage.resource.unmanaged
+deprecation:
+  notice: null
+  removal_after: null
+  replacement: null
 summary: >
   Inspectable IaC coverage checks for unmanaged cloud resources, owner metadata,
   activity/cost signals, public exposure, and sensitive infrastructure outside

@@ -119,6 +119,8 @@ def build_environment_readiness_model(environment_model, distributed_readiness):
         "rpo": environment_model.get("rpo"),
         "business_flows": business_flows,
         "service_count": service_count,
+        "service_profiles": environment_model.get("service_profiles") or [],
+        "service_governance": environment_model.get("service_governance") or {},
         "dependency_domains": dependency_domains,
         "observed_dimension_count": len(observed),
         "dimension_count": len(dimensions),

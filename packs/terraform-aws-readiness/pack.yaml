@@ -1,8 +1,21 @@
+schema_version: 1.0.0
 id: terraform-aws-readiness
 name: Terraform AWS Readiness
 version: 0.1.0
 status: preview
-owner: beacon
+owner: beacon-platform
+support_tier: experimental
+engine_compatibility:
+  min_version: 0.1.0
+  max_version_exclusive: 0.2.0
+fixtures:
+  - path: examples/supported/terraform/main.tf
+    expected_rule_ids:
+      - cloud.database.rds.publicly_accessible
+deprecation:
+  notice: null
+  removal_after: null
+  replacement: null
 summary: >
   Inspectable AWS/Terraform readiness checks for database recovery, network
   exposure, identity blast radius, object-storage posture, capacity headroom,

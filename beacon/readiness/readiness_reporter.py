@@ -161,6 +161,18 @@ def print_readiness_summary(summary):
             console.print("- Business flows: " + ", ".join(environment["business_flows"][:3]))
         if environment.get("dependency_domains"):
             console.print("- Dependencies: " + ", ".join(environment["dependency_domains"]))
+        governance = environment.get("service_governance") or {}
+        if governance:
+            console.print(
+                f"- Service governance: {governance.get('status')} "
+                f"({governance.get('ownership_coverage_percent', 0)}% ownership coverage)"
+            )
+            console.print(
+                f"- Strictest tier: {governance.get('strictest_tier')} "
+                f"(recommended CI gate: {governance.get('recommended_fail_on')})"
+            )
+            if governance.get("missing_owners"):
+                console.print("- Missing owners: " + ", ".join(governance["missing_owners"][:5]))
         if environment.get("blocked_dimensions"):
             console.print("- Blocked/high-risk domains:")
             for dimension in environment["blocked_dimensions"][:4]:

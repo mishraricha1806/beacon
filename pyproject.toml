@@ -74,10 +74,19 @@ Issues = "https://github.com/mishraricha1806/beacon/issues"
 beacon = "beacon.cli:app"
 
 [tool.setuptools.packages.find]
-include = ["beacon*"]
+include = ["beacon*", "packs*", "examples*"]
 
 [tool.setuptools.package-data]
-beacon = ["py.typed", "schemas/*.json"]
+beacon = ["py.typed", "schemas/*.json", "rules/metadata/*.yaml"]
+packs = ["*/pack.yaml", "*/pack.yml"]
+examples = [
+    "supported/cloud/*.yaml",
+    "supported/kafka/*.yaml",
+    "supported/kubernetes/*.yaml",
+    "supported/runtime/*.yaml",
+    "supported/terraform/*.tf",
+    "iac-coverage/*.json"
+]
 
 [tool.black]
 line-length = 100

@@ -5,6 +5,41 @@ Use Beacon as a read-only production-readiness gate before release.
 The recommended CI path is Docker because teams can run Beacon without Python,
 source code, or local installation.
 
+## CI-native result formats
+
+Static readiness scans can emit SARIF 2.1.0 and JUnit XML alongside Beacon's versioned JSON evidence:
+
+```bash
+beacon readiness static . \
+  --environment prod \
+  --no-html \
+  --no-open-report \
+  --output json \
+  --ci \
+  --fail-on high \
+  --evidence-output beacon-reports/beacon-release-evidence.json \
+  --sarif-output beacon-reports/beacon-results.sarif \
+  --junit-output beacon-reports/beacon-results.xml
+```
+
+SARIF results contain stable `beaconFindingFingerprint/v1` identifiers so code-scanning systems can correlate the same finding between runs. Policy waivers are represented as accepted external suppressions. JUnit failures follow `--fail-on`; Beacon analysis errors remain JUnit errors and use process exit code `2`.
+
+## Changed-risk comparison
+
+Compare an accepted baseline with the current release evidence:
+
+```bash
+beacon compare \
+  .beacon/baseline-release-evidence.json \
+  beacon-reports/beacon-release-evidence.json \
+  --output json \
+  --markdown-output beacon-reports/beacon-comparison.md
+```
+
+New evidence uses stable risk fingerprints, so wording improvements do not appear as resolved and recreated risks. Unversioned legacy evidence remains comparable using the original title/category identity.
+
+The reusable action accepts the optional input `baseline-evidence`. It writes JSON and Markdown comparisons before enforcing the saved readiness exit code, ensuring reports are available for review even when the gate fails. Baseline changes require human review and must not be used to silently accept new risk.
+
 ## Exit Codes
 
 ```text

@@ -1,8 +1,21 @@
+schema_version: 1.0.0
 id: cloud-azure-readiness
 name: Azure Cloud Readiness
 version: 0.1.0
 status: preview
-owner: beacon
+owner: beacon-platform
+support_tier: experimental
+engine_compatibility:
+  min_version: 0.1.0
+  max_version_exclusive: 0.2.0
+fixtures:
+  - path: examples/supported/cloud/azure.yaml
+    expected_rule_ids:
+      - cloud.database.azure.public_network_access.enabled
+deprecation:
+  notice: null
+  removal_after: null
+  replacement: null
 summary: >
   Inspectable Azure readiness checks for managed database public access,
   backup, HA, storage public access, encryption, ownership metadata, and broad

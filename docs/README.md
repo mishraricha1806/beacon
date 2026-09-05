@@ -21,6 +21,7 @@ This directory is intentionally small and engineering-focused.
 - [`KAFKA_RELEASE.md`](KAFKA_RELEASE.md) - Kafka readiness and runtime support
 - [`IAC_COVERAGE_READINESS.md`](IAC_COVERAGE_READINESS.md) - unmanaged cloud resource/IaC coverage checks
 - [`INTELLIGENCE_CONTEXT.md`](INTELLIGENCE_CONTEXT.md) - organization context and policy inputs
+- [`READINESS_PACK_CONTRACT.md`](READINESS_PACK_CONTRACT.md) - versioned pack manifests, compatibility, ownership, fixtures, and lifecycle
 - [`reference/`](reference/) - small sample standards used by examples
 
 ## Experimental Runtime Work

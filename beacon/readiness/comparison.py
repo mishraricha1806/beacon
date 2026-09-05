@@ -1,3 +1,6 @@
+from html import escape
+
+
 def compare_release_evidence(before, after):
     before_blocking = risk_index(before.get("blocking_risks") or [])
     after_blocking = risk_index(after.get("blocking_risks") or [])
@@ -74,6 +77,7 @@ def risk_index(risks):
     indexed = {}
     for risk in risks:
         indexed[risk_identity(risk)] = {
+            "fingerprint": risk.get("fingerprint"),
             "severity": risk.get("severity"),
             "title": risk.get("title"),
             "category": risk.get("category"),
@@ -85,6 +89,8 @@ def risk_index(risks):
 
 
 def risk_identity(risk):
+    if risk.get("fingerprint"):
+        return ("fingerprint", str(risk["fingerprint"]))
     return (
         str(risk.get("title") or "").strip().lower(),
         str(risk.get("category") or "").strip().lower(),
@@ -150,3 +156,65 @@ def comparison_summary(
     if resolved_blockers:
         pieces.append(f"{len(resolved_blockers)} production blocker(s) were resolved.")
     return " ".join(pieces)
+
+
+def format_comparison_markdown(comparison):
+    """Render a deterministic, safe Markdown summary for CI review surfaces."""
+    before = comparison.get("before") or {}
+    after = comparison.get("after") or {}
+    lines = [
+        "## Beacon readiness comparison",
+        "",
+        f"**{markdown_text(comparison.get('verdict') or 'UNKNOWN')}** — "
+        f"{markdown_text(comparison.get('summary') or '')}",
+        "",
+        "| | Decision | Score | Environment |",
+        "|---|---|---:|---|",
+        comparison_row("Before", before),
+        comparison_row("After", after),
+        "",
+    ]
+
+    change_sections = (
+        ("New production blockers", comparison.get("new_blocking_risks") or []),
+        ("Resolved production blockers", comparison.get("resolved_blocking_risks") or []),
+        ("New major risks", comparison.get("new_major_risks") or []),
+        ("Resolved major risks", comparison.get("resolved_major_risks") or []),
+    )
+    rendered_change = False
+    for heading, risks in change_sections:
+        if not risks:
+            continue
+        rendered_change = True
+        lines.extend([f"### {heading}", ""])
+        for risk in risks:
+            severity = markdown_text(risk.get("severity") or "UNKNOWN")
+            title = markdown_text(risk.get("title") or "Untitled risk")
+            affected = risk.get("affected_count", 0)
+            lines.append(f"- **{severity}** {title} (affected: {affected})")
+        lines.append("")
+
+    if not rendered_change:
+        lines.extend(["No blocking or major risk-set changes were detected.", ""])
+
+    lines.extend(
+        [
+            "_Generated from versioned Beacon release evidence. Human approval remains required._",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def comparison_row(label, values):
+    return "| {} | {} | {} | {} |".format(
+        markdown_text(label),
+        markdown_text(values.get("decision")),
+        markdown_text(values.get("score")),
+        markdown_text(values.get("environment")),
+    )
+
+
+def markdown_text(value):
+    text = "" if value is None else str(value)
+    return escape(text, quote=False).replace("|", "\\|").replace("\r", " ").replace("\n", " ")

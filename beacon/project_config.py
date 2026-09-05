@@ -2,6 +2,8 @@ from pathlib import Path
 
 import yaml
 
+from beacon.service_profiles import build_service_governance
+
 CONFIG_FILENAMES = ("beacon.yaml", "beacon.yml", ".beacon.yaml")
 
 
@@ -68,18 +70,30 @@ def config_environment_model(config):
     if not isinstance(dependencies, dict):
         dependencies = {}
 
+    environment_owner = environment.get("owner") or config.get("owner")
+    environment_criticality = (
+        environment.get("criticality") or config.get("criticality") or "medium"
+    )
+    service_governance = build_service_governance(
+        services,
+        environment_owner=environment_owner,
+        environment_criticality=environment_criticality,
+    )
+
     return {
         "name": environment.get("name") or config.get("project") or "unknown",
         "profile": environment.get("profile") or environment.get("name"),
-        "criticality": environment.get("criticality") or config.get("criticality") or "medium",
+        "criticality": environment_criticality,
         "business_flows": as_list(environment.get("business_flows")),
         "services": services,
-        "service_count": len(services),
+        "service_count": len(service_governance["profiles"]),
+        "service_profiles": service_governance["profiles"],
+        "service_governance": service_governance,
         "dependencies": dependencies,
         "dependency_domains": sorted(dependencies),
         "rto": environment.get("rto"),
         "rpo": environment.get("rpo"),
-        "owner": environment.get("owner") or config.get("owner"),
+        "owner": environment_owner,
     }
 
 
@@ -128,7 +142,14 @@ def config_policy_bundle(config):
 
 def config_ci_options(config):
     bundle = config_policy_bundle(config)
-    return bundle.get("ci") or {}
+    options = dict(bundle.get("ci") or {})
+    if not options.get("fail_on"):
+        governance = config_environment_model(config)["service_governance"]
+        options["fail_on"] = governance["recommended_fail_on"]
+        options["fail_on_source"] = "service_tier_default"
+    else:
+        options["fail_on_source"] = "explicit_policy"
+    return options
 
 
 def config_report_options(config):
