@@ -1,0 +1,150 @@
+observability.review.input_invalid:
+  title: Observability review input is invalid
+  description: The observability review document does not satisfy its supported contract.
+  severity_default: ERROR
+  category: observability_readiness
+  recommendation: Correct the input against the v1 observability review schema.
+observability.service.owner_missing:
+  title: Observability owner is missing
+  description: The service has no accountable owner for its observable operating controls.
+  severity_default: HIGH
+  category: operational_ownership
+  recommendation: Declare the accountable service or observability owner.
+observability.evidence.timestamp_missing:
+  title: Evidence capture timestamp is missing
+  description: Evidence freshness cannot be established without a valid capture timestamp.
+  severity_default: HIGH
+  category: evidence_quality
+  recommendation: Add an RFC 3339 captured_at timestamp.
+observability.evidence.stale:
+  title: Observability evidence is stale
+  description: The supplied evidence exceeds its declared maximum age.
+  severity_default: ERROR
+  category: evidence_quality
+  recommendation: Refresh evidence before making a release decision.
+observability.slo.missing:
+  title: Service-level objective is missing
+  description: No measurable service-level objective was supplied for the service.
+  severity_default: HIGH
+  category: reliability
+  recommendation: Define a measurable SLO and rolling window.
+observability.slo.invalid:
+  title: Service-level objective is invalid
+  description: An SLO target or rolling window cannot support reliable budget calculations.
+  severity_default: ERROR
+  category: reliability
+  recommendation: Correct the SLO target and window.
+observability.error_budget.exhausted:
+  title: Error budget is exhausted
+  description: The service has no declared reliability budget remaining in its current window.
+  severity_default: CRITICAL
+  category: reliability
+  recommendation: Apply the error-budget policy and restore reliability.
+observability.slo.burn_rate_multi_window_missing:
+  title: Multi-window burn-rate alert is missing
+  description: The SLO lacks paired windows for fast and sustained budget consumption.
+  severity_default: HIGH
+  category: alerting
+  recommendation: Configure paired fast- and slow-burn windows.
+observability.alerts.missing:
+  title: Actionable alerts are missing
+  description: No alert evidence was supplied for material service degradation.
+  severity_default: HIGH
+  category: alerting
+  recommendation: Declare symptom-based alerts and response ownership.
+observability.alert.governance_incomplete:
+  title: Alert governance is incomplete
+  description: An alert lacks ownership, routing, severity, or a response runbook.
+  severity_default: HIGH
+  category: alerting
+  recommendation: Add owner, route, severity, and runbook.
+observability.dashboard.critical_signals_missing:
+  title: Critical dashboard signals are missing
+  description: Service dashboards do not cover all five critical operating signals.
+  severity_default: HIGH
+  category: dashboards
+  recommendation: Cover availability, latency, traffic, errors, and saturation.
+observability.telemetry.signals_missing:
+  title: Telemetry signals are missing
+  description: Metrics, logs, or traces are not evidenced for the reviewed service.
+  severity_default: HIGH
+  category: telemetry_quality
+  recommendation: Supply metrics, logs, and traces or an approved exception.
+observability.telemetry.data_stale:
+  title: Telemetry data is stale
+  description: One or more signals have no valid sample within the declared maximum age.
+  severity_default: ERROR
+  category: telemetry_quality
+  recommendation: Restore telemetry delivery and verify recent samples.
+observability.trace.propagation_unverified:
+  title: Trace propagation is unverified
+  description: End-to-end trace context has not been verified across service boundaries.
+  severity_default: HIGH
+  category: telemetry_quality
+  recommendation: Verify trace context across synchronous and asynchronous boundaries.
+observability.telemetry.correlation_incomplete:
+  title: Cross-signal correlation is incomplete
+  description: Operators cannot reliably pivot from logs and metrics to related traces.
+  severity_default: MEDIUM
+  category: telemetry_quality
+  recommendation: Connect logs and metrics to traces.
+observability.telemetry.sampling_invalid:
+  title: Trace sampling is invalid
+  description: The declared trace sampling ratio is absent or outside its supported range.
+  severity_default: HIGH
+  category: telemetry_quality
+  recommendation: Declare a bounded sampling strategy.
+observability.metrics.cardinality_budget_exceeded:
+  title: Metric cardinality budget is exceeded
+  description: Active metric series exceed the service's declared series budget.
+  severity_default: HIGH
+  category: telemetry_cost
+  recommendation: Remove unbounded labels and enforce a series budget.
+observability.telemetry.cost_budget_exceeded:
+  title: Observability cost budget is exceeded
+  description: Declared monthly telemetry cost exceeds its approved budget.
+  severity_default: MEDIUM
+  category: telemetry_cost
+  recommendation: Review volume, retention, aggregation, and sampling.
+observability.telemetry.sensitive_data_detected:
+  title: Sensitive data is present in telemetry
+  description: Supplied evidence declares potentially sensitive fields in telemetry.
+  severity_default: CRITICAL
+  category: data_security
+  recommendation: Stop ingestion, redact at source, and rotate exposed credentials.
+observability.synthetic.coverage_missing:
+  title: Synthetic monitoring coverage is missing
+  description: No enabled and owned synthetic check covers a customer journey.
+  severity_default: MEDIUM
+  category: monitoring_coverage
+  recommendation: Monitor the primary customer journey with an owned synthetic check.
+observability.incident.timeline_incomplete:
+  title: Incident timeline evidence is incomplete
+  description: A material incident lacks required lifecycle or evidence fields.
+  severity_default: MEDIUM
+  category: incident_management
+  recommendation: Record detection, mitigation, resolution, ownership, and evidence.
+observability.history.insufficient:
+  title: Historical evidence is insufficient
+  description: Too few comparable snapshots exist to support trend analysis.
+  severity_default: MEDIUM
+  category: evidence_quality
+  recommendation: Retain comparable snapshots across releases and incidents.
+observability.history.degrading_trend:
+  title: Historical telemetry has a degrading trend
+  description: A risk-oriented metric has worsened materially across comparable snapshots.
+  severity_default: HIGH
+  category: evidence_quality
+  recommendation: Investigate the trend and correlate it with releases or demand.
+observability.deployment.regression_detected:
+  title: A deployment is correlated with telemetry regression
+  description: Post-deployment signals materially exceed their preceding window values.
+  severity_default: HIGH
+  category: runtime_stability
+  recommendation: Inspect the deployment diff and rollback safety.
+observability.review.controls_verified:
+  title: Observable operating controls are declared
+  description: The supplied review satisfies the deterministic observability control checks.
+  severity_default: INFO
+  category: observability_readiness
+  recommendation: Retain and refresh the reviewed evidence.

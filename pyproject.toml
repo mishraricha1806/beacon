@@ -83,6 +83,7 @@ examples = [
     "supported/cloud/*.yaml",
     "supported/kafka/*.yaml",
     "supported/kubernetes/*.yaml",
+    "supported/observability/*.yaml",
     "supported/runtime/*.yaml",
     "supported/terraform/*.tf",
     "iac-coverage/*.json"

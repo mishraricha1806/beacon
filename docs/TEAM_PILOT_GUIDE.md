@@ -45,6 +45,8 @@ jobs:
         uses: mishraricha1806/beacon/.github/actions/beacon-readiness@v1
         with:
           scan-path: .
+          # Optional versioned service observability posture:
+          # observability-review: observability-review.yaml
           environment: prod
           fail-on: high
           # Optional after the first accepted baseline is stored in the repository:

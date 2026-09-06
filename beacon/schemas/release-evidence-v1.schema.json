@@ -29,6 +29,17 @@
     "decision": {"enum": ["READY", "READY WITH RISKS", "NOT READY"]},
     "score": {"type": "number", "minimum": 0, "maximum": 100},
     "counts": {"type": "object"},
+    "evidence_quality": {
+      "type": "object",
+      "required": ["freshness", "confidence", "evidence_bound_findings", "total_findings"],
+      "properties": {
+        "freshness": {"type": "object"},
+        "confidence": {"type": "object"},
+        "evidence_bound_findings": {"type": "integer", "minimum": 0},
+        "total_findings": {"type": "integer", "minimum": 0}
+      },
+      "additionalProperties": false
+    },
     "blocking_risks": {"type": "array"},
     "major_risks": {"type": "array"},
     "production_blockers": {"type": "object"}

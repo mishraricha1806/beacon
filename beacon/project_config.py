@@ -198,6 +198,9 @@ def config_live_inputs(config, config_path):
         "flow_path": resolve_config_path(config_path, runtime.get("flow")),
         "prometheus_path": resolve_config_path(config_path, runtime.get("prometheus")),
         "opentelemetry_path": resolve_config_path(config_path, runtime.get("opentelemetry")),
+        "observability_review_path": resolve_config_path(
+            config_path, runtime.get("observability_review")
+        ),
         "kafka_acl_path": resolve_config_path(config_path, kafka.get("acls")),
         "kafka_history_path": resolve_config_path(config_path, kafka.get("history")),
         "deployment_events_path": resolve_config_path(

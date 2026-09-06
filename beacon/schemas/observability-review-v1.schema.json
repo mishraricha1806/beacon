@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://beacon.dev/schemas/observability-review-v1.schema.json",
+  "title": "Beacon Observability Review v1",
+  "type": "object",
+  "required": ["observability_review"],
+  "properties": {
+    "observability_review": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "captured_at",
+        "service",
+        "slos",
+        "alerts",
+        "dashboards",
+        "telemetry",
+        "synthetics",
+        "history"
+      ],
+      "properties": {
+        "schema_version": {"const": "1.0.0"},
+        "captured_at": {"type": "string", "format": "date-time"},
+        "freshness_policy": {
+          "type": "object",
+          "properties": {"max_age_hours": {"type": "number", "exclusiveMinimum": 0}},
+          "additionalProperties": false
+        },
+        "service": {
+          "type": "object",
+          "required": ["name", "owner", "tier"],
+          "properties": {
+            "name": {"type": "string", "minLength": 1},
+            "owner": {"type": "string", "minLength": 1},
+            "tier": {"enum": ["tier-0", "tier-1", "tier-2", "tier-3"]}
+          },
+          "additionalProperties": true
+        },
+        "slos": {"type": "array", "items": {"$ref": "#/$defs/slo"}},
+        "alerts": {"type": "array", "items": {"$ref": "#/$defs/alert"}},
+        "dashboards": {"type": "array", "items": {"$ref": "#/$defs/dashboard"}},
+        "telemetry": {"$ref": "#/$defs/telemetry"},
+        "synthetics": {"type": "array", "items": {"$ref": "#/$defs/synthetic"}},
+        "incidents": {"type": "array", "items": {"type": "object"}},
+        "deployments": {"type": "array", "items": {"type": "object"}},
+        "history": {
+          "type": "object",
+          "required": ["snapshots"],
+          "properties": {
+            "minimum_snapshots": {"type": "integer", "minimum": 1},
+            "snapshots": {"type": "array", "items": {"type": "object"}}
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "slo": {
+      "type": "object",
+      "required": ["name", "target_percent", "window_days", "burn_rate_alerts"],
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "target_percent": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 100},
+        "window_days": {"type": "number", "exclusiveMinimum": 0},
+        "error_budget_remaining_percent": {"type": "number"},
+        "burn_rate_alerts": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "object",
+            "required": ["window", "threshold"],
+            "properties": {
+              "window": {"type": "string", "minLength": 1},
+              "threshold": {"type": "number", "exclusiveMinimum": 0}
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "alert": {
+      "type": "object",
+      "required": ["name", "owner", "route", "severity", "runbook_url"],
+      "properties": {
+        "name": {"type": "string"},
+        "owner": {"type": "string"},
+        "route": {"type": "string"},
+        "severity": {"type": "string"},
+        "runbook_url": {"type": "string"}
+      },
+      "additionalProperties": true
+    },
+    "dashboard": {
+      "type": "object",
+      "required": ["name", "owner", "url", "signals"],
+      "properties": {
+        "name": {"type": "string"},
+        "owner": {"type": "string"},
+        "url": {"type": "string"},
+        "signals": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "telemetry": {
+      "type": "object",
+      "required": ["signals", "trace_sampling_ratio", "correlations"],
+      "properties": {
+        "signals": {
+          "type": "object",
+          "properties": {
+            "metrics": {"type": "boolean"},
+            "logs": {"type": "boolean"},
+            "traces": {"type": "boolean"}
+          }
+        },
+        "trace_sampling_ratio": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+        "trace_propagation_verified": {"type": "boolean"},
+        "correlations": {"type": "array", "items": {"type": "string"}},
+        "max_signal_age_minutes": {"type": "number", "exclusiveMinimum": 0},
+        "last_seen_at": {
+          "type": "object",
+          "additionalProperties": {"type": "string", "format": "date-time"}
+        },
+        "active_series": {"type": "number", "minimum": 0},
+        "active_series_budget": {"type": "number", "minimum": 0},
+        "monthly_cost": {"type": "number", "minimum": 0},
+        "monthly_cost_budget": {"type": "number", "minimum": 0},
+        "sensitive_fields_detected": {"type": "array", "items": {"type": "string"}}
+      },
+      "additionalProperties": true
+    },
+    "synthetic": {
+      "type": "object",
+      "required": ["name", "enabled", "owner"],
+      "properties": {
+        "name": {"type": "string"},
+        "enabled": {"type": "boolean"},
+        "owner": {"type": "string"}
+      },
+      "additionalProperties": true
+    }
+  }
+}

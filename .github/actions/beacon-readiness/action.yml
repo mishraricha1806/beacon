@@ -22,6 +22,10 @@ inputs:
     description: Optional path to previous Beacon release evidence for changed-risk comparison.
     required: false
     default: ""
+  observability-review:
+    description: Optional path to a versioned Beacon observability review YAML or JSON file.
+    required: false
+    default: ""
 
 outputs:
   report-path:
@@ -78,11 +82,18 @@ runs:
         BEACON_SCAN_PATH: ${{ inputs.scan-path }}
         BEACON_ENVIRONMENT: ${{ inputs.environment }}
         BEACON_FAIL_ON: ${{ inputs.fail-on }}
+        BEACON_OBSERVABILITY_REVIEW: ${{ inputs.observability-review }}
       run: |
         set +e
         set -o pipefail
         mkdir -p beacon-reports
-        beacon readiness static "${BEACON_SCAN_PATH}" \
+        review_args=()
+        if [ -n "${BEACON_OBSERVABILITY_REVIEW}" ]; then
+          review_args+=(--observability-review "${BEACON_OBSERVABILITY_REVIEW}")
+        fi
+        beacon readiness all \
+          --static-path "${BEACON_SCAN_PATH}" \
+          "${review_args[@]}" \
           --environment "${BEACON_ENVIRONMENT}" \
           --no-html \
           --no-open-report \

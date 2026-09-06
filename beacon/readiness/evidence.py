@@ -24,6 +24,7 @@ def build_release_evidence_pack(summary, findings):
         "primary_risk_area": summary.get("primary_risk_area"),
         "domains_covered": domains_covered(interpreted),
         "evidence_files": evidence_files(interpreted),
+        "evidence_quality": evidence_quality(interpreted),
         "counts": {
             "critical": summary.get("critical", 0),
             "high": summary.get("high", 0),
@@ -44,9 +45,7 @@ def build_release_evidence_pack(summary, findings):
         "fix_plan": summary.get("fix_plan", [])[:8],
         "release_review_checklist": summary.get("release_review_checklist", []),
         "coverage": coverage(summary),
-        "service_governance": (summary.get("environment_readiness") or {}).get(
-            "service_governance"
-        )
+        "service_governance": (summary.get("environment_readiness") or {}).get("service_governance")
         or {},
     }
     evidence["production_blockers"] = build_production_blockers(summary, evidence)
@@ -99,6 +98,26 @@ def domains_covered(findings):
 def evidence_files(findings):
     files = {finding.get("file") for finding in findings if finding.get("file")}
     return sorted(files)
+
+
+def evidence_quality(findings):
+    freshness = {"CURRENT": 0, "STALE": 0, "UNKNOWN": 0}
+    confidence = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    evidence_bound = 0
+    for finding in findings:
+        assessment = (finding.get("evidence") or {}).get("assessment") or {}
+        freshness_value = assessment.get("freshness", "UNKNOWN")
+        confidence_value = assessment.get("confidence", "LOW")
+        freshness[freshness_value] = freshness.get(freshness_value, 0) + 1
+        confidence[confidence_value] = confidence.get(confidence_value, 0) + 1
+        if assessment.get("evidence_bound") is True:
+            evidence_bound += 1
+    return {
+        "freshness": freshness,
+        "confidence": confidence,
+        "evidence_bound_findings": evidence_bound,
+        "total_findings": len(findings),
+    }
 
 
 def waived_count(findings):

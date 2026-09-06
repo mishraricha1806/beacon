@@ -21,6 +21,11 @@ Current stable focus:
 - inspectable readiness packs
 - local Docker/CLI/UI usage
 
+Preview product capability:
+
+- deterministic observability posture review for SLOs, burn-rate alerts,
+  dashboards, telemetry quality/cost, synthetics, incidents, and history
+
 Experimental areas:
 
 - Kafka runtime diagnostics
@@ -62,6 +67,7 @@ Beacon currently has these supported surfaces:
 | Kubernetes manifest readiness | Stable/RC | Probes, resources, PDBs, security context, admission/RBAC patterns |
 | Terraform/cloud readiness | Stable/RC | HCL, plan/state JSON, cloud inventory, IAM, storage, database/network posture |
 | IaC coverage | Preview | Compares inventory exports with Terraform state and ownership metadata |
+| Observability review | Preview | SLOs, alert governance, dashboards, telemetry quality/cost, synthetics, and history |
 | Runtime diagnostics | Experimental | Kafka-first snapshots and live/read-only inputs |
 | Flow correlation | Experimental | API -> Kafka -> consumer -> database style snapshot correlation |
 
@@ -75,6 +81,7 @@ Beacon can evaluate:
 - API, database, storage, and platform runtime snapshots
 - Prometheus collector configs and OpenTelemetry exports
 - Cross-system flow degradation and deployment-triggered regression signals
+- Versioned observability posture declarations with evidence freshness and confidence
 
 ## Architecture At A Glance
 
@@ -146,7 +153,12 @@ python3 -m beacon.cli packs show iac-coverage-readiness
 python3 -m beacon.cli packs rules iac-coverage-readiness
 python3 -m beacon.cli packs show distributed-system-production-readiness
 python3 -m beacon.cli packs rules distributed-system-production-readiness
+python3 -m beacon.cli packs show observability-production-readiness
+python3 -m beacon.cli packs rules observability-production-readiness
 ```
+
+For the review contract, CI usage, evidence semantics, and rollout guidance, see
+[`docs/OBSERVABILITY_REVIEW.md`](docs/OBSERVABILITY_REVIEW.md).
 
 `packs show` summarizes each pack by severity and readiness category, including
 how many rules are release-gate signals versus advisory/context signals. That
@@ -221,7 +233,7 @@ docker run --rm \
 Run the UI:
 
 ```bash
-docker run --rm -p 8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
+docker run --rm -p 127.0.0.1:8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
 ```
 
 Open:
@@ -236,7 +248,7 @@ Use `0.0.0.0` only in the Docker command. In the browser, use
 If port `8765` is busy:
 
 ```bash
-docker run --rm -p 8777:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
+docker run --rm -p 127.0.0.1:8777:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
 ```
 
 Then open:
@@ -371,7 +383,7 @@ What Beacon checks:
 1. Start the UI:
 
    ```bash
-   docker run --rm -p 8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
+   docker run --rm -p 127.0.0.1:8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
    ```
 
 2. Open:
@@ -444,7 +456,7 @@ What Beacon checks:
 1. Start the UI:
 
    ```bash
-   docker run --rm -p 8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
+   docker run --rm -p 127.0.0.1:8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
    ```
 
 2. Open:
@@ -526,7 +538,7 @@ connections.
 1. Start the UI:
 
    ```bash
-   docker run --rm -p 8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
+   docker run --rm -p 127.0.0.1:8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
    ```
 
 2. Open:
@@ -641,7 +653,7 @@ shows how Beacon handles unreachable read-only collectors in a release gate.
 1. Start the UI:
 
    ```bash
-   docker run --rm -p 8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
+   docker run --rm -p 127.0.0.1:8765:8765 ghcr.io/mishraricha1806/beacon:latest ui --host 0.0.0.0 --port 8765
    ```
 
 2. Open:

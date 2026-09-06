@@ -27,8 +27,10 @@ from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.schema_registry_connector import analyze_schema_registry_config
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
+from beacon.observability_review import analyze_observability_review_file
 from beacon.deployment_events import analyze_deployment_events_file
 from beacon.iac_coverage import analyze_iac_coverage
+from beacon.evidence_quality import annotate_evidence_quality
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
 from beacon.readiness.comparison import compare_release_evidence, format_comparison_markdown
 from beacon.engine import metadata_registry as rules_registry
@@ -169,6 +171,7 @@ def emit_readiness(
     junit_output=None,
     fail_on="high",
 ):
+    findings = annotate_evidence_quality(findings)
     findings = apply_runtime_policy(
         findings,
         policy_path=policy_path,
@@ -228,6 +231,7 @@ def emit_diagnostics(
     environment=None,
     intelligence_context=None,
 ):
+    findings = annotate_evidence_quality(findings)
     findings = apply_runtime_policy(findings, policy_path=policy_path)
     diagnostic_summary = build_diagnostic_summary(
         findings,
@@ -253,6 +257,7 @@ def collect_all_domain_findings(
     kafka_acl_path=None,
     kafka_history_path=None,
     deployment_events_path=None,
+    observability_review_path=None,
     prometheus_timeout=5,
     schema_registry_timeout=5,
     kafka_bootstrap_server=None,
@@ -306,6 +311,14 @@ def collect_all_domain_findings(
         findings.extend(
             collect_domain_findings(
                 "opentelemetry", lambda: analyze_opentelemetry_file(opentelemetry_path)
+            )
+        )
+
+    if observability_review_path:
+        findings.extend(
+            collect_domain_findings(
+                "observability_review",
+                lambda: analyze_observability_review_file(observability_review_path),
             )
         )
 
@@ -1177,6 +1190,11 @@ def diagnose_all(
     deployment_events_path: str = typer.Option(
         None, "--deployment-events", help="Deployment events YAML or JSON path."
     ),
+    observability_review_path: str = typer.Option(
+        None,
+        "--observability-review",
+        help="Versioned observability review YAML or JSON path.",
+    ),
     prometheus_timeout: int = typer.Option(
         5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
     ),
@@ -1231,6 +1249,7 @@ def diagnose_all(
         kafka_acl_path=kafka_acl_path,
         kafka_history_path=kafka_history_path,
         deployment_events_path=deployment_events_path,
+        observability_review_path=observability_review_path,
         prometheus_timeout=prometheus_timeout,
         schema_registry_timeout=schema_registry_timeout,
         kafka_bootstrap_server=kafka_bootstrap_server,
@@ -1544,6 +1563,11 @@ def readiness_all(
     deployment_events_path: str = typer.Option(
         None, "--deployment-events", help="Deployment events YAML or JSON path."
     ),
+    observability_review_path: str = typer.Option(
+        None,
+        "--observability-review",
+        help="Versioned observability review YAML or JSON path.",
+    ),
     prometheus_timeout: int = typer.Option(
         5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
     ),
@@ -1594,6 +1618,12 @@ def readiness_all(
         "--evidence-output",
         help="Write readiness_summary.release_evidence to this JSON file.",
     ),
+    sarif_output: str = typer.Option(
+        None, "--sarif-output", help="Write SARIF 2.1.0 findings."
+    ),
+    junit_output: str = typer.Option(
+        None, "--junit-output", help="Write JUnit XML findings."
+    ),
 ):
     """Analyze production readiness across all provided Beacon domains."""
 
@@ -1607,6 +1637,7 @@ def readiness_all(
         kafka_acl_path=kafka_acl_path,
         kafka_history_path=kafka_history_path,
         deployment_events_path=deployment_events_path,
+        observability_review_path=observability_review_path,
         prometheus_timeout=prometheus_timeout,
         schema_registry_timeout=schema_registry_timeout,
         kafka_bootstrap_server=kafka_bootstrap_server,
@@ -1635,6 +1666,9 @@ def readiness_all(
         context_path=context_path,
         policy_path=policy_path,
         evidence_output=evidence_output,
+        sarif_output=sarif_output,
+        junit_output=junit_output,
+        fail_on=fail_on or "high",
     )
     maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
@@ -1818,6 +1852,45 @@ def readiness_prometheus(
         environment=environment,
         context_path=context_path,
     )
+
+
+@readiness_app.command("observability")
+def readiness_observability(
+    path: str = typer.Argument(..., help="Path to a versioned observability review."),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+    policy_path: str = typer.Option(None, "--policy", help="Policy and waiver YAML."),
+    ci: bool = typer.Option(False, "--ci", help="Enable the configured readiness gate."),
+    fail_on: str = typer.Option(None, "--fail-on", help="CI severity threshold."),
+    evidence_output: str = typer.Option(None, "--evidence-output"),
+    sarif_output: str = typer.Option(None, "--sarif-output"),
+    junit_output: str = typer.Option(None, "--junit-output"),
+):
+    """Review SLOs, alerts, dashboards, telemetry, synthetics, and history."""
+    findings = analyze_observability_review_file(path)
+    summary = emit_readiness(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        environment=environment,
+        context_path=context_path,
+        policy_path=policy_path,
+        evidence_output=evidence_output,
+        sarif_output=sarif_output,
+        junit_output=junit_output,
+        fail_on=fail_on or "high",
+    )
+    maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
 
 @readiness_app.command("opentelemetry")
