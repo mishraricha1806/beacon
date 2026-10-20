@@ -1,4 +1,4 @@
-from jinja2 import Template
+from jinja2 import Environment, select_autoescape
 import os
 import re
 import webbrowser
@@ -485,6 +485,34 @@ HTML_TEMPLATE = """
         <p class="muted">Scoring model: {{ readiness_summary.score_formula }}</p>
     </div>
 
+    {% if readiness_summary.readiness_evidence_quality %}
+    <div class="card section">
+        <h2>Readiness Evidence Quality</h2>
+        <p class="text-block">
+            <strong>Status:</strong>
+            {{ readiness_summary.readiness_evidence_quality.status }}
+            ({{ readiness_summary.readiness_evidence_quality.score }}/100)
+        </p>
+        <p class="text-block"><strong>Reason:</strong> {{ readiness_summary.readiness_evidence_quality.reason }}</p>
+        {% if readiness_summary.readiness_evidence_quality.strengths %}
+        <strong>Evidence Strengths</strong>
+        <ul>
+            {% for strength in readiness_summary.readiness_evidence_quality.strengths[:4] %}
+            <li>{{ strength }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% if readiness_summary.readiness_evidence_quality.context_gaps %}
+        <strong>Context Gaps</strong>
+        <ul>
+            {% for gap in readiness_summary.readiness_evidence_quality.context_gaps[:4] %}
+            <li>{{ gap }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if readiness_summary.operational_decisions %}
     <div class="card section">
         <h2>Operational Decisions</h2>
@@ -524,6 +552,32 @@ HTML_TEMPLATE = """
             </div>
             {% endfor %}
         </div>
+    </div>
+    {% endif %}
+
+    {% if readiness_summary.fix_plan %}
+    <div class="card section">
+        <h2>Fix Plan</h2>
+        <table>
+            <tr>
+                <th>#</th>
+                <th>Severity</th>
+                <th>Disposition</th>
+                <th>Risk</th>
+                <th>Action</th>
+                <th>Validation Needed</th>
+            </tr>
+            {% for item in readiness_summary.fix_plan[:8] %}
+            <tr>
+                <td>{{ item.rank }}</td>
+                <td>{{ item.severity }}</td>
+                <td>{{ item.disposition }}</td>
+                <td>{{ item.title }}</td>
+                <td>{{ item.action }}</td>
+                <td>{{ item.validation_needed[:2] | join('; ') }}</td>
+            </tr>
+            {% endfor %}
+        </table>
     </div>
     {% endif %}
 
@@ -731,6 +785,16 @@ HTML_TEMPLATE = """
             <div class="finding-title">{{ risk.title }}</div>
             <p class="text-block"><strong>Category:</strong> {{ risk.business_category }}</p>
             <p class="text-block"><strong>Affected:</strong> {{ risk.affected_count }}</p>
+            {% if risk.why_this_matters %}
+            <p class="text-block"><strong>Why This Matters:</strong> {{ risk.why_this_matters }}</p>
+            {% endif %}
+            {% if risk.evidence_quality %}
+            <p class="text-block">
+                <strong>Evidence Quality:</strong>
+                {{ risk.evidence_quality.status }} ({{ risk.evidence_quality.score }}/100)
+                · {{ risk.evidence_quality.reason }}
+            </p>
+            {% endif %}
             <p class="text-block"><strong>Recommendation:</strong> {{ risk.recommendation }}</p>
             {% if risk.remediation_command %}
             <p class="text-block"><strong>Remediation Command:</strong> <code>{{ risk.remediation_command }}</code></p>
@@ -1220,7 +1284,10 @@ def generate_html_report(
 ):
     os.makedirs("reports", exist_ok=True)
 
-    template = Template(HTML_TEMPLATE)
+    environment = Environment(
+        autoescape=select_autoescape(default_for_string=True, default=True),
+    )
+    template = environment.from_string(HTML_TEMPLATE)
 
     # enrich findings with rule metadata when available for richer HTML
     enriched = []

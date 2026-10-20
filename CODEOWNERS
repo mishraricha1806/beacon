@@ -1,0 +1,10 @@
+# Default product ownership
+* @mishraricha1806
+
+# Security, releases, and public contracts
+/SECURITY.md @mishraricha1806
+/.github/ @mishraricha1806
+/Dockerfile @mishraricha1806
+/beacon/contracts.py @mishraricha1806
+/beacon/schemas/ @mishraricha1806
+/packs/ @mishraricha1806

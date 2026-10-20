@@ -7,8 +7,9 @@ name = "beacon-readiness"
 version = "0.1.10"
 description = "Production-readiness intelligence for distributed systems"
 readme = "README.md"
-requires-python = ">=3.9"
-license = {text = "Proprietary"}
+requires-python = ">=3.10"
+license = "LicenseRef-Proprietary"
+license-files = ["LICENSE"]
 authors = [
     {name = "Richa Mishra", email = "mishraricha1806@gmail.com"}
 ]
@@ -28,12 +29,10 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",
-    "License :: Other/Proprietary License",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: POSIX :: Linux",
     "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -74,18 +73,28 @@ Issues = "https://github.com/mishraricha1806/beacon/issues"
 beacon = "beacon.cli:app"
 
 [tool.setuptools.packages.find]
-include = ["beacon*"]
+include = ["beacon*", "packs*", "examples*"]
 
 [tool.setuptools.package-data]
-beacon = ["py.typed"]
+beacon = ["py.typed", "schemas/*.json", "rules/metadata/*.yaml"]
+packs = ["*/pack.yaml", "*/pack.yml"]
+examples = [
+    "supported/cloud/*.yaml",
+    "supported/kafka/*.yaml",
+    "supported/kubernetes/*.yaml",
+    "supported/observability/*.yaml",
+    "supported/runtime/*.yaml",
+    "supported/terraform/*.tf",
+    "iac-coverage/*.json"
+]
 
 [tool.black]
 line-length = 100
-target-version = ["py39", "py310", "py311", "py312"]
+target-version = ["py310", "py311", "py312"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I"]
@@ -99,7 +108,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false

@@ -31,6 +31,30 @@ def test_generate_html_includes_rule_id_and_evidence(tmp_path):
     assert "topics[0].replication_factor" in html
 
 
+def test_generate_html_escapes_untrusted_finding_content():
+    findings = [
+        {
+            "severity": "HIGH",
+            "title": '<script>alert("beacon")</script>',
+            "impact": '<img src=x onerror="alert(1)">',
+            "recommendation": "Review the source evidence.",
+            "file": "untrusted.yaml",
+            "rule_id": "scanner.untrusted.content",
+            "evidence": {"value": "<b>not trusted markup</b>"},
+        }
+    ]
+
+    generate_html_report(findings, score=50, open_report=False)
+
+    with open(os.path.join("reports", "report.html"), "r") as report_file:
+        html = report_file.read()
+
+    assert '<script>alert("beacon")</script>' not in html
+    assert "&lt;script&gt;" in html
+    assert '<img src=x onerror="alert(1)">' not in html
+    assert "&lt;img src=x" in html
+
+
 def test_generate_html_includes_release_gate_card():
     readiness_summary = {
         "score": 52,

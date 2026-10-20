@@ -40,8 +40,16 @@ environment:
   business_flows:
     - loan-application
   services:
-    - loan-api
-    - loan-decision-worker
+    - name: loan-api
+      tier: tier-0
+      owner: lending-platform
+      on_call: pagerduty-lending
+      business_flows:
+        - loan-application
+    - name: loan-decision-worker
+      tier: tier-1
+      owner: lending-platform
+      on_call: pagerduty-lending
   dependencies:
     kafka:
       clusters:
@@ -134,6 +142,31 @@ beacon run kafka-incident-demo
 
 Beacon policies let teams adapt the readiness gate to real environment context
 without hiding risk.
+
+### Service tiers and ownership
+
+Beacon normalizes every configured service into a deterministic governance profile:
+
+| Tier | Typical scope | Recommended default gate | Required approval |
+|---|---|---|---|
+| `tier-0` | Critical customer or money movement | `medium` | Service owner and SRE/platform approver |
+| `tier-1` | High-impact production service | `high` | Service owner |
+| `tier-2` | Standard production service | `critical` | Service owner or delegated reviewer |
+| `tier-3` | Low-impact or development utility | `critical` | Team reviewer |
+
+When `ci.fail_on` is omitted, Beacon derives it from the strictest configured service tier. An explicit `ci.fail_on` always wins. Tier-0 and tier-1 services without an owner block the service-governance review checkpoint; missing on-call metadata requires review.
+
+String service entries remain supported and inherit the environment owner and criticality:
+
+```yaml
+environment:
+  criticality: medium
+  owner: platform-team
+  services:
+    - internal-reporter
+```
+
+Use structured entries whenever different services have different owners or tiers.
 
 Built-in readiness profiles:
 

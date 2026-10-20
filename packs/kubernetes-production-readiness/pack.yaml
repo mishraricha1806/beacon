@@ -1,8 +1,21 @@
+schema_version: 1.0.0
 id: kubernetes-production-readiness
 name: Kubernetes Production Readiness
 version: 0.1.0
 status: preview
-owner: beacon
+owner: beacon-platform
+support_tier: experimental
+engine_compatibility:
+  min_version: 0.1.0
+  max_version_exclusive: 0.2.0
+fixtures:
+  - path: examples/supported/kubernetes/deployment.yaml
+    expected_rule_ids:
+      - k8s.workload.probes.missing
+deprecation:
+  notice: null
+  removal_after: null
+  replacement: null
 summary: >
   Inspectable Kubernetes readiness checks for workload availability, cluster
   attack surface, admission safety, runtime stability, and production

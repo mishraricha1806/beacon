@@ -1,4 +1,7 @@
-from datetime import datetime, timezone
+import hashlib
+import json
+
+from beacon.contracts import RELEASE_EVIDENCE_SCHEMA_VERSION, contract_metadata
 
 BLOCKING_SEVERITIES = {"ERROR", "CRITICAL"}
 MAJOR_SEVERITIES = {"HIGH"}
@@ -12,7 +15,7 @@ def build_release_evidence_pack(summary, findings):
     waived_risks = waived_rows(interpreted)
 
     evidence = {
-        "generated_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        **contract_metadata(RELEASE_EVIDENCE_SCHEMA_VERSION),
         "decision": summary.get("production_decision"),
         "score": summary.get("score"),
         "score_status": summary.get("score_status"),
@@ -21,6 +24,7 @@ def build_release_evidence_pack(summary, findings):
         "primary_risk_area": summary.get("primary_risk_area"),
         "domains_covered": domains_covered(interpreted),
         "evidence_files": evidence_files(interpreted),
+        "evidence_quality": evidence_quality(interpreted),
         "counts": {
             "critical": summary.get("critical", 0),
             "high": summary.get("high", 0),
@@ -38,7 +42,11 @@ def build_release_evidence_pack(summary, findings):
         "waived_risks": waived_risks,
         "top_reasons": summary.get("top_reasons", [])[:5],
         "next_best_actions": summary.get("next_best_actions", [])[:5],
+        "fix_plan": summary.get("fix_plan", [])[:8],
+        "release_review_checklist": summary.get("release_review_checklist", []),
         "coverage": coverage(summary),
+        "service_governance": (summary.get("environment_readiness") or {}).get("service_governance")
+        or {},
     }
     evidence["production_blockers"] = build_production_blockers(summary, evidence)
     return evidence
@@ -92,6 +100,26 @@ def evidence_files(findings):
     return sorted(files)
 
 
+def evidence_quality(findings):
+    freshness = {"CURRENT": 0, "STALE": 0, "UNKNOWN": 0}
+    confidence = {"HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    evidence_bound = 0
+    for finding in findings:
+        assessment = (finding.get("evidence") or {}).get("assessment") or {}
+        freshness_value = assessment.get("freshness", "UNKNOWN")
+        confidence_value = assessment.get("confidence", "LOW")
+        freshness[freshness_value] = freshness.get(freshness_value, 0) + 1
+        confidence[confidence_value] = confidence.get(confidence_value, 0) + 1
+        if assessment.get("evidence_bound") is True:
+            evidence_bound += 1
+    return {
+        "freshness": freshness,
+        "confidence": confidence,
+        "evidence_bound_findings": evidence_bound,
+        "total_findings": len(findings),
+    }
+
+
 def waived_count(findings):
     return sum(1 for finding in findings if finding.get("waived") is True)
 
@@ -105,6 +133,7 @@ def risk_rows(grouped_risks, findings, severities):
         grouped_titles.add(risk.get("title"))
         rows.append(
             {
+                "fingerprint": risk_fingerprint(risk),
                 "severity": risk.get("severity"),
                 "title": risk.get("title"),
                 "category": risk.get("business_category") or risk.get("category"),
@@ -122,6 +151,7 @@ def risk_rows(grouped_risks, findings, severities):
             continue
         rows.append(
             {
+                "fingerprint": risk_fingerprint(finding),
                 "severity": finding.get("severity"),
                 "title": finding.get("title"),
                 "category": finding.get("business_category") or finding.get("category"),
@@ -132,6 +162,18 @@ def risk_rows(grouped_risks, findings, severities):
             }
         )
     return rows[:10]
+
+
+def risk_fingerprint(risk):
+    """Return a stable group identity without exposing raw evidence values."""
+    identity = {
+        "key": risk.get("key"),
+        "rule_id": risk.get("rule_id"),
+        "title": risk.get("title") if not risk.get("key") else None,
+        "category": risk.get("business_category") or risk.get("category"),
+    }
+    canonical = json.dumps(identity, sort_keys=True, separators=(",", ":"), default=str)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def waived_rows(findings):

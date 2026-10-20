@@ -13,6 +13,9 @@ This directory is intentionally small and engineering-focused.
 - [`MODULE_1_DEMO.md`](MODULE_1_DEMO.md) - local production-readiness demo
 - [`PROJECT_LOCAL_CONFIG.md`](PROJECT_LOCAL_CONFIG.md) - `beacon.yaml`, config discovery, local workflow
 - [`CICD_INTEGRATION.md`](CICD_INTEGRATION.md) - CI/CD usage
+- [`TEAM_PILOT_GUIDE.md`](TEAM_PILOT_GUIDE.md) - reusable CI action, evidence governance, and multi-team rollout
+- [`QUALITY_POLICY.md`](QUALITY_POLICY.md) - blocking quality gates and the legacy-debt ratchet
+- [`REPOSITORY_ADMIN_CHECKLIST.md`](REPOSITORY_ADMIN_CHECKLIST.md) - required GitHub settings and per-release controls
 
 ## Readiness Areas
 
@@ -20,6 +23,7 @@ This directory is intentionally small and engineering-focused.
 - [`KAFKA_RELEASE.md`](KAFKA_RELEASE.md) - Kafka readiness and runtime support
 - [`IAC_COVERAGE_READINESS.md`](IAC_COVERAGE_READINESS.md) - unmanaged cloud resource/IaC coverage checks
 - [`INTELLIGENCE_CONTEXT.md`](INTELLIGENCE_CONTEXT.md) - organization context and policy inputs
+- [`READINESS_PACK_CONTRACT.md`](READINESS_PACK_CONTRACT.md) - versioned pack manifests, compatibility, ownership, fixtures, and lifecycle
 - [`reference/`](reference/) - small sample standards used by examples
 
 ## Experimental Runtime Work
@@ -32,3 +36,4 @@ This directory is intentionally small and engineering-focused.
 - [`PUBLIC_DISTRIBUTION.md`](PUBLIC_DISTRIBUTION.md)
 - [`PACKAGING_RELEASE.md`](PACKAGING_RELEASE.md)
 - [`RELEASE_QUICK_REFERENCE.md`](RELEASE_QUICK_REFERENCE.md)
+- [`CONTROL_PLANE_ENTRY_CRITERIA.md`](CONTROL_PLANE_ENTRY_CRITERIA.md) - conditions required before building a shared service

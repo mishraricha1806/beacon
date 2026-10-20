@@ -31,6 +31,15 @@ RISK_POINTS = {
     "INFO": 0,
 }
 
+FIX_PRIORITY_POINTS = {
+    "ERROR": 1000,
+    "CRITICAL": 900,
+    "HIGH": 700,
+    "MEDIUM": 400,
+    "LOW": 150,
+    "INFO": 0,
+}
+
 BUSINESS_CATEGORIES = {
     "resiliency": "Availability",
     "runtime_stability": "Performance",
@@ -350,6 +359,12 @@ def build_grouped_risks(findings, environment):
                 "recommendation": group_def["recommendation"],
                 "remediation_command": group_def.get("remediation_command"),
                 "environment": environment,
+                "why_this_matters": group_def.get("why_this_matters")
+                or why_grouped_risk_matters(group_def, categories[key]),
+                "evidence_quality": grouped_risk_evidence_quality(
+                    group_def, count, examples[key], severity
+                ),
+                "fix_priority": fix_priority_score(severity, count),
             }
         )
 
@@ -392,6 +407,7 @@ def sort_grouped_risks(risks):
         risks,
         key=lambda risk: (
             SEVERITY_ORDER.get(risk.get("severity"), 99),
+            -risk.get("fix_priority", 0),
             -risk.get("affected_count", 0),
             risk.get("title", ""),
         ),
@@ -416,6 +432,59 @@ def readiness_score_from_points(risk_points):
 
 def business_category_for(category):
     return BUSINESS_CATEGORIES.get(category, "Governance")
+
+
+def why_grouped_risk_matters(group_def, category):
+    business_category = group_def.get("business_category") or business_category_for(category)
+    if business_category == "Availability":
+        return (
+            "Availability risk: this can reduce failure tolerance, increase outage "
+            "blast radius, or make recovery dependent on manual intervention."
+        )
+    if business_category == "Capacity":
+        return (
+            "Capacity risk: this can create unplanned storage growth, quota pressure, "
+            "or broker/resource saturation during normal growth or replay."
+        )
+    if business_category == "Performance":
+        return (
+            "Performance risk: this can limit parallelism, increase lag or latency, "
+            "and make traffic spikes harder to absorb."
+        )
+    if business_category == "Security":
+        return (
+            "Security risk: this can increase exposure, privilege blast radius, or "
+            "weaken production control boundaries."
+        )
+    return (
+        "Governance risk: this can slow incident routing, ownership review, cleanup, "
+        "and production exception decisions."
+    )
+
+
+def grouped_risk_evidence_quality(group_def, affected_count, examples, severity):
+    example_count = len([item for item in examples if item])
+    if affected_count >= 2 and example_count:
+        return {
+            "status": "STRONG",
+            "score": 90,
+            "reason": "Multiple affected resources were observed with concrete examples.",
+        }
+    if severity in {"ERROR", "CRITICAL", "HIGH"} and example_count:
+        return {
+            "status": "MODERATE",
+            "score": 75,
+            "reason": "A high-impact signal was observed, but broader topology or traffic context may still change priority.",
+        }
+    return {
+        "status": "NEEDS_CONTEXT",
+        "score": 55,
+        "reason": "Beacon has a deterministic signal, but environment, traffic, ownership, or topology context would improve confidence.",
+    }
+
+
+def fix_priority_score(severity, affected_count):
+    return FIX_PRIORITY_POINTS.get(severity, 0) + min(affected_count, 50)
 
 
 def build_business_categories(score_findings, grouped_risks):

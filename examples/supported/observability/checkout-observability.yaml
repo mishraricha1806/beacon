@@ -1,0 +1,56 @@
+observability_review:
+  schema_version: 1.0.0
+  captured_at: "2026-09-06T08:00:00Z"
+  freshness_policy:
+    # Long-lived example fixture only. Production reviews should normally use 24-48 hours.
+    max_age_hours: 876000
+  service:
+    name: checkout-api
+    owner: team-checkout
+    tier: tier-1
+  slos:
+    - name: checkout-availability
+      target_percent: 99.9
+      window_days: 28
+      error_budget_remaining_percent: 64
+      burn_rate_alerts:
+        - window: 5m
+          threshold: 14.4
+        - window: 1h
+          threshold: 6
+  alerts:
+    - name: checkout-fast-burn
+      owner: team-checkout
+      route: pagerduty-checkout
+      severity: critical
+      runbook_url: https://runbooks.example/checkout-fast-burn
+  dashboards:
+    - name: checkout-service
+      owner: team-checkout
+      url: https://grafana.example/d/checkout
+      signals: [availability, latency, traffic, errors, saturation]
+  telemetry:
+    signals:
+      metrics: true
+      logs: true
+      traces: true
+    trace_sampling_ratio: 0.1
+    trace_propagation_verified: true
+    correlations: [logs_to_traces, metrics_to_traces]
+    active_series: 42000
+    active_series_budget: 50000
+    monthly_cost: 7200
+    monthly_cost_budget: 8000
+    sensitive_fields_detected: []
+  synthetics:
+    - name: checkout-journey
+      enabled: true
+      owner: team-checkout
+  incidents: []
+  deployments: []
+  history:
+    minimum_snapshots: 3
+    snapshots:
+      - captured_at: "2026-09-04T08:00:00Z"
+      - captured_at: "2026-09-05T08:00:00Z"
+      - captured_at: "2026-09-06T08:00:00Z"

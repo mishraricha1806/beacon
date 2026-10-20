@@ -5,6 +5,45 @@ Use Beacon as a read-only production-readiness gate before release.
 The recommended CI path is Docker because teams can run Beacon without Python,
 source code, or local installation.
 
+For a production gate, replace `<BEACON_IMAGE_DIGEST>` with the approved release
+digest. Tags such as `latest` are suitable only for evaluation because they can
+move without a service repository change.
+
+## CI-native result formats
+
+Static readiness scans can emit SARIF 2.1.0 and JUnit XML alongside Beacon's versioned JSON evidence:
+
+```bash
+beacon readiness static . \
+  --environment prod \
+  --no-html \
+  --no-open-report \
+  --output json \
+  --ci \
+  --fail-on high \
+  --evidence-output beacon-reports/beacon-release-evidence.json \
+  --sarif-output beacon-reports/beacon-results.sarif \
+  --junit-output beacon-reports/beacon-results.xml
+```
+
+SARIF results contain stable `beaconFindingFingerprint/v1` identifiers so code-scanning systems can correlate the same finding between runs. Policy waivers are represented as accepted external suppressions. JUnit failures follow `--fail-on`; Beacon analysis errors remain JUnit errors and use process exit code `2`.
+
+## Changed-risk comparison
+
+Compare an accepted baseline with the current release evidence:
+
+```bash
+beacon compare \
+  .beacon/baseline-release-evidence.json \
+  beacon-reports/beacon-release-evidence.json \
+  --output json \
+  --markdown-output beacon-reports/beacon-comparison.md
+```
+
+New evidence uses stable risk fingerprints, so wording improvements do not appear as resolved and recreated risks. Unversioned legacy evidence remains comparable using the original title/category identity.
+
+The reusable action accepts the optional input `baseline-evidence`. It writes JSON and Markdown comparisons before enforcing the saved readiness exit code, ensuring reports are available for review even when the gate fails. Baseline changes require human review and must not be used to silently accept new risk.
+
 ## Exit Codes
 
 ```text
@@ -29,7 +68,7 @@ Run against project-local `beacon.yaml`:
 ```bash
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
-  ghcr.io/mishraricha1806/beacon:latest readiness \
+  ghcr.io/mishraricha1806/beacon@sha256:<BEACON_IMAGE_DIGEST> readiness \
   --config /workspace/project/beacon.yaml \
   --ci \
   --fail-on high \
@@ -44,7 +83,7 @@ Run against a static infra folder:
 ```bash
 docker run --rm \
   -v "$PWD:/workspace/project:ro" \
-  ghcr.io/mishraricha1806/beacon:latest readiness static \
+  ghcr.io/mishraricha1806/beacon@sha256:<BEACON_IMAGE_DIGEST> readiness static \
   /workspace/project/infra \
   --environment prod \
   --ci \
@@ -90,13 +129,13 @@ jobs:
   readiness:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Run Beacon readiness gate
         run: |
           docker run --rm \
             -v "$PWD:/workspace/project:ro" \
-            ghcr.io/mishraricha1806/beacon:latest readiness \
+            ghcr.io/mishraricha1806/beacon@sha256:<BEACON_IMAGE_DIGEST> readiness \
             --config /workspace/project/beacon.yaml \
             --ci \
             --fail-on high \
@@ -107,7 +146,7 @@ jobs:
 
       - name: Upload Beacon evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: beacon-readiness
           path: |
@@ -134,7 +173,7 @@ beacon_readiness:
     - |
       docker run --rm \
         -v "$CI_PROJECT_DIR:/workspace/project:ro" \
-        ghcr.io/mishraricha1806/beacon:latest readiness \
+        ghcr.io/mishraricha1806/beacon@sha256:<BEACON_IMAGE_DIGEST> readiness \
         --config /workspace/project/beacon.yaml \
         --ci \
         --fail-on high \
@@ -155,7 +194,7 @@ the Beacon image directly:
 ```yaml
 beacon_readiness:
   stage: test
-  image: ghcr.io/mishraricha1806/beacon:latest
+  image: ghcr.io/mishraricha1806/beacon@sha256:<BEACON_IMAGE_DIGEST>
   script:
     - beacon readiness --config beacon.yaml --ci --fail-on high --output json --evidence-output beacon-evidence.json --no-html --no-open-report | tee beacon-readiness.json
   artifacts:
@@ -177,7 +216,7 @@ pipeline {
         sh '''
           docker run --rm \
             -v "$PWD:/workspace/project:ro" \
-            ghcr.io/mishraricha1806/beacon:latest readiness \
+            ghcr.io/mishraricha1806/beacon@sha256:<BEACON_IMAGE_DIGEST> readiness \
             --config /workspace/project/beacon.yaml \
             --ci \
             --fail-on high \

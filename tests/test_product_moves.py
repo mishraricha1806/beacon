@@ -291,6 +291,14 @@ def test_readiness_groups_repeated_kafka_topic_findings_for_nonprod():
         risk["key"] == "kafka.topic_rf_low" and risk["affected_count"] == 3
         for risk in summary["grouped_risks"]
     )
+    rf_risk = next(risk for risk in summary["grouped_risks"] if risk["key"] == "kafka.topic_rf_low")
+    assert rf_risk["why_this_matters"]
+    assert rf_risk["evidence_quality"]["status"] in {
+        "STRONG",
+        "MODERATE",
+        "NEEDS_CONTEXT",
+    }
+    assert rf_risk["fix_priority"] >= 0
     assert summary["suppressed_duplicate_count"] > 0
 
 
@@ -346,12 +354,106 @@ def test_readiness_uses_weighted_group_scoring_and_business_categories():
         and risk["affected_count"] == 2
         and risk["business_category"] == "Capacity"
         and "kafka-configs" in risk["remediation_command"]
+        and risk["why_this_matters"].startswith("Capacity")
+        and risk["evidence_quality"]["status"] == "STRONG"
         for risk in summary["grouped_risks"]
     )
     assert summary["architect_assessment"]["material_risks"][0]["title"].startswith(
         "Kafka topics allow messages larger than 1MB"
     )
     assert "Raw critical/high" in summary["architect_assessment"]["score_explanation"]
+
+
+def test_readiness_summary_explains_overall_evidence_quality():
+    findings = [
+        {
+            "rule_id": "kafka.topic.max_message_bytes.large",
+            "domain": "kafka",
+            "category": "storage_sustainability",
+            "severity": "HIGH",
+            "title": f"Kafka topic '{topic}' allows messages larger than 1MB",
+            "impact": "Large messages increase broker disk I/O.",
+            "recommendation": "Keep messages small.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": topic},
+            "tags": [],
+        }
+        for topic in ("claims.response", "finance.feedback")
+    ]
+
+    summary = calculate_readiness(findings, environment="prod")
+    quality = summary["readiness_evidence_quality"]
+
+    assert quality["status"] in {"ACTIONABLE", "REVIEWABLE"}
+    assert quality["score"] >= 70
+    assert "grouped" in quality["reason"].lower()
+    assert "No organization intelligence context was loaded." in quality["context_gaps"]
+
+
+def test_readiness_summary_includes_ordered_fix_plan_from_grouped_risks():
+    findings = [
+        {
+            "rule_id": "kafka.topic.retention_ms.unbounded",
+            "domain": "kafka",
+            "category": "storage_sustainability",
+            "severity": "HIGH",
+            "title": "Kafka topic 'archive.complete' has unbounded retention",
+            "impact": "Unbounded retention can cause disk growth.",
+            "recommendation": "Set retention.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "archive.complete"},
+            "tags": [],
+        },
+        {
+            "rule_id": "kafka.topic.replication_factor.low",
+            "domain": "kafka",
+            "category": "resiliency",
+            "severity": "CRITICAL",
+            "title": "Kafka topic 'payments' has replication factor 1",
+            "impact": "Broker failure can interrupt workflows.",
+            "recommendation": "Use replication_factor=3.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "payments"},
+            "tags": [],
+        },
+    ]
+
+    summary = calculate_readiness(findings, environment="prod")
+    fix_plan = summary["fix_plan"]
+
+    assert fix_plan[0]["severity"] == "CRITICAL"
+    assert fix_plan[0]["disposition"] == "fix_before_rollout"
+    assert fix_plan[0]["safety"] == "REVIEW_REQUIRED"
+    assert fix_plan[0]["evidence_quality"]["status"] in {"MODERATE", "STRONG"}
+    assert "approved change" in fix_plan[0]["validation_needed"][0]
+    assert summary["release_evidence"]["fix_plan"][0]["title"] == fix_plan[0]["title"]
+
+
+def test_readiness_summary_includes_release_review_checklist():
+    findings = [
+        {
+            "rule_id": "kafka.topic.replication_factor.low",
+            "domain": "kafka",
+            "category": "resiliency",
+            "severity": "CRITICAL",
+            "title": "Kafka topic 'payments' has replication factor 1",
+            "impact": "Broker failure can interrupt workflows.",
+            "recommendation": "Use replication_factor=3.",
+            "file": "runtime-kafka",
+            "evidence": {"topic": "payments"},
+            "tags": [],
+        }
+    ]
+
+    summary = calculate_readiness(findings, environment="prod")
+    checklist = summary["release_review_checklist"]
+    labels = {item["label"]: item for item in checklist}
+
+    assert labels["Production blockers resolved"]["status"] == "BLOCKED"
+    assert labels["Fix plan reviewed"]["status"] == "NEEDS_REVIEW"
+    assert labels["Evidence quality acceptable"]["status"] in {"PASS", "NEEDS_REVIEW"}
+    assert labels["Environment context loaded"]["status"] == "NEEDS_REVIEW"
+    assert summary["release_evidence"]["release_review_checklist"] == checklist
 
 
 def test_readiness_environment_profile_controls_kafka_ha_severity():
@@ -482,12 +584,15 @@ def test_readiness_summary_includes_release_evidence_pack():
     summary = calculate_readiness(findings, environment="prod")
     evidence = summary["release_evidence"]
 
+    assert evidence["schema_version"] == "1.0.0"
+    assert evidence["engine"]["name"] == "beacon-readiness"
     assert evidence["decision"] == "NOT READY"
     assert evidence["environment"] == "prod"
     assert evidence["domains_covered"] == ["kafka", "kubernetes"]
     assert evidence["evidence_files"] == ["deployment.yaml", "kafka.yaml"]
     assert evidence["counts"]["waived_findings"] == 1
     assert evidence["blocking_risks"][0]["title"] == "Kafka topics have replication factor 1"
+    assert len(evidence["blocking_risks"][0]["fingerprint"]) == 64
     assert evidence["major_risks"]
     assert evidence["waived_risks"][0]["reason"] == "Retry topic preserves ordering."
     blockers = evidence["production_blockers"]
@@ -758,6 +863,43 @@ def test_readiness_static_writes_release_evidence_file(monkeypatch, tmp_path):
     assert payload["blocking_risks"][0]["title"] == "Kafka topics have replication factor 1"
 
 
+def test_readiness_static_writes_ci_native_artifacts(monkeypatch, tmp_path):
+    from beacon import cli
+
+    raw_findings = [
+        {
+            "rule_id": "k8s.workload.probes.missing",
+            "domain": "kubernetes",
+            "category": "operational_safety",
+            "severity": "HIGH",
+            "title": "Kubernetes workload missing probes",
+            "impact": "Bad pods may receive traffic.",
+            "recommendation": "Add readiness and liveness probes.",
+            "file": "deployment.yaml",
+            "evidence": {"name": "checkout-api"},
+            "tags": [],
+        }
+    ]
+    sarif_path = tmp_path / "beacon.sarif"
+    junit_path = tmp_path / "beacon.xml"
+
+    monkeypatch.setattr(cli, "scan_path", lambda path: raw_findings)
+    monkeypatch.setattr(cli, "print_report", lambda findings, **kwargs: None)
+
+    cli.readiness_static(
+        "infra",
+        html=False,
+        open_report=False,
+        output="json",
+        fail_on=None,
+        sarif_output=str(sarif_path),
+        junit_output=str(junit_path),
+    )
+
+    assert json.loads(sarif_path.read_text(encoding="utf-8"))["version"] == "2.1.0"
+    assert '<testsuite name="Beacon readiness"' in junit_path.read_text(encoding="utf-8")
+
+
 def test_release_evidence_comparison_detects_improved_release():
     before = {
         "decision": "NOT READY",
@@ -806,6 +948,43 @@ def test_release_evidence_comparison_detects_improved_release():
     assert comparison["counts_delta"]["critical"] == -1
 
 
+def test_release_evidence_comparison_prefers_stable_risk_fingerprint():
+    before = {
+        "decision": "NOT READY",
+        "score": 60,
+        "counts": {"critical": 1},
+        "blocking_risks": [
+            {
+                "fingerprint": "risk-123",
+                "severity": "CRITICAL",
+                "title": "Old human-readable title",
+                "category": "Availability",
+            }
+        ],
+        "major_risks": [],
+    }
+    after = {
+        "decision": "NOT READY",
+        "score": 60,
+        "counts": {"critical": 1},
+        "blocking_risks": [
+            {
+                "fingerprint": "risk-123",
+                "severity": "CRITICAL",
+                "title": "Improved human-readable title",
+                "category": "Availability",
+            }
+        ],
+        "major_risks": [],
+    }
+
+    comparison = compare_release_evidence(before, after)
+
+    assert comparison["verdict"] == "UNCHANGED"
+    assert comparison["new_blocking_risks"] == []
+    assert comparison["resolved_blocking_risks"] == []
+
+
 def test_release_evidence_compare_cli_outputs_json(tmp_path, capsys):
     from beacon import cli
 
@@ -850,6 +1029,59 @@ def test_release_evidence_compare_cli_outputs_json(tmp_path, capsys):
     assert payload["verdict"] == "REGRESSED"
     assert payload["score_delta"] == -25
     assert payload["new_blocking_risks"][0]["title"] == "Kubernetes workload missing probes"
+
+
+def test_release_evidence_compare_cli_writes_safe_markdown(tmp_path, capsys):
+    from beacon import cli
+
+    before_path = tmp_path / "before.json"
+    after_path = tmp_path / "after.json"
+    markdown_path = tmp_path / "comparison.md"
+    before_path.write_text(
+        json.dumps(
+            {
+                "decision": "READY",
+                "score": 95,
+                "counts": {"critical": 0},
+                "blocking_risks": [],
+                "major_risks": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    after_path.write_text(
+        json.dumps(
+            {
+                "decision": "NOT READY",
+                "score": 70,
+                "counts": {"critical": 1},
+                "blocking_risks": [
+                    {
+                        "severity": "CRITICAL",
+                        "title": "Unsafe <service> | dependency",
+                        "category": "Availability",
+                        "affected_count": 1,
+                    }
+                ],
+                "major_risks": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cli.compare_evidence(
+        str(before_path),
+        str(after_path),
+        output="markdown",
+        markdown_output=str(markdown_path),
+    )
+    stdout = capsys.readouterr().out
+    markdown = markdown_path.read_text(encoding="utf-8")
+
+    assert stdout == markdown
+    assert "## Beacon readiness comparison" in markdown
+    assert "&lt;service&gt; \\| dependency" in markdown
+    assert "Human approval remains required" in markdown
 
 
 def test_all_domain_collector_includes_static_runtime_and_live_inputs(monkeypatch):

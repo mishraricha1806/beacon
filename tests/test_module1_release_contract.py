@@ -170,6 +170,9 @@ def test_module1_json_payload_contract_shape():
     summary = calculate_readiness(findings)
 
     payload = {
+        "schema_version": "1.0.0",
+        "generated_at": "2026-08-29T00:00:00+00:00",
+        "engine": {"name": "beacon-readiness", "version": "test"},
         "score": summary["score"],
         "score_status": summary["score_status"],
         "readiness_summary": summary,
@@ -177,6 +180,9 @@ def test_module1_json_payload_contract_shape():
     }
 
     assert set(payload) == {
+        "schema_version",
+        "generated_at",
+        "engine",
         "score",
         "score_status",
         "readiness_summary",

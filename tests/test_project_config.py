@@ -100,6 +100,29 @@ def test_resolve_config_path_preserves_absolute_paths(tmp_path):
     assert resolve_config_path(config_path, "./infra") == str(tmp_path / "infra")
 
 
+def test_service_tier_supplies_ci_default_without_overriding_explicit_policy():
+    inferred = {
+        "environment": {
+            "criticality": "critical",
+            "services": [
+                {
+                    "name": "payments",
+                    "tier": "tier-0",
+                    "owner": "team-payments",
+                    "on_call": "pagerduty-payments",
+                }
+            ],
+        },
+        "ci": {"enabled": True},
+    }
+    explicit = {**inferred, "ci": {"enabled": True, "fail_on": "critical"}}
+
+    assert config_ci_options(inferred)["fail_on"] == "medium"
+    assert config_ci_options(inferred)["fail_on_source"] == "service_tier_default"
+    assert config_ci_options(explicit)["fail_on"] == "critical"
+    assert config_ci_options(explicit)["fail_on_source"] == "explicit_policy"
+
+
 def test_starter_config_contains_safe_beacon_tasks():
     config = starter_config()
 
@@ -147,3 +170,36 @@ def test_readiness_summary_includes_environment_model():
     assert environment["criticality"] == "high"
     assert environment["business_flows"] == ["checkout"]
     assert environment["blocked_dimensions"]
+
+
+def test_readiness_evidence_includes_service_governance_and_review_checkpoint():
+    from beacon.readiness.kafka.readiness_engine import calculate_readiness
+
+    model = config_environment_model(
+        {
+            "environment": {
+                "name": "prod-payments",
+                "profile": "prod",
+                "criticality": "critical",
+                "services": [
+                    {
+                        "name": "payments-api",
+                        "tier": "tier-0",
+                        "owner": "team-payments",
+                        "on_call": "pagerduty-payments",
+                    }
+                ],
+            }
+        }
+    )
+
+    summary = calculate_readiness([], environment="prod", environment_model=model)
+    governance = summary["environment_readiness"]["service_governance"]
+    checklist = {
+        item["id"]: item for item in summary["release_review_checklist"]
+    }
+
+    assert governance["status"] == "PASS"
+    assert governance["strictest_tier"] == "tier-0"
+    assert summary["release_evidence"]["service_governance"] == governance
+    assert checklist["service_ownership_and_tiering"]["status"] == "PASS"

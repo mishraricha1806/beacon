@@ -1,8 +1,21 @@
+schema_version: 1.0.0
 id: cloud-gcp-readiness
 name: GCP Cloud Readiness
 version: 0.1.0
 status: preview
-owner: beacon
+owner: beacon-platform
+support_tier: experimental
+engine_compatibility:
+  min_version: 0.1.0
+  max_version_exclusive: 0.2.0
+fixtures:
+  - path: examples/supported/cloud/gcp.yaml
+    expected_rule_ids:
+      - cloud.database.gcp.public_ip.enabled
+deprecation:
+  notice: null
+  removal_after: null
+  replacement: null
 summary: >
   Inspectable GCP readiness checks for Cloud SQL public access, backup,
   deletion protection, HA, Cloud Storage recovery, uniform bucket access,

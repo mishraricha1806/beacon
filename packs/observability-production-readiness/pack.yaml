@@ -1,0 +1,55 @@
+schema_version: 1.0.0
+id: observability-production-readiness
+name: Observability Production Readiness
+version: 0.1.0
+status: preview
+owner: beacon-platform
+support_tier: experimental
+engine_compatibility:
+  min_version: 0.1.10
+  max_version_exclusive: 0.2.0
+fixtures:
+  - path: examples/supported/observability/checkout-observability.yaml
+    expected_rule_ids:
+      - observability.review.controls_verified
+deprecation:
+  notice: null
+  removal_after: null
+  replacement: null
+summary: Deterministic review of SLOs, alerts, dashboards, telemetry quality, cost, synthetics, incidents, deployments, and historical evidence.
+domains: [observability]
+use_cases:
+  - Can responders detect and diagnose customer-impacting degradation?
+  - Are reliability commitments and error-budget alerts actionable?
+  - Is telemetry current, correlated, safe, and cost-controlled?
+non_goals:
+  - Replacing telemetry backends or alert managers
+  - Creating dashboards, alerts, or SLOs automatically
+  - Proving causality from temporal correlation
+  - Sending telemetry or mutating production systems
+rules:
+  - observability.review.input_invalid
+  - observability.service.owner_missing
+  - observability.evidence.timestamp_missing
+  - observability.evidence.stale
+  - observability.slo.missing
+  - observability.slo.invalid
+  - observability.error_budget.exhausted
+  - observability.slo.burn_rate_multi_window_missing
+  - observability.alerts.missing
+  - observability.alert.governance_incomplete
+  - observability.dashboard.critical_signals_missing
+  - observability.telemetry.signals_missing
+  - observability.telemetry.data_stale
+  - observability.trace.propagation_unverified
+  - observability.telemetry.correlation_incomplete
+  - observability.telemetry.sampling_invalid
+  - observability.metrics.cardinality_budget_exceeded
+  - observability.telemetry.cost_budget_exceeded
+  - observability.telemetry.sensitive_data_detected
+  - observability.synthetic.coverage_missing
+  - observability.incident.timeline_incomplete
+  - observability.history.insufficient
+  - observability.history.degrading_trend
+  - observability.deployment.regression_detected
+  - observability.review.controls_verified

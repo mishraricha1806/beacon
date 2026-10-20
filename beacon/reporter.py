@@ -3,6 +3,7 @@ import json
 from rich.console import Console
 from rich.table import Table
 
+from beacon.contracts import REPORT_SCHEMA_VERSION, contract_metadata
 from beacon.html_report import generate_html_report
 from beacon.diagnose.diagnostic_engine import build_diagnostic_summary
 from beacon.readiness.interpretation import interpret_findings, sort_findings
@@ -42,6 +43,7 @@ def print_report(
 
     if output == "json":
         payload = {
+            **contract_metadata(REPORT_SCHEMA_VERSION),
             "score": score,
             "score_status": score_status,
             "readiness_summary": readiness_summary,

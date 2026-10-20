@@ -71,6 +71,21 @@ def print_readiness_summary(summary):
     console.print(f"[bold]Production Decision:[/bold] {summary['production_decision']}")
     console.print(f"[bold]Primary Risk Area:[/bold] {summary['primary_risk_area']}\n")
 
+    if summary.get("readiness_evidence_quality"):
+        quality = summary["readiness_evidence_quality"]
+        console.print("[bold]Readiness Evidence Quality:[/bold]")
+        console.print(f"- Status: {quality.get('status')} ({quality.get('score')}/100)")
+        console.print(f"- Reason: {quality.get('reason')}")
+        if quality.get("strengths"):
+            console.print("- Evidence strengths:")
+            for strength in quality["strengths"][:3]:
+                console.print(f"  - {strength}")
+        if quality.get("context_gaps"):
+            console.print("- Context gaps:")
+            for gap in quality["context_gaps"][:3]:
+                console.print(f"  - {gap}")
+        console.print()
+
     if summary.get("release_evidence"):
         evidence = summary["release_evidence"]
         blockers = evidence.get("production_blockers") or {}
@@ -108,6 +123,28 @@ def print_readiness_summary(summary):
         )
         console.print()
 
+    if summary.get("fix_plan"):
+        fix_table = Table(title="Fix Plan")
+        fix_table.add_column("#")
+        fix_table.add_column("Severity")
+        fix_table.add_column("Disposition")
+        fix_table.add_column("Risk")
+        fix_table.add_column("Action")
+        fix_table.add_column("Validation")
+
+        for item in summary["fix_plan"][:8]:
+            fix_table.add_row(
+                str(item.get("rank", "")),
+                item.get("severity", ""),
+                item.get("disposition", ""),
+                item.get("title", ""),
+                item.get("action", ""),
+                "; ".join(item.get("validation_needed", [])[:2]),
+            )
+
+        console.print(fix_table)
+        console.print()
+
     if summary.get("environment_readiness"):
         environment = summary["environment_readiness"]
         console.print("[bold]Environment Readiness:[/bold]")
@@ -124,6 +161,18 @@ def print_readiness_summary(summary):
             console.print("- Business flows: " + ", ".join(environment["business_flows"][:3]))
         if environment.get("dependency_domains"):
             console.print("- Dependencies: " + ", ".join(environment["dependency_domains"]))
+        governance = environment.get("service_governance") or {}
+        if governance:
+            console.print(
+                f"- Service governance: {governance.get('status')} "
+                f"({governance.get('ownership_coverage_percent', 0)}% ownership coverage)"
+            )
+            console.print(
+                f"- Strictest tier: {governance.get('strictest_tier')} "
+                f"(recommended CI gate: {governance.get('recommended_fail_on')})"
+            )
+            if governance.get("missing_owners"):
+                console.print("- Missing owners: " + ", ".join(governance["missing_owners"][:5]))
         if environment.get("blocked_dimensions"):
             console.print("- Blocked/high-risk domains:")
             for dimension in environment["blocked_dimensions"][:4]:
@@ -227,16 +276,21 @@ def print_readiness_summary(summary):
         grouped_table.add_column("Category")
         grouped_table.add_column("Risk")
         grouped_table.add_column("Affected")
-        grouped_table.add_column("Remediation")
+        grouped_table.add_column("Why It Matters")
+        grouped_table.add_column("Evidence")
+        grouped_table.add_column("Fix First")
         grouped_table.add_column("Examples")
 
         for risk in summary["grouped_risks"][:10]:
+            quality = risk.get("evidence_quality") or {}
             grouped_table.add_row(
                 risk["severity"],
                 risk.get("business_category", ""),
                 risk["title"],
                 str(risk.get("affected_count", 0)),
-                risk.get("remediation_command") or risk.get("recommendation", ""),
+                risk.get("why_this_matters", ""),
+                f"{quality.get('status', 'UNKNOWN')} ({quality.get('score', 0)}/100)",
+                risk.get("recommendation", ""),
                 ", ".join(risk.get("examples", [])[:3]),
             )
 

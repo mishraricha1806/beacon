@@ -1,3 +1,9 @@
+import json
+from pathlib import Path
+
+import pytest
+import typer
+
 from beacon.packs import (
     get_pack,
     list_packs,
@@ -5,6 +11,33 @@ from beacon.packs import (
     pack_summary,
     validate_pack,
 )
+
+
+def valid_manifest(**overrides):
+    manifest = {
+        "schema_version": "1.0.0",
+        "id": "custom-review-pack",
+        "name": "Custom Review Pack",
+        "version": "1.0.0",
+        "status": "preview",
+        "owner": "platform-team",
+        "support_tier": "experimental",
+        "engine_compatibility": {
+            "min_version": "0.1.0",
+            "max_version_exclusive": "0.2.0",
+        },
+        "domains": ["kubernetes"],
+        "non_goals": ["Mutating production resources"],
+        "fixtures": [],
+        "deprecation": {
+            "notice": None,
+            "removal_after": None,
+            "replacement": None,
+        },
+        "rules": [{"rule_id": "k8s.workload.probes.missing"}],
+    }
+    manifest.update(overrides)
+    return manifest
 
 
 def test_kafka_readiness_pack_is_discoverable_and_metadata_backed():
@@ -265,6 +298,100 @@ def test_pack_catalog_lists_readiness_packs():
     assert packs["iac-coverage-readiness"]["status"] == "preview"
     assert "distributed-system-production-readiness" in packs
     assert packs["distributed-system-production-readiness"]["status"] == "preview"
+
+
+def test_all_bundled_pack_manifests_pass_v1_governance_contract():
+    for pack in list_packs().values():
+        validation = validate_pack(pack, engine_version="0.1.10")
+
+        assert validation["valid"] is True, (pack["id"], validation["errors"])
+        assert validation["engine_compatible"] is True
+        assert validation["missing_fields"] == []
+        assert validation["missing_fixtures"] == []
+
+
+def test_pack_validation_rejects_incompatible_engine_and_missing_governance():
+    manifest = valid_manifest(owner="", support_tier="unknown")
+
+    validation = validate_pack(manifest, engine_version="1.0.0")
+
+    assert validation["valid"] is False
+    assert validation["engine_compatible"] is False
+    assert any("owner" in error for error in validation["errors"])
+    assert any("support_tier" in error for error in validation["errors"])
+    assert any("outside the supported pack range" in error for error in validation["errors"])
+
+
+def test_stable_and_deprecated_packs_require_lifecycle_evidence():
+    stable = validate_pack(valid_manifest(status="stable"), engine_version="0.1.10")
+    deprecated = validate_pack(
+        valid_manifest(status="deprecated"),
+        engine_version="0.1.10",
+    )
+
+    assert any("stable packs require" in error for error in stable["errors"])
+    assert any("deprecation.removal_after" in error for error in deprecated["errors"])
+
+
+def test_pack_validate_cli_emits_ci_friendly_status(capsys):
+    from beacon import cli
+
+    cli.validate_readiness_packs(
+        pack_id=None,
+        engine_version="0.1.10",
+        output="json",
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["valid"] is True
+    assert all(result["valid"] for result in payload["packs"].values())
+
+    with pytest.raises(typer.Exit) as exit_info:
+        cli.validate_readiness_packs(
+            pack_id=None,
+            engine_version="1.0.0",
+            output="json",
+        )
+    assert exit_info.value.exit_code == 1
+
+
+def test_custom_pack_root_has_precedence_over_bundled_pack(monkeypatch, tmp_path):
+    from beacon.packs import list_packs
+
+    pack_dir = tmp_path / "kafka-production-readiness"
+    pack_dir.mkdir()
+    manifest = valid_manifest(
+        id="kafka-production-readiness",
+        name="Organization Kafka Readiness",
+    )
+    (pack_dir / "pack.yaml").write_text(
+        "\n".join(
+            [
+                "schema_version: 1.0.0",
+                "id: kafka-production-readiness",
+                "name: Organization Kafka Readiness",
+                "version: 1.0.0",
+                "status: preview",
+                "owner: platform-team",
+                "support_tier: experimental",
+                "engine_compatibility:",
+                "  min_version: 0.1.0",
+                "  max_version_exclusive: 0.2.0",
+                "domains: [kafka]",
+                "non_goals: [Mutating Kafka]",
+                "fixtures: []",
+                "deprecation: {notice: null, removal_after: null, replacement: null}",
+                "rules: [kafka.topic.replication_factor.low]",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("BEACON_PACKS_DIR", str(tmp_path))
+
+    pack = list_packs()[manifest["id"]]
+
+    assert pack["name"] == "Organization Kafka Readiness"
+    assert Path(pack["path"]).is_relative_to(tmp_path)
 
 
 def test_pack_summary_exposes_reviewable_coverage_counts():

@@ -13,6 +13,8 @@ import shutil
 
 import typer
 
+from beacon.contracts import validate_release_evidence
+from beacon.ci_export import write_ci_artifacts
 from beacon.scanner import scan_path
 from beacon.reporter import print_report
 from beacon.runtime_advisor import analyze_runtime_file
@@ -25,10 +27,12 @@ from beacon.runtime_snapshot import analyze_runtime_snapshot_file
 from beacon.prometheus_connector import analyze_prometheus_config
 from beacon.schema_registry_connector import analyze_schema_registry_config
 from beacon.opentelemetry_connector import analyze_opentelemetry_file
+from beacon.observability_review import analyze_observability_review_file
 from beacon.deployment_events import analyze_deployment_events_file
 from beacon.iac_coverage import analyze_iac_coverage
+from beacon.evidence_quality import annotate_evidence_quality
 from beacon.readiness.kafka.readiness_engine import calculate_readiness
-from beacon.readiness.comparison import compare_release_evidence
+from beacon.readiness.comparison import compare_release_evidence, format_comparison_markdown
 from beacon.engine import metadata_registry as rules_registry
 from beacon.packs import (
     get_pack,
@@ -141,7 +145,8 @@ def write_release_evidence(summary, evidence_output=None, config_path=None):
 
 def load_release_evidence(path):
     evidence_path = Path(path).expanduser()
-    return json.loads(evidence_path.read_text(encoding="utf-8"))
+    payload = json.loads(evidence_path.read_text(encoding="utf-8"))
+    return validate_release_evidence(payload, allow_legacy=True)
 
 
 def option_value(value):
@@ -162,7 +167,11 @@ def emit_readiness(
     config=None,
     config_path=None,
     evidence_output=None,
+    sarif_output=None,
+    junit_output=None,
+    fail_on="high",
 ):
+    findings = annotate_evidence_quality(findings)
     findings = apply_runtime_policy(
         findings,
         policy_path=policy_path,
@@ -188,6 +197,13 @@ def emit_readiness(
         readiness_summary,
         evidence_output=evidence_output,
         config_path=config_path,
+    )
+    write_ci_artifacts(
+        readiness_summary.get("interpreted_findings") or findings,
+        readiness_summary,
+        sarif_output=option_value(sarif_output),
+        junit_output=option_value(junit_output),
+        fail_on=option_value(fail_on) or "high",
     )
     return readiness_summary
 
@@ -215,6 +231,7 @@ def emit_diagnostics(
     environment=None,
     intelligence_context=None,
 ):
+    findings = annotate_evidence_quality(findings)
     findings = apply_runtime_policy(findings, policy_path=policy_path)
     diagnostic_summary = build_diagnostic_summary(
         findings,
@@ -240,6 +257,7 @@ def collect_all_domain_findings(
     kafka_acl_path=None,
     kafka_history_path=None,
     deployment_events_path=None,
+    observability_review_path=None,
     prometheus_timeout=5,
     schema_registry_timeout=5,
     kafka_bootstrap_server=None,
@@ -293,6 +311,14 @@ def collect_all_domain_findings(
         findings.extend(
             collect_domain_findings(
                 "opentelemetry", lambda: analyze_opentelemetry_file(opentelemetry_path)
+            )
+        )
+
+    if observability_review_path:
+        findings.extend(
+            collect_domain_findings(
+                "observability_review",
+                lambda: analyze_observability_review_file(observability_review_path),
             )
         )
 
@@ -561,6 +587,19 @@ def doctor(config: str = typer.Option(None, "--config", help="Path to beacon.yam
             typer.echo(
                 "[OK] dependency domains: " + ", ".join(environment_model["dependency_domains"])
             )
+        governance = environment_model.get("service_governance") or {}
+        if governance:
+            marker = "[OK]" if governance.get("status") == "PASS" else "[WARN]"
+            typer.echo(
+                f"{marker} service governance: {governance.get('status')} "
+                f"({governance.get('owned_service_count', 0)}/"
+                f"{governance.get('service_count', 0)} owned)"
+            )
+            ci_options = config_ci_options(data)
+            typer.echo(
+                f"[OK] CI gate: {ci_options.get('fail_on')} "
+                f"({ci_options.get('fail_on_source')})"
+            )
 
         for include_path in config_readiness_includes(data, config_path):
             path = Path(include_path)
@@ -590,7 +629,12 @@ def run_task(
 def compare_evidence(
     before: str = typer.Argument(..., help="Previous Beacon release evidence JSON."),
     after: str = typer.Argument(..., help="New Beacon release evidence JSON."),
-    output: str = typer.Option("terminal", help="Output format: terminal or json."),
+    output: str = typer.Option("terminal", help="Output format: terminal, json, or markdown."),
+    markdown_output: str = typer.Option(
+        None,
+        "--markdown-output",
+        help="Also write a Markdown comparison summary to this path.",
+    ),
 ):
     """Compare two Beacon release evidence files."""
 
@@ -598,10 +642,23 @@ def compare_evidence(
         load_release_evidence(before),
         load_release_evidence(after),
     )
+    markdown = format_comparison_markdown(comparison)
+    markdown_output = option_value(markdown_output)
+    if markdown_output:
+        path = Path(markdown_output).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(markdown, encoding="utf-8")
 
     if output == "json":
         typer.echo(json.dumps(comparison, indent=2))
         return
+
+    if output == "markdown":
+        typer.echo(markdown, nl=False)
+        return
+
+    if output != "terminal":
+        raise typer.BadParameter("output must be one of: terminal, json, markdown")
 
     from rich.console import Console
 
@@ -689,7 +746,9 @@ def list_readiness_packs(output: str = typer.Option("terminal", help="Output: te
     table = Table(title="Beacon Readiness Packs")
     table.add_column("Pack ID", style="bold")
     table.add_column("Name")
+    table.add_column("Version")
     table.add_column("Status")
+    table.add_column("Support")
     table.add_column("Rules")
     table.add_column("Gate")
     table.add_column("Summary")
@@ -699,7 +758,9 @@ def list_readiness_packs(output: str = typer.Option("terminal", help="Output: te
         table.add_row(
             pack_id,
             str(pack.get("name") or ""),
+            str(pack.get("version") or ""),
             str(pack.get("status") or ""),
+            str(pack.get("support_tier") or ""),
             str(summary["rule_count"]),
             str(summary["release_gate_rules"]),
             str(pack.get("summary") or "").strip(),
@@ -734,7 +795,12 @@ def show_readiness_pack(
     console = Console()
     console.print(f"[bold]{pack.get('name') or pack_id}[/bold]")
     console.print(str(pack.get("summary") or "").strip())
+    console.print(f"Manifest schema: {pack.get('schema_version') or 'unknown'}")
+    console.print(f"Version: {pack.get('version') or 'unknown'}")
     console.print(f"Status: {pack.get('status') or 'unknown'}")
+    console.print(f"Owner: {pack.get('owner') or 'unknown'}")
+    console.print(f"Support tier: {pack.get('support_tier') or 'unknown'}")
+    console.print(f"Engine compatible: {validation['engine_compatible']}")
     console.print(f"Rules: {validation['rule_count']}")
     console.print(f"Release-gate rules: {summary['release_gate_rules']}")
     console.print(f"Advisory/context rules: {summary['advisory_rules']}")
@@ -745,6 +811,11 @@ def show_readiness_pack(
             console.print(f"- {rule_id}")
     else:
         console.print("[green]All pack rules have Beacon metadata.[/green]")
+
+    if validation["errors"]:
+        console.print("[bold red]Manifest errors:[/bold red]")
+        for error in validation["errors"]:
+            console.print(f"- {error}")
 
     if summary["severity_counts"]:
         console.print("\n[bold]Severity Coverage[/bold]")
@@ -767,6 +838,53 @@ def show_readiness_pack(
         console.print("\n[bold]Non-Goals[/bold]")
         for non_goal in non_goals:
             console.print(f"- {non_goal}")
+
+
+@packs_app.command("validate")
+def validate_readiness_packs(
+    pack_id: str = typer.Option(None, "--pack", help="Validate one pack id."),
+    engine_version: str = typer.Option(
+        None,
+        "--engine-version",
+        help="Validate compatibility against a specific Beacon semantic version.",
+    ),
+    output: str = typer.Option("terminal", help="Output: terminal or json."),
+):
+    """Validate pack manifests, fixtures, rule metadata, and engine compatibility."""
+    packs = list_packs()
+    if pack_id:
+        pack = packs.get(pack_id)
+        if not pack:
+            raise typer.BadParameter(f"Unknown readiness pack '{pack_id}'.")
+        packs = {pack_id: pack}
+
+    validations = {
+        current_id: validate_pack(pack, engine_version=engine_version)
+        for current_id, pack in sorted(packs.items())
+    }
+    valid = all(result["valid"] for result in validations.values())
+
+    if output == "json":
+        typer.echo(json.dumps({"valid": valid, "packs": validations}, indent=2))
+    elif output == "terminal":
+        from rich.console import Console
+
+        console = Console()
+        for current_id, result in validations.items():
+            marker = "[green]PASS[/green]" if result["valid"] else "[red]FAIL[/red]"
+            console.print(
+                f"{marker} {current_id}: {result['rule_count']} rules, "
+                f"engine compatible={result['engine_compatible']}"
+            )
+            for error in result["errors"]:
+                console.print(f"  - {error}")
+            for rule_id in result["missing_metadata"]:
+                console.print(f"  - Missing rule metadata: {rule_id}")
+    else:
+        raise typer.BadParameter("output must be one of: terminal, json")
+
+    if not valid:
+        raise typer.Exit(code=1)
 
 
 @packs_app.command("rules")
@@ -1072,6 +1190,11 @@ def diagnose_all(
     deployment_events_path: str = typer.Option(
         None, "--deployment-events", help="Deployment events YAML or JSON path."
     ),
+    observability_review_path: str = typer.Option(
+        None,
+        "--observability-review",
+        help="Versioned observability review YAML or JSON path.",
+    ),
     prometheus_timeout: int = typer.Option(
         5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
     ),
@@ -1126,6 +1249,7 @@ def diagnose_all(
         kafka_acl_path=kafka_acl_path,
         kafka_history_path=kafka_history_path,
         deployment_events_path=deployment_events_path,
+        observability_review_path=observability_review_path,
         prometheus_timeout=prometheus_timeout,
         schema_registry_timeout=schema_registry_timeout,
         kafka_bootstrap_server=kafka_bootstrap_server,
@@ -1439,6 +1563,11 @@ def readiness_all(
     deployment_events_path: str = typer.Option(
         None, "--deployment-events", help="Deployment events YAML or JSON path."
     ),
+    observability_review_path: str = typer.Option(
+        None,
+        "--observability-review",
+        help="Versioned observability review YAML or JSON path.",
+    ),
     prometheus_timeout: int = typer.Option(
         5, "--prometheus-timeout", help="Prometheus query timeout in seconds."
     ),
@@ -1489,6 +1618,12 @@ def readiness_all(
         "--evidence-output",
         help="Write readiness_summary.release_evidence to this JSON file.",
     ),
+    sarif_output: str = typer.Option(
+        None, "--sarif-output", help="Write SARIF 2.1.0 findings."
+    ),
+    junit_output: str = typer.Option(
+        None, "--junit-output", help="Write JUnit XML findings."
+    ),
 ):
     """Analyze production readiness across all provided Beacon domains."""
 
@@ -1502,6 +1637,7 @@ def readiness_all(
         kafka_acl_path=kafka_acl_path,
         kafka_history_path=kafka_history_path,
         deployment_events_path=deployment_events_path,
+        observability_review_path=observability_review_path,
         prometheus_timeout=prometheus_timeout,
         schema_registry_timeout=schema_registry_timeout,
         kafka_bootstrap_server=kafka_bootstrap_server,
@@ -1530,6 +1666,9 @@ def readiness_all(
         context_path=context_path,
         policy_path=policy_path,
         evidence_output=evidence_output,
+        sarif_output=sarif_output,
+        junit_output=junit_output,
+        fail_on=fail_on or "high",
     )
     maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
@@ -1562,6 +1701,16 @@ def readiness_static(
         "--evidence-output",
         help="Write readiness_summary.release_evidence to this JSON file.",
     ),
+    sarif_output: str = typer.Option(
+        None,
+        "--sarif-output",
+        help="Write SARIF 2.1.0 findings for code-scanning systems.",
+    ),
+    junit_output: str = typer.Option(
+        None,
+        "--junit-output",
+        help="Write JUnit XML findings for CI test-report systems.",
+    ),
 ):
     """Analyze infrastructure production readiness."""
 
@@ -1575,6 +1724,9 @@ def readiness_static(
         context_path=context_path,
         policy_path=policy_path,
         evidence_output=evidence_output,
+        sarif_output=sarif_output,
+        junit_output=junit_output,
+        fail_on=fail_on or "high",
     )
     maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
@@ -1700,6 +1852,45 @@ def readiness_prometheus(
         environment=environment,
         context_path=context_path,
     )
+
+
+@readiness_app.command("observability")
+def readiness_observability(
+    path: str = typer.Argument(..., help="Path to a versioned observability review."),
+    environment: str = typer.Option(
+        None, "--environment", help="Readiness profile: dev, test, staging, prod."
+    ),
+    context_path: str = typer.Option(
+        None,
+        "--context",
+        help="Organization intelligence context YAML/JSON for deterministic interpretation.",
+    ),
+    html: bool = typer.Option(True),
+    open_report: bool = typer.Option(True),
+    output: str = typer.Option("terminal"),
+    policy_path: str = typer.Option(None, "--policy", help="Policy and waiver YAML."),
+    ci: bool = typer.Option(False, "--ci", help="Enable the configured readiness gate."),
+    fail_on: str = typer.Option(None, "--fail-on", help="CI severity threshold."),
+    evidence_output: str = typer.Option(None, "--evidence-output"),
+    sarif_output: str = typer.Option(None, "--sarif-output"),
+    junit_output: str = typer.Option(None, "--junit-output"),
+):
+    """Review SLOs, alerts, dashboards, telemetry, synthetics, and history."""
+    findings = analyze_observability_review_file(path)
+    summary = emit_readiness(
+        findings,
+        html=html,
+        open_report=open_report,
+        output=output,
+        environment=environment,
+        context_path=context_path,
+        policy_path=policy_path,
+        evidence_output=evidence_output,
+        sarif_output=sarif_output,
+        junit_output=junit_output,
+        fail_on=fail_on or "high",
+    )
+    maybe_exit_for_ci(summary, ci=ci, fail_on=fail_on)
 
 
 @readiness_app.command("opentelemetry")
