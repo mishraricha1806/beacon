@@ -36,6 +36,9 @@ Beacon is read-only. It does not mutate infrastructure, consume Kafka messages,
 alter Kafka topics, update consumer offsets, or change Kubernetes resources.
 Known limitations are documented in [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md).
 
+Beacon supports Python 3.10 through 3.12. Python 3.9 is no longer supported
+because it is end-of-life and current runtime dependencies require Python 3.10+.
+
 ## Example Output
 
 Beacon output is intended to be explicit about what it knows and what it cannot
