@@ -25,7 +25,12 @@ dist-binaries/
 
 # Coverage
 .coverage
+coverage.xml
 htmlcov/
+
+# Tool caches
+.mypy_cache/
+.ruff_cache/
 
 # IDE
 .vscode/
@@ -36,4 +41,3 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
-

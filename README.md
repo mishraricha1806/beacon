@@ -39,6 +39,18 @@ Known limitations are documented in [`docs/LIMITATIONS.md`](docs/LIMITATIONS.md)
 Beacon supports Python 3.10 through 3.12. Python 3.9 is no longer supported
 because it is end-of-life and current runtime dependencies require Python 3.10+.
 
+## Project Governance
+
+- Security reporting and supported-release policy: [`SECURITY.md`](SECURITY.md)
+- Support scope and response expectations: [`SUPPORT.md`](SUPPORT.md)
+- Contribution and review requirements: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Enforced quality gates and debt ratchet: [`docs/QUALITY_POLICY.md`](docs/QUALITY_POLICY.md)
+
+Published releases include checksums, an SPDX SBOM, and build-provenance
+attestations. Production consumers should pin the reusable action to a reviewed
+commit SHA and the container image to an approved digest; movable tags are for
+evaluation only.
+
 ## Example Output
 
 Beacon output is intended to be explicit about what it knows and what it cannot

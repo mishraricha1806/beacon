@@ -11,8 +11,9 @@ of the applicable organizational intellectual-property terms.
 4. Add fixtures and tests for behavioral and contract changes.
 5. Test supported Python versions 3.10 through 3.12.
 6. Run `python scripts/release_check_all.py` and `beacon packs validate`.
-7. Update public schemas and compatibility documentation for contract changes.
-8. Open a pull request with the risk, evidence, verification, and rollout plan.
+7. Run `python scripts/quality_ratchet.py` and lower the baseline when debt is removed.
+8. Update public schemas and compatibility documentation for contract changes.
+9. Open a pull request with the risk, evidence, verification, and rollout plan.
 
 ## Product principles
 

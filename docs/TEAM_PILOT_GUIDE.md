@@ -39,10 +39,10 @@ jobs:
   readiness:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - id: beacon
-        uses: mishraricha1806/beacon/.github/actions/beacon-readiness@v1
+        uses: mishraricha1806/beacon/.github/actions/beacon-readiness@<BEACON_IMMUTABLE_COMMIT_SHA>
         with:
           scan-path: .
           # Optional versioned service observability posture:
@@ -54,7 +54,7 @@ jobs:
 
       - name: Preserve Beacon evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: beacon-readiness-${{ github.run_id }}
           path: beacon-reports/
@@ -62,7 +62,7 @@ jobs:
           retention-days: 30
 ```
 
-Pin the action to an immutable commit SHA for production use. The `@v1` reference above is intentionally readable for initial evaluation.
+Replace `<BEACON_IMMUTABLE_COMMIT_SHA>` with the reviewed Beacon release commit. Do not use a movable tag for a production gate; record the selected SHA in the pilot inventory so every team runs the same action implementation.
 
 ## Rollout stages
 
