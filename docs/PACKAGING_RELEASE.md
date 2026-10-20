@@ -10,7 +10,7 @@ Beacon should be released as installer and binary artifacts, not as source.
 - macOS primary artifact: `.pkg` installer.
 - Linux artifact: standalone `beacon-linux` binary.
 - Windows artifact: standalone `beacon-windows.exe` binary.
-- Checksums: publish SHA256 files with installer artifacts.
+- Integrity metadata: publish a SHA256 manifest, SPDX SBOM, and build-provenance attestations with every release.
 
 Do not publish source distributions for private-source releases. Avoid PyPI unless
 you intentionally want Python package contents exposed to users; Python wheels can
@@ -67,7 +67,8 @@ git push origin v0.1.2
 ```
 
 The workflow runs the release checks, builds the platform binaries, wraps the
-macOS binary into a `.pkg`, and uploads build artifacts to GitHub Actions.
+macOS binary into a `.pkg`, generates checksums and an SPDX SBOM, creates build
+and SBOM attestations, and uploads the artifacts to GitHub Actions.
 
 The source repository workflow intentionally does not create an external GitHub
 Release by default.
@@ -82,6 +83,8 @@ beacon-<version>-macos.pkg.sha256
 beacon-macos
 beacon-linux
 beacon-windows.exe
+SHA256SUMS
+beacon.spdx.json
 ```
 
 See [PUBLIC_DISTRIBUTION.md](PUBLIC_DISTRIBUTION.md) for the artifact-only
@@ -112,6 +115,11 @@ packaging metadata.
 
 ## Signing
 
-The current `.pkg` builder creates an unsigned installer. For broad external
-distribution, add Apple Developer ID Installer signing and notarization before
-calling the release public.
+The workflow signs and notarizes the macOS installer when the documented Apple
+credentials are configured. An unsigned local build is suitable only for
+development; broad distribution requires a successful signing and notarization
+step.
+
+See [REPOSITORY_ADMIN_CHECKLIST.md](REPOSITORY_ADMIN_CHECKLIST.md) for the host
+settings, protected checks, and release approvals that cannot be encoded in the
+repository itself.

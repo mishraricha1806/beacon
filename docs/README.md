@@ -14,6 +14,8 @@ This directory is intentionally small and engineering-focused.
 - [`PROJECT_LOCAL_CONFIG.md`](PROJECT_LOCAL_CONFIG.md) - `beacon.yaml`, config discovery, local workflow
 - [`CICD_INTEGRATION.md`](CICD_INTEGRATION.md) - CI/CD usage
 - [`TEAM_PILOT_GUIDE.md`](TEAM_PILOT_GUIDE.md) - reusable CI action, evidence governance, and multi-team rollout
+- [`QUALITY_POLICY.md`](QUALITY_POLICY.md) - blocking quality gates and the legacy-debt ratchet
+- [`REPOSITORY_ADMIN_CHECKLIST.md`](REPOSITORY_ADMIN_CHECKLIST.md) - required GitHub settings and per-release controls
 
 ## Readiness Areas
 
@@ -34,3 +36,4 @@ This directory is intentionally small and engineering-focused.
 - [`PUBLIC_DISTRIBUTION.md`](PUBLIC_DISTRIBUTION.md)
 - [`PACKAGING_RELEASE.md`](PACKAGING_RELEASE.md)
 - [`RELEASE_QUICK_REFERENCE.md`](RELEASE_QUICK_REFERENCE.md)
+- [`CONTROL_PLANE_ENTRY_CRITERIA.md`](CONTROL_PLANE_ENTRY_CRITERIA.md) - conditions required before building a shared service
